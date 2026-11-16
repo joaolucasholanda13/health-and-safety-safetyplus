@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block page_title %}Usuários e acessos{% endblock %}
+{% block content %}
+<style>
+  .secao{margin-bottom:var(--espaco-5)}
+  .secao>h2{font-size:1rem;margin-bottom:var(--espaco-3)}
+  .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--espaco-3);align-items:end}
+  .campo-grupo label{display:block;font-size:.8125rem;font-weight:600;margin-bottom:6px}
+  .user-card{padding:10px 0;border-bottom:1px dashed #EFEBE5}
+  .user-main{display:grid;grid-template-columns:1.2fr 1.2fr 1fr 1.1fr auto;gap:var(--espaco-3);align-items:center}
+  .user-main .nome strong{display:block}.user-main .nome span{color:var(--cor-texto-secundario);font-size:.82rem}
+  .acoes{display:flex;gap:6px;justify-content:flex-end;align-items:center}
+  .toggle-mini{position:relative;width:40px;height:22px}.toggle-mini input{opacity:0;width:100%;height:100%;position:absolute;cursor:pointer;z-index:2}.toggle-mini .track{position:absolute;inset:0;background:#D8D3CC;border-radius:999px}.toggle-mini .thumb{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}.toggle-mini input:checked~.track{background:var(--cor-sucesso)}.toggle-mini input:checked~.thumb{transform:translateX(18px)}
+  .scope-box{margin-top:12px;padding:14px;border:1px solid #E9E4DE;border-radius:14px;background:#FCFBF9}
+  .scope-box h3{font-size:.88rem;margin:0 0 8px}.scope-box p{font-size:.78rem;color:var(--cor-texto-secundario);margin:0 0 10px}
+  .scope-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .scope-group{border:1px solid #ECE7E1;border-radius:10px;padding:10px;background:#fff}
+  .scope-group strong{display:block;font-size:.8rem;margin-bottom:7px;color:var(--cor-texto)}
+  .scope-item{display:flex;align-items:flex-start;gap:7px;font-size:.78rem;margin:5px 0;line-height:1.25}
+  .scope-item input{margin-top:2px}
+  .scope-summary{display:flex;align-items:center;gap:8px;margin-top:5px}.scope-count{font-size:.72rem;padding:3px 8px;border-radius:999px;background:#F4EFE9;color:#665E56}.scope-toggle{border:0;background:transparent;color:#D94B43;font-weight:700;font-size:.74rem;cursor:pointer;padding:2px 0}.scope-toggle:hover{text-decoration:underline}.scope-box[data-collapsible]{margin-top:8px;padding:10px 12px}.scope-box[data-collapsible] h3{margin-bottom:3px}.scope-box[data-collapsible] p{margin-bottom:7px}.scope-box[data-collapsible] .scope-group{padding:7px 9px}.scope-box[data-collapsible] .scope-group strong{margin-bottom:4px}.scope-box[data-collapsible] .scope-item{margin:3px 0}.scope-box[data-collapsible][data-collapsed="1"]{display:none}
+  @media(max-width:1000px){.grid-4{grid-template-columns:1fr 1fr}.user-main{grid-template-columns:1fr 1fr}.scope-grid{grid-template-columns:1fr 1fr}.acoes{justify-content:flex-start}}
+  @media(max-width:620px){.grid-4,.user-main,.scope-grid{grid-template-columns:1fr}.scope-box{padding:12px}}
+</style>
+
+<div class="card secao" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+ <div><h2 style="margin:0 0 4px">Gerenciamento em massa</h2><p style="margin:0;color:var(--cor-texto-secundario);font-size:.85rem">Selecione várias contas comuns ou remova todas de uma vez, com confirmação.</p></div>
+ <a href="/admin/users/bulk" class="btn btn-secundario">Gerenciar exclusão em massa</a>
+</div>
+<div class="card secao">
+  <h2>Novo usuário</h2>
+  <form method="post" action="/admin/users/create" data-user-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="grid-4">
+      <div class="campo-grupo"><label>Usuário</label><input class="campo" type="text" name="username" required></div>
+      <div class="campo-grupo"><label>Nome completo</label><input class="campo" type="text" name="full_name"></div>
+      <div class="campo-grupo"><label>Senha</label><input class="campo" type="password" name="password" minlength="8" required></div>
+      <div class="campo-grupo"><label>Perfil</label>
+        <select class="campo" name="role" data-role-select>
+          <option value="{{ role_user }}">Usuário</option>
+          <option value="{{ role_admin }}">Administrador</option>
+          <option value="{{ role_super }}">Super Administrador</option>
+        </select>
+      </div>
+    </div>
+    <div class="scope-box" data-scope-box hidden>
+      <h3>Escopo do Administrador</h3>
+      <p>Marque os sites/usinas que este administrador poderá visualizar e aprovar. É possível selecionar vários locais.</p>
+      <div class="scope-grid">
+        {% for cluster, sites in cluster_sites.items() %}
+        <div class="scope-group"><strong>{{ cluster }}</strong>
+          {% for site in sites %}
+          <label class="scope-item"><input type="checkbox" name="scope_location" value="{{ cluster }}|||{{ site }}"> <span>{{ site }}</span></label>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primario" style="margin-top:14px;">Criar usuário</button>
+  </form>
+</div>
+
+<div class="card secao">
+  <h2>Usuários cadastrados ({{ users|length }})</h2>
+  {% for u in users %}
+  {% set saved_scopes = scope_map.get(u.id, []) %}
+  <form method="post" action="/admin/users/{{ u.id }}/update" class="user-card" data-user-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="user-main">
+      <div class="nome">{% if u.photo_path %}<img class="avatar" src="/avatar/{{ u.id }}" alt="">{% endif %}<strong>{{ u.username }}</strong><span>{{ 'Você' if u.id == user.id else '' }}</span>
+        {% if u.role == role_admin and saved_scopes %}
+        <div class="scope-summary">
+          <span class="scope-count">{{ saved_scopes|length }} local{% if saved_scopes|length != 1 %}is{% endif %} selecionado{% if saved_scopes|length != 1 %}s{% endif %}</span>
+          <button type="button" class="scope-toggle" data-scope-toggle>Editar escopo</button>
+        </div>
+        {% endif %}
+      </div>
+      <input class="campo" type="text" name="full_name" value="{{ u.full_name }}" placeholder="Nome completo">
+      <select class="campo" name="role" data-role-select>
+        <option value="{{ role_user }}" {% if u.role == role_user %}selected{% endif %}>Usuário</option>
+        <option value="{{ role_admin }}" {% if u.role == role_admin %}selected{% endif %}>Administrador</option>
+        <option value="{{ role_super }}" {% if u.role == role_super %}selected{% endif %}>Super Administrador</option>
+      </select>
+      <input class="campo" type="password" name="new_password" placeholder="Nova senha (opcional)" minlength="8">
+      <div class="acoes">
+        {% if u.id != user.id %}
+        <label class="toggle-mini" title="Ativo"><input type="checkbox" name="active" value="1" {% if u.active %}checked{% endif %}><span class="track"></span><span class="thumb"></span></label>
+        {% endif %}
+        <button type="submit" class="btn btn-fantasma">Salvar</button>
+      </div>
+    </div>
+    <div class="scope-box" data-scope-box data-collapsible data-collapsed="1" {% if u.role != role_admin %}hidden{% endif %}>
+      <h3>Escopo do Administrador</h3>
+      <p>O administrador vê documentos e pendências somente dos locais selecionados. O Super Administrador sempre vê tudo.</p>
+      <div class="scope-grid">
+        {% for cluster, sites in cluster_sites.items() %}
+        <div class="scope-group"><strong>{{ cluster }}</strong>
+          {% for site in sites %}
+          <label class="scope-item"><input type="checkbox" name="scope_location" value="{{ cluster }}|||{{ site }}" {% if (cluster,site) in saved_scopes %}checked{% endif %}> <span>{{ site }}</span></label>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </form>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2 style="font-size:1rem;margin-bottom:12px;">Excluir usuário</h2>
+  <p style="color:var(--cor-texto-secundario);font-size:.85rem;margin-top:-6px;">Os documentos criados pelo usuário são preservados. Use com cuidado — esta ação não pode ser desfeita.</p>
+  {% for u in users %}{% if u.id != user.id %}
+  <form method="post" action="/admin/users/{{ u.id }}/delete" onsubmit="return confirm('Excluir o usuário {{ u.username }}? Essa ação não pode ser desfeita.');" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed #EFEBE5;gap:10px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><span>{{ u.username }} {% if u.full_name %}— {{ u.full_name }}{% endif %}</span><button type="submit" class="btn btn-fantasma" style="color:var(--cor-perigo);">Excluir</button>
+  </form>
+  {% endif %}{% endfor %}
+</div>
+
+<script>
+function atualizarEscopo(form){
+  const role=form.querySelector('[data-role-select]');
+  const box=form.querySelector('[data-scope-box]');
+  if(!role||!box) return;
+  const isAdmin = role.value === '{{ role_admin }}';
+  box.hidden = !isAdmin;
+  // Ao promover Usuário -> Administrador, abre o escopo imediatamente.
+  // Antes o box deixava de estar hidden, mas continuava com data-collapsed=1
+  // e o CSS mantinha display:none, impedindo marcar Cluster/Site.
+  if(isAdmin){
+    box.setAttribute('data-collapsed','0');
+    const toggle=form.querySelector('[data-scope-toggle]');
+    if(toggle) toggle.textContent='Recolher escopo';
+  }
+}
+document.querySelectorAll('[data-user-form]').forEach(function(form){
+  const role=form.querySelector('[data-role-select]');
+  const box=form.querySelector('[data-scope-box]');
+  const toggle=form.querySelector('[data-scope-toggle]');
+  if(role) role.addEventListener('change',function(){atualizarEscopo(form)});
+  if(toggle && box){
+    toggle.addEventListener('click',function(){
+      const fechado=box.getAttribute('data-collapsed')==='1';
+      box.setAttribute('data-collapsed', fechado ? '0' : '1');
+      toggle.textContent=fechado ? 'Recolher escopo' : 'Editar escopo';
+    });
+  }
+  atualizarEscopo(form);
+});
+</script>
+{% endblock %}

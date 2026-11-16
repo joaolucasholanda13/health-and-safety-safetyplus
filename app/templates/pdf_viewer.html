@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% set viewer_title = pdf_title or (doc_reference_code(doc) if doc else 'Documento PDF') %}
+{% block page_title %}PDF · {{ viewer_title }}{% endblock %}
+{% block content %}
+<style>
+  /* V36.18.30: visualizador interno sem iframe/plugin nativo.
+     As paginas sao renderizadas pelo servidor e funcionam de forma consistente
+     em Chrome/Android, Safari/iPhone, PWA e desktop. */
+  .pdf-overlay{
+    position:fixed; inset:0; z-index:1000; display:flex; flex-direction:column;
+    background:#E8E5E1; color:var(--cor-texto,#252525);
+    height:100vh; height:100dvh; width:100vw; overflow:hidden;
+  }
+  .pdf-viewer-bar{
+    flex:0 0 auto; min-height:64px; display:grid;
+    grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px;
+    padding:10px 14px 10px 18px; background:#fff; border-bottom:1px solid #DDD6CF;
+    box-shadow:0 3px 14px rgba(24,24,24,.08);
+    padding-top:max(10px,env(safe-area-inset-top,0px)); z-index:3;
+  }
+  .pdf-viewer-title{min-width:0;display:flex;align-items:center;gap:10px}
+  .pdf-viewer-title-icon{
+    width:38px;height:38px;flex:0 0 38px;border-radius:10px;display:inline-flex;
+    align-items:center;justify-content:center;background:#FFF0ED;color:var(--serena-coral,#FF5246);
+  }
+  .pdf-viewer-title-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .pdf-viewer-title-text{min-width:0}
+  .pdf-viewer-title-text strong{display:block;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pdf-viewer-title-text span{display:block;margin-top:2px;font-size:.72rem;color:var(--cor-texto-secundario,#6d6d6d)}
+  .pdf-viewer-actions{display:flex;align-items:center;gap:8px}
+  .pdf-external{
+    min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    padding:9px 13px;border:1px solid #DDD6CF;border-radius:11px;background:#F8F6F3;
+    color:var(--cor-texto,#252525);font-size:.78rem;font-weight:700;text-decoration:none;
+  }
+  .pdf-external:hover{background:#F0ECE7}
+  .pdf-close{
+    width:46px;height:46px;flex:0 0 46px;border:0;border-radius:50%;display:inline-flex;
+    align-items:center;justify-content:center;background:var(--serena-coral,#FF5246);color:#fff;
+    cursor:pointer;box-shadow:0 5px 14px rgba(255,82,70,.28);transition:transform .15s ease,filter .15s ease;
+  }
+  .pdf-close:hover{filter:brightness(.94);transform:scale(1.04)}
+  .pdf-close:active{transform:scale(.97)}
+  .pdf-close svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+
+  .pdf-stage{
+    flex:1; min-height:0; overflow:auto; overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch; padding:16px 12px 90px;
+  }
+  .pdf-pages{display:flex;flex-direction:column;align-items:center;gap:16px;min-width:100%}
+  .pdf-page-card{
+    position:relative; width:min(100%,1080px); background:#fff; border:1px solid #D7D1CA;
+    border-radius:6px; box-shadow:0 5px 18px rgba(24,24,24,.13); overflow:hidden;
+  }
+  .pdf-page-card img{display:block;width:100%;height:auto;background:#fff}
+  .pdf-pages[hidden],.pdf-zoom-tools[hidden],.pdf-page-card [hidden]{display:none!important}
+  .pdf-page-status{min-height:150px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;line-height:1.5}
+  .pdf-page-load-error .pdf-page-status{background:#FFF3F1;color:#7B2D23}
+  .pdf-page-label{
+    position:absolute;right:8px;bottom:8px;padding:4px 7px;border-radius:8px;
+    background:rgba(25,25,25,.70);color:#fff;font-size:.65rem;font-weight:700;pointer-events:none;
+  }
+  .pdf-loading,.pdf-error{
+    margin:8vh auto 0;max-width:680px;padding:24px;border-radius:14px;text-align:center;background:#fff;
+    border:1px solid #DDD6CF;box-shadow:0 5px 18px rgba(24,24,24,.08);
+  }
+  .pdf-loading-spinner{
+    width:38px;height:38px;margin:0 auto 14px;border:4px solid #E9E4DF;
+    border-top-color:var(--serena-coral,#FF5246);border-radius:50%;animation:pdfSpin .8s linear infinite;
+  }
+  @keyframes pdfSpin{to{transform:rotate(360deg)}}
+  .pdf-error{border-color:#E7B6AE;background:#FFF3F1;color:#7B2D23;text-align:left}
+  .pdf-error .btn{margin-top:14px}
+
+  .pdf-zoom-tools{
+    position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:4;
+    display:flex;align-items:center;gap:5px;padding:5px;border-radius:16px;background:rgba(255,255,255,.96);
+    border:1px solid #D8D2CB;box-shadow:0 5px 18px rgba(24,24,24,.18);
+  }
+  .pdf-zoom-tools button{
+    width:38px;height:38px;border:0;border-radius:11px;background:#F2EFEB;color:#292929;
+    font-size:1.2rem;font-weight:800;cursor:pointer;
+  }
+  .pdf-zoom-tools button:active{transform:scale(.95)}
+  .pdf-zoom-value{min-width:48px;text-align:center;font-size:.72rem;font-weight:800;color:#555}
+
+  @media(max-width:700px){
+    .pdf-viewer-bar{
+      min-height:58px;grid-template-columns:minmax(0,1fr) auto;gap:8px;
+      padding-left:10px;padding-right:10px;padding-bottom:8px;
+      padding-top:max(8px,env(safe-area-inset-top,0px));
+    }
+    .pdf-viewer-title-icon{width:34px;height:34px;flex-basis:34px;border-radius:9px}
+    .pdf-viewer-title-text strong{font-size:.84rem}
+    .pdf-viewer-title-text span{font-size:.66rem}
+    .pdf-external{width:42px;height:42px;min-height:42px;padding:0;border-radius:50%}
+    .pdf-external .pdf-external-label{display:none}
+    .pdf-close{width:46px;height:46px;flex-basis:46px}
+    .pdf-stage{padding:8px 8px 82px;background:#E8E5E1}
+    .pdf-pages{gap:10px}
+    .pdf-page-card{width:100%;border-radius:3px}
+    .pdf-page-label{font-size:.6rem}
+    .pdf-zoom-tools{right:10px;bottom:max(10px,env(safe-area-inset-bottom,0px))}
+  }
+  @media(max-width:380px){
+    .pdf-viewer-title-icon{display:none}
+    .pdf-viewer-title-text span{display:none}
+    .pdf-viewer-actions{gap:6px}
+  }
+</style>
+
+<div class="pdf-overlay" role="dialog" aria-modal="true" aria-label="Visualizador de PDF">
+  <div class="pdf-viewer-bar">
+    <div class="pdf-viewer-title">
+      <span class="pdf-viewer-title-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5"/><path d="M8.5 16.5h7M8.5 13h7"/></svg>
+      </span>
+      <div class="pdf-viewer-title-text">
+        <strong>{{ viewer_title }}</strong>
+        <span>Documento finalizado · PDF</span>
+      </div>
+    </div>
+    <div class="pdf-viewer-actions">
+      {% if raw_pdf_url %}
+      <a class="pdf-external" href="{{ raw_pdf_url }}" target="_blank" rel="noopener" title="Abrir PDF fora do visualizador" aria-label="Abrir PDF fora do visualizador">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"/></svg>
+        <span class="pdf-external-label">Abrir externamente</span>
+      </a>
+      {% endif %}
+      <button type="button" class="pdf-close" onclick="fecharPdf()" title="Fechar PDF" aria-label="Fechar PDF">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="pdf-stage" id="pdfStage">
+    {% if pdf_error %}
+      <div class="pdf-error">
+        <strong>Não foi possível abrir o PDF.</strong><br>{{ pdf_error }}
+        <div><button type="button" class="btn btn-secundario" onclick="fecharPdf()">Fechar e voltar ao painel</button></div>
+      </div>
+    {% else %}
+      <div class="pdf-loading" id="pdfLoading">
+        <div class="pdf-loading-spinner" aria-hidden="true"></div>
+        <strong>Carregando documento…</strong><br>
+        <small>Preparando as páginas para visualização.</small>
+      </div>
+      <div class="pdf-pages" id="pdfPages" hidden></div>
+    {% endif %}
+  </div>
+
+  {% if not pdf_error and raw_pdf_url %}
+  <div class="pdf-zoom-tools" id="pdfZoomTools" hidden aria-label="Controles de zoom">
+    <button type="button" id="pdfZoomOut" title="Diminuir zoom" aria-label="Diminuir zoom">−</button>
+    <span class="pdf-zoom-value" id="pdfZoomValue">100%</span>
+    <button type="button" id="pdfZoomIn" title="Aumentar zoom" aria-label="Aumentar zoom">+</button>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function fecharPdf(){
+  var fallback={{ (close_url or '/')|tojson }};
+  try{
+    // volta para a tela de onde o PDF foi aberto (mantém filtros e rolagem); sem origem válida, usa o destino padrão
+    if(document.referrer && new URL(document.referrer).origin===window.location.origin && window.history.length>1){ window.history.back(); return; }
+  }catch(e){}
+  window.location.assign(fallback);
+}
+
+document.addEventListener('keydown',function(ev){
+  if(ev.key==='Escape') fecharPdf();
+});
+
+{% if not pdf_error and raw_pdf_url %}
+(function(){
+  const rawUrl={{ raw_pdf_url|tojson }};
+  const pagesEl=document.getElementById('pdfPages');
+  const loadingEl=document.getElementById('pdfLoading');
+  const stage=document.getElementById('pdfStage');
+  const zoomTools=document.getElementById('pdfZoomTools');
+  const zoomValue=document.getElementById('pdfZoomValue');
+  const META_TIMEOUT_MS=15000, PAGE_TIMEOUT_MS=20000;
+  let zoom=1;
+
+  function buildUrl(param,value){
+    const url=new URL(rawUrl,window.location.origin);
+    url.searchParams.set(param,String(value));
+    return url.pathname+url.search;
+  }
+
+  function hideLoading(){
+    if(loadingEl) loadingEl.remove();
+    pagesEl.hidden=false;
+  }
+
+  function showFailure(message){
+    hideLoading();
+    pagesEl.innerHTML='';
+    const box=document.createElement('div');
+    box.className='pdf-error';
+    const strong=document.createElement('strong');
+    strong.textContent='Não foi possível visualizar o PDF nesta tela.';
+    const detail=document.createElement('div');
+    detail.style.marginTop='8px';
+    detail.textContent=message || 'Use o botão de abrir externamente no topo.';
+    const retry=document.createElement('button');
+    retry.type='button';retry.className='btn btn-secundario';retry.textContent='Tentar novamente';
+    retry.addEventListener('click',()=>window.location.reload());
+    const back=document.createElement('a');
+    back.className='btn btn-fantasma';back.href='/';back.textContent='Voltar ao painel';
+    box.appendChild(strong);box.appendChild(detail);box.appendChild(retry);box.appendChild(back);
+    pagesEl.appendChild(box);
+  }
+
+  async function metadata(){
+    const controller=typeof AbortController!=='undefined'?new AbortController():null;
+    let timer;
+    const timeout=new Promise((resolve,reject)=>{
+      timer=setTimeout(()=>{
+        if(controller)controller.abort();
+        reject(new Error('O servidor demorou para preparar o PDF. Tente novamente.'));
+      },META_TIMEOUT_MS);
+    });
+    const request=(async()=>{
+      const response=await fetch(buildUrl('preview_meta',1),{credentials:'same-origin',cache:'no-store',signal:controller?controller.signal:undefined});
+      const login=response.redirected&&new URL(response.url,window.location.origin).pathname.startsWith('/login');
+      if(response.status===401||login)throw new Error('Sua sessão expirou. Entre novamente no sistema para abrir o documento.');
+      if(response.status===403)throw new Error('Sua conta não tem permissão para visualizar este documento. Volte ao painel e confira seu acesso.');
+      if(response.redirected)throw new Error('O documento não está disponível para esta conta. Volte ao painel para conferir seu acesso.');
+      if(!response.ok)throw new Error('Não foi possível carregar o PDF (HTTP '+response.status+'). Tente novamente.');
+      if(!(response.headers.get('content-type')||'').includes('application/json'))throw new Error('O servidor não retornou as informações do PDF. Tente novamente ou entre novamente no sistema.');
+      try{return await response.json();}
+      catch(error){throw new Error('As informações do PDF não puderam ser lidas. Tente novamente.');}
+    })();
+    try{return await Promise.race([request,timeout]);}
+    finally{clearTimeout(timer);}
+  }
+
+  function createPage(page,total){
+    const card=document.createElement('div');card.className='pdf-page-card';
+    const img=document.createElement('img');img.alt='Página '+page+' de '+total;img.decoding='async';img.hidden=true;
+    const status=document.createElement('div');status.className='pdf-page-status';status.setAttribute('role','status');
+    const message=document.createElement('span');message.textContent='Carregando página '+page+'…';
+    const retry=document.createElement('button');retry.type='button';retry.className='btn btn-secundario';retry.textContent='Tentar carregar esta página novamente';retry.hidden=true;
+    status.appendChild(message);status.appendChild(retry);
+    const label=document.createElement('span');label.className='pdf-page-label';label.textContent='Página '+page+' / '+total;
+    card.appendChild(img);card.appendChild(status);card.appendChild(label);
+    let timer=null,attempt=0,started=false,settled=false,ready;
+    const firstReady=new Promise(resolve=>{ready=resolve;});
+    function finish(){if(timer!==null)clearTimeout(timer);if(!settled){settled=true;ready();}}
+    function failed(text){
+      img.hidden=true;status.hidden=false;card.classList.add('pdf-page-load-error');
+      message.textContent=text;retry.hidden=false;finish();
+    }
+    function load(){
+      started=true;attempt+=1;
+      if(timer!==null)clearTimeout(timer);
+      img.hidden=true;status.hidden=false;retry.hidden=true;card.classList.remove('pdf-page-load-error');
+      message.textContent='Carregando página '+page+'…';
+      img.onload=()=>{img.hidden=false;status.hidden=true;card.classList.remove('pdf-page-load-error');finish();};
+      img.onerror=()=>failed('Não foi possível carregar a página '+page+'. Confira a conexão, tente novamente ou use Abrir externamente.');
+      timer=setTimeout(()=>failed('A página '+page+' demorou para carregar. Tente novamente ou use Abrir externamente.'),PAGE_TIMEOUT_MS);
+      let src=buildUrl('preview_page',page);
+      if(attempt>1){const url=new URL(src,window.location.origin);url.searchParams.set('preview_retry',Date.now()+'-'+attempt);src=url.pathname+url.search;}
+      img.src=src;
+    }
+    retry.addEventListener('click',load);
+    return {card:card,ready:firstReady,start:()=>{if(!started)load();}};
+  }
+
+  function applyZoom(){
+    const mobile=window.matchMedia('(max-width:700px)').matches;
+    const base=Math.min(stage.clientWidth-(mobile?16:28),1080);
+    const width=Math.max(260,Math.round(base*zoom));
+    pagesEl.querySelectorAll('.pdf-page-card').forEach(card=>{card.style.width=width+'px';});
+    zoomValue.textContent=Math.round(zoom*100)+'%';
+  }
+
+  async function loadPdf(){
+    try{
+      const meta=await metadata();
+      const total=Number(meta.pages||0);
+      if(!Number.isInteger(total)||total<1) throw new Error('O PDF não possui páginas disponíveis.');
+
+      const fragment=document.createDocumentFragment();
+      const entries=[];
+      for(let page=1;page<=total;page++){
+        const entry=createPage(page,total);entries.push(entry);fragment.appendChild(entry.card);
+      }
+      pagesEl.appendChild(fragment);
+      entries.slice(0,2).forEach(entry=>entry.start());
+      await entries[0].ready;
+      hideLoading();
+      zoomTools.hidden=false;
+      applyZoom();
+      if(typeof IntersectionObserver!=='undefined'){
+        const lazy=new Map(entries.slice(2).map(entry=>[entry.card,entry]));
+        const observer=new IntersectionObserver(items=>items.forEach(item=>{
+          if(item.isIntersecting&&lazy.has(item.target)){lazy.get(item.target).start();observer.unobserve(item.target);lazy.delete(item.target);if(!lazy.size)observer.disconnect();}
+        }),{root:stage,rootMargin:'500px'});
+        lazy.forEach(entry=>observer.observe(entry.card));
+      }else entries.slice(2).forEach(entry=>entry.start());
+    }catch(err){
+      showFailure(err && err.message ? err.message : 'Erro ao preparar o documento.');
+    }
+  }
+
+  document.getElementById('pdfZoomOut').addEventListener('click',()=>{zoom=Math.max(.75,+(zoom-.25).toFixed(2));applyZoom();});
+  document.getElementById('pdfZoomIn').addEventListener('click',()=>{zoom=Math.min(2.5,+(zoom+.25).toFixed(2));applyZoom();});
+  window.addEventListener('resize',applyZoom,{passive:true});
+  loadPdf();
+})();
+{% endif %}
+</script>
+{% endblock %}

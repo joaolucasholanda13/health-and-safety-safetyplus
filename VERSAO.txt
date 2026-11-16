@@ -1,0 +1,1 @@
+V36.22.5 — Auditoria detalhada com IP, navegador, operação e antes/depois. Versão do aplicativo: 2026.11.16.5.

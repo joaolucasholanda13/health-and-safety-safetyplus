@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block page_title %}Duplicar APR{% endblock %}
+{% block content %}
+<style>
+  .clone-wrap{max-width:760px;margin:0 auto}.clone-card{padding:24px}.clone-meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}.clone-meta div{background:#F7F5F2;border-radius:12px;padding:12px}.clone-note{border:1px solid #F0C36A;background:#FFF9E8;border-radius:12px;padding:14px;margin:18px 0}.clone-actions{display:flex;gap:10px;flex-wrap:wrap}.clone-actions .btn{text-decoration:none}@media(max-width:620px){.clone-meta{grid-template-columns:1fr}.clone-actions .btn{flex:1 1 100%;text-align:center}}
+</style>
+<div class="clone-wrap">
+  <div class="card clone-card">
+    <h2 style="margin-top:0;">Duplicar como nova APR</h2>
+    <p>Será criada uma nova APR usando a análise abaixo como ponto de partida.</p>
+    <div class="clone-meta">
+      <div><strong>Origem</strong><br>{{ doc_reference_code(doc) }}</div>
+      <div><strong>Atividade</strong><br>{{ data.activity or '—' }}</div>
+      <div><strong>Cluster / Site</strong><br>{{ data.cluster or '—' }}</div>
+      <div><strong>Etapas copiadas</strong><br>{{ data.steps|length }}</div>
+    </div>
+    <div class="clone-note"><strong>Importante:</strong> número, data, assinaturas, aprovações, PTs e respostas do checklist não são reaproveitados. O checklist de 24 itens deverá ser respondido novamente.</div>
+    <form method="post" action="/apr/{{ doc.id }}/duplicar">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label style="display:flex;align-items:center;gap:10px;margin:18px 0;font-weight:600;"><input type="checkbox" name="copy_team" value="1"> Copiar a equipe anterior para a nova APR</label>
+      <div class="clone-actions"><button class="btn btn-primario" type="submit">Criar nova APR</button><a class="btn btn-secundario" href="/">Cancelar</a></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

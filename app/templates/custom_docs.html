@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Novos documentos · Safety Plus{% endblock %}
+{% block page_title %}Novos documentos{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/serena-admin.css?v=361895">{% endblock %}
+{% block content %}
+<div class="sx-page">
+  <div class="sx-head">
+    <div>
+      <div class="sx-kicker">Administração · DEV</div>
+      <h2>Novos documentos</h2>
+      <p>Envie uma planilha e o sistema cria sozinho um novo tipo de documento, com formulário, código sequencial e PDF.</p>
+    </div>
+  </div>
+
+  <form method="post" action="/admin/documentos-automaticos/criar" enctype="multipart/form-data" class="sx-page" style="background:#fff;border:1px solid #ECE8E3;border-radius:16px;padding:18px;gap:14px;max-width:640px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="sx-field"><span>Nome do documento <i>*</i></span><input name="title" required maxlength="100" placeholder="Ex.: Checklist de Ferramentas Manuais"></label>
+    <label class="sx-field"><span>Onde vai ficar</span>
+      <select name="placement" id="cd-placement">{% for k,l in placements.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select>
+    </label>
+    <label class="sx-field"><span>Tipo de resposta</span>
+      <select name="response_mode" id="cd-mode">{% for k,v in response_modes.items() %}<option value="{{ k }}">{{ v[0] }}</option>{% endfor %}</select>
+    </label>
+    <label class="sx-field"><span>Planilha (.xlsx) <i>*</i></span><input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
+    <div class="sx-note">Um item por linha. Uma linha com uma única célula curta vira título de grupo. Se a primeira coluna tiver numeração (1.1, 1.2…), ela é mantida.</div>
+    <div><button type="submit" class="sx-btn sx-btn-dark">Criar documento</button></div>
+  </form>
+
+  <h3 style="margin:24px 0 10px">Tipos criados</h3>
+  {% if rows %}
+  <div style="display:grid;gap:10px;max-width:640px">
+    {% for r in rows %}
+    <div style="background:#fff;border:1px solid #ECE8E3;border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+      <div><strong>{{ r.cfg.title }}</strong><div style="color:#7a746d;font-size:.85rem">{{ placements.get(r.cfg.placement or 'rac') }} · {{ r.cfg.item_count }} itens · prefixo {{ r.cfg.prefix }} · {{ r.used }} emitido(s)</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <details style="flex-basis:100%"><summary class="sx-btn sx-btn-ghost sx-btn-sm" style="display:inline-block;cursor:pointer">Editar</summary>
+          <form method="post" action="/admin/documentos-automaticos/{{ r.kind }}/editar" class="cd-edit" style="display:grid;gap:8px;margin-top:10px;min-width:260px"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label class="sx-field"><span>Nome</span><input name="title" required maxlength="100" value="{{ r.cfg.title }}"></label>
+            <label class="sx-field"><span>Posição</span><select name="placement" class="cd-p">{% for k,l in placements.items() %}<option value="{{ k }}" {{ 'selected' if k==(r.cfg.placement or 'rac') }}>{{ l }}</option>{% endfor %}</select></label>
+            <label class="sx-field"><span>Tipo de resposta</span><select name="response_mode" class="cd-m">{% for k,v in response_modes.items() %}<option value="{{ k }}" {{ 'selected' if v[1]|map(attribute=1)|list==(r.cfg.response_options|map(attribute=1)|list) }}>{{ v[0] }}</option>{% endfor %}</select></label>
+            <div><button type="submit" class="sx-btn sx-btn-dark sx-btn-sm">Salvar</button></div></form></details>
+        <a class="sx-btn sx-btn-ghost sx-btn-sm" href="/rac/{{ r.kind }}/new">Abrir</a>
+        <form method="post" action="/admin/documentos-automaticos/{{ r.kind }}/excluir" onsubmit="return confirm('Remover este tipo de documento?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="sx-btn sx-btn-ghost sx-btn-sm" {% if r.used %}disabled title="Já tem documentos emitidos"{% endif %}>Remover</button></form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:#7a746d">Nenhum tipo criado ainda.</p>
+  {% endif %}
+</div>
+<script>
+(function(){
+  var allowed={{ modes_by_placement|tojson }};
+  var place=document.getElementById('cd-placement'), mode=document.getElementById('cd-mode');
+  if(!place||!mode) return;
+  function sync(){
+    var ok=allowed[place.value]||[], first='';
+    Array.prototype.forEach.call(mode.options,function(o){
+      var on=ok.indexOf(o.value)>=0; o.hidden=!on; o.disabled=!on; if(on&&!first) first=o.value;
+    });
+    if(ok.indexOf(mode.value)<0) mode.value=first;
+  }
+  place.addEventListener('change',sync); sync();
+  document.querySelectorAll('.cd-edit').forEach(function(f){
+    var p=f.querySelector('.cd-p'), md=f.querySelector('.cd-m');
+    function s2(){var ok=allowed[p.value]||[],first='';Array.prototype.forEach.call(md.options,function(o){var on=ok.indexOf(o.value)>=0;o.hidden=!on;o.disabled=!on;if(on&&!first)first=o.value});if(ok.indexOf(md.value)<0)md.value=first}
+    p.addEventListener('change',s2); s2();
+  });
+})();
+</script>
+{% endblock %}

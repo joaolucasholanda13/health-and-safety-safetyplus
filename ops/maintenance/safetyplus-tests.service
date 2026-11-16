@@ -1,0 +1,10 @@
+[Unit]
+Description=Testes isolados APR PT checklist RAC do Safety Plus
+After=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/safetyplus-maintenance.conf
+ExecStart=/usr/bin/python3 /opt/safety-plus/tools/maintenance.py test
+TimeoutStartSec=45min
+UMask=0077

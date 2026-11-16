@@ -1,0 +1,372 @@
+/*
+  Serena — Design Tokens
+  ======================
+  Extraído do Guia de Marca Serena v1.0 (out/2023):
+    - Cores: página 73 "Paleta para plataformas digitais"
+    - Tipografia: páginas 76-79
+    - Componentes (botões, cards, abas): páginas 119-120 (mockup de app)
+    - Ícones: página 102
+
+  Como usar: inclua este arquivo antes do seu CSS de página e use as
+  variáveis/classes abaixo. Não redefina os valores de cor "no olho" em
+  outros arquivos — se precisar de uma variação, adicione um novo token
+  aqui para manter tudo em um único lugar de verdade.
+*/
+
+/* ---------- Fonte ---------- */
+/* Poppins é a tipografia secundária oficial da marca (Google Fonts,
+   livre para uso). É a que usamos em 100% do produto: telas, formulários,
+   tabelas, botões. Pesos usados pela marca: 400 (Regular), 500/600 (SemiBold),
+   itálicos correspondentes. */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
+
+/* V36.18.94 — Fonte proprietária Serena (BrandBook V3) servida localmente,
+   também disponível offline. Usada somente em títulos e números de destaque. */
+@font-face {
+  font-family: 'Serena';
+  src: url('/static/fonts/Serena-Variable.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* --- Cor: paleta institucional / digital (pág. 73) --- */
+  --serena-coral: #FF5246;       /* primária: ações, marca, links ativos */
+  --serena-coral-escuro: #D23532;/* estado de perigo/erro/crítico */
+  --serena-grafite: #181818;     /* texto principal, botão secundário */
+  --serena-grafite-medio: #4B4B4B;/* texto secundário */
+  --serena-grafite-claro: #858585;/* texto desabilitado, ícone inativo */
+  --serena-areia: #EDE9E5;       /* fundo de página */
+  --serena-branco: #FFFFFF;      /* superfícies, cards */
+  --serena-verde: #32CAA0;       /* status positivo (ok, finalizado, assinado) */
+  --serena-amarelo: #FFD964;     /* status de atenção (pendente, a vencer) */
+
+  /* --- Mapeamento semântico para o Safety Plus ---
+     Use estes nomes no código das telas em vez das cores cruas acima —
+     assim, se a marca trocar uma cor, muda só aqui. */
+  --cor-primaria: var(--serena-coral);
+  --cor-primaria-hover: var(--serena-coral-escuro);
+  --cor-texto: var(--serena-grafite);
+  --cor-texto-secundario: var(--serena-grafite-medio);
+  --cor-texto-desabilitado: var(--serena-grafite-claro);
+  --cor-fundo-pagina: var(--serena-areia);
+  --cor-fundo-card: var(--serena-branco);
+  --cor-sucesso: var(--serena-verde);       /* ex.: Finalizada, Assinado, Disponibilidade OK */
+  --cor-atencao: var(--serena-amarelo);     /* ex.: Aguardando aprovação, revalidação a vencer */
+  --cor-perigo: var(--serena-coral-escuro); /* ex.: Reprovado, severidade alta, indisponível */
+  --cor-neutro: var(--serena-grafite-claro);/* ex.: Rascunho */
+
+  /* --- Tipografia ---
+     "Serena" é a fonte de display oficial da marca, mas é proprietária
+     e não está disponível neste pacote — o time de Marketing precisa
+     fornecer o arquivo da fonte. Até lá, --fonte-display cai para a
+     mesma Poppins em peso Bold, então o layout já funciona e é só trocar
+     esta variável quando a fonte chegar. */
+  --fonte-display: 'Serena', 'Poppins', sans-serif;
+  --fonte-base: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --texto-display-tamanho: 2.5rem;
+  --texto-titulo-tamanho: 1.5rem;
+  --texto-corpo-tamanho: 1rem;
+  --texto-pequeno-tamanho: 0.8125rem;
+
+  /* --- Espaçamento (escala de 8px) --- */
+  --espaco-1: 4px;
+  --espaco-2: 8px;
+  --espaco-3: 16px;
+  --espaco-4: 24px;
+  --espaco-5: 32px;
+  --espaco-6: 48px;
+
+  /* --- Raio de borda ---
+     Observado no mockup de app do guia (pág. 120): botões totalmente
+     arredondados (pill) e cards com cantos bem suaves. */
+  --raio-botao: 999px;
+  --raio-card: 20px;
+  --raio-input: 12px;
+  --raio-badge: 999px;
+
+  /* --- Sombra sutil para cards sobre fundo de cor --- */
+  --sombra-card: 0 8px 24px rgba(24, 24, 24, 0.08);
+}
+
+/* ---------- Reset leve ---------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--cor-fundo-pagina);
+  color: var(--cor-texto);
+  font-family: var(--fonte-base);
+  font-size: var(--texto-corpo-tamanho);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden; /* o menu mobile rola por dentro; a página nunca deve rolar de lado */
+}
+
+h1, h2, h3 {
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 var(--espaco-3);
+}
+h1 { font-size: var(--texto-display-tamanho); }
+h2 { font-size: var(--texto-titulo-tamanho); }
+
+/* ---------- Botões ---------- */
+/* Réplica do padrão visto no mockup da marca: primário coral cheio,
+   secundário grafite cheio (não é outline) — alto contraste, sem
+   sombra decorativa. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espaco-2);
+  border: none;
+  border-radius: var(--raio-botao);
+  padding: 14px 28px;
+  font-family: var(--fonte-base);
+  font-weight: 600;
+  font-size: var(--texto-corpo-tamanho);
+  cursor: pointer;
+  text-decoration: none;
+  transition: filter .15s ease, transform .05s ease;
+}
+.btn:active { transform: scale(0.98); }
+.btn:focus-visible { outline: 3px solid var(--serena-coral-escuro); outline-offset: 2px; }
+
+.btn-primario {
+  background: var(--cor-primaria);
+  color: var(--serena-branco);
+}
+.btn-primario:hover { filter: brightness(0.94); }
+
+.btn-secundario {
+  background: var(--cor-texto);
+  color: var(--serena-branco);
+}
+.btn-secundario:hover { filter: brightness(1.15); }
+
+.btn-fantasma {
+  background: transparent;
+  color: var(--cor-texto);
+  border: 1px solid var(--serena-grafite-claro);
+}
+
+.btn:disabled {
+  background: var(--serena-areia);
+  color: var(--cor-texto-desabilitado);
+  cursor: not-allowed;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--cor-fundo-card);
+  border-radius: var(--raio-card);
+  padding: var(--espaco-4);
+  box-shadow: var(--sombra-card);
+}
+
+/* ---------- Badges de status ---------- */
+/* Mapeia direto os status do Safety Plus (Document.status) e a
+   severidade das APRs/PTs para as 4 cores funcionais da marca. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--raio-badge);
+  padding: 4px 12px;
+  font-size: var(--texto-pequeno-tamanho);
+  font-weight: 600;
+}
+.badge::before {
+  content: '';
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge-sucesso  { background: color-mix(in srgb, var(--cor-sucesso) 18%, white); color: #1C7A5E; }   /* Finalizada / Assinado */
+.badge-atencao  { background: color-mix(in srgb, var(--cor-atencao) 25%, white); color: #8A6A00; }   /* Aguardando aprovação */
+.badge-perigo   { background: color-mix(in srgb, var(--cor-perigo) 15%, white); color: var(--cor-perigo); } /* Reprovado / severidade alta */
+.badge-neutro   { background: var(--serena-areia); color: var(--cor-texto-secundario); }             /* Rascunho */
+
+/* ---------- Abas / segmented control ---------- */
+/* Réplica do seletor "Dia / Sem. / Mês / Ano" do mockup oficial. */
+.abas {
+  display: inline-flex;
+  gap: var(--espaco-1);
+  background: var(--serena-areia);
+  padding: 4px;
+  border-radius: var(--raio-botao);
+}
+.aba {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: var(--raio-botao);
+  font-family: var(--fonte-base);
+  font-weight: 500;
+  font-size: var(--texto-pequeno-tamanho);
+  color: var(--cor-texto-secundario);
+  cursor: pointer;
+}
+.aba[aria-selected="true"] {
+  background: var(--cor-primaria);
+  color: var(--serena-branco);
+}
+
+/* ---------- Campos de formulário ---------- */
+.campo {
+  display: block;
+  width: 100%;
+  border: 1px solid #D8D3CC;
+  border-radius: var(--raio-input);
+  padding: 12px 14px;
+  font-family: var(--fonte-base);
+  font-size: var(--texto-corpo-tamanho);
+  background: var(--serena-branco);
+  color: var(--cor-texto);
+}
+.campo:focus {
+  outline: none;
+  border-color: var(--cor-primaria);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cor-primaria) 20%, transparent);
+}
+
+/* ---------- Ícones de linha ---------- */
+/* Ícones no estilo da marca (pág. 102): traço, sem preenchimento, sem
+   cantos arredondados. Se estiver usando um pacote como Lucide, aplique: */
+.icone {
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+.icone-ativo { color: var(--cor-primaria); }
+.icone-inativo { color: var(--serena-grafite-claro); }
+
+/* ---------- Dropdown customizado (substitui a lista nativa do <select>) ----------
+   Motivo: dá pra estilizar a caixa fechada de um <select> nativo, mas a lista
+   aberta usa o estilo do sistema operacional (ex.: azul do Chrome no Windows),
+   fora da marca. `enhanceSelects()` (ver base.html) transforma qualquer
+   `select.campo` num dropdown customizado, mantendo o <select> real escondido
+   pra continuar funcionando exatamente igual no backend (mesmo name/value). */
+.uiselect { position: relative; }
+.uiselect-native { display: none; }
+.uiselect-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; border: 1px solid #D8D3CC; border-radius: var(--raio-input);
+  padding: 10px 14px; background: var(--serena-branco); font-family: var(--fonte-base);
+  font-size: 0.9rem; color: var(--cor-texto); cursor: pointer; text-align: left;
+}
+.uiselect-btn:focus-visible, .uiselect.aberto .uiselect-btn { outline: none; border-color: var(--cor-primaria); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cor-primaria) 20%, transparent); }
+.uiselect-btn .rotulo { flex: 1; display: flex; align-items: center; gap: 8px; }
+.uiselect-btn .rotulo.placeholder { color: var(--serena-grafite-claro); }
+.uiselect-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--serena-grafite-claro); }
+.uiselect-btn .dot.dot-C { background: var(--serena-verde); }
+.uiselect-btn .dot.dot-NC { background: var(--serena-coral-escuro); }
+.uiselect-btn .dot.dot-NA { background: var(--serena-grafite-claro); }
+.uiselect-btn .chev { color: var(--cor-texto-secundario); transition: transform .12s; flex-shrink: 0; }
+.uiselect.aberto .uiselect-btn .chev { transform: rotate(180deg); }
+.uiselect-list {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30;
+  background: var(--serena-branco); border-radius: var(--raio-input);
+  box-shadow: 0 16px 40px rgba(24,24,24,0.18); padding: 6px; list-style: none; margin: 0;
+  max-height: 240px; overflow-y: auto;
+}
+.uiselect-list li {
+  display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 8px;
+  font-size: 0.9rem; cursor: pointer;
+}
+.uiselect-list li:hover, .uiselect-list li.destacado { background: var(--serena-areia); }
+.uiselect-list li.selecionado { font-weight: 600; }
+.uiselect-list li .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--serena-grafite-claro); }
+.uiselect-list li .dot.dot-C { background: var(--serena-verde); }
+.uiselect-list li .dot.dot-NC { background: var(--serena-coral-escuro); }
+.uiselect-list li .dot.dot-NA { background: var(--serena-grafite-claro); }
+
+/* ---------- Responsivo: grids de formulário em telas estreitas ----------
+   Vários templates (APR, PT, veículo, inspeção, admin) definem .grid-2/
+   .grid-3/.grid-4 com colunas fixas, pensadas pra desktop, dentro do
+   próprio <style> de cada página. Em telas de celular isso espreme os
+   campos. Esta regra central força 1 coluna abaixo de 720px em QUALQUER
+   página que use essas classes. O !important é necessário porque o
+   <style> de cada template vem depois deste arquivo no HTML e, sem ele,
+   venceria mesmo sendo o mesmo nível de especificidade. */
+/* Bug clássico do navegador: <fieldset> tem min-width baseado no
+   conteúdo por padrão, o que quebra o encolhimento em telas estreitas
+   mesmo com grid/flex configurados certinho. Zera isso globalmente. */
+fieldset { min-width: 0; }
+
+@media (max-width: 720px) {
+  .grid-2, .grid-3, .grid-4, .checkbox-grid, .form-grid, .item-row { grid-template-columns: 1fr !important; }
+  .grid-2 > *, .grid-3 > *, .grid-4 > *, .form-grid > * { min-width: 0; }
+  [style*="grid-column: span"] { grid-column: auto !important; }
+  .resumo, .stats-grid, .docs-grid { grid-template-columns: 1fr !important; }
+  .resumo > *, .stats-grid > *, .docs-grid > * { min-width: 0; }
+
+  /* Linhas de checklist (Sim/Não/N/A, Atende/Não atende/N/A): o texto da
+     pergunta + os 3 botões não cabem lado a lado numa tela estreita.
+     Em vez de estourar a largura, quebra pra uma segunda linha. */
+  .checklist-item, .cabecalho { flex-wrap: wrap; row-gap: 8px; }
+  .simnao { margin-left: auto; }
+}
+
+/* O texto de um dropdown selecionado (ou o placeholder) não deve forçar
+   a caixa a ficar mais larga que a tela — trunca com reticências. */
+.uiselect { min-width: 0; }
+.uiselect-btn { min-width: 0; }
+.uiselect-btn .rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+/* V36.17.15 — validação sem zerar + refinamento mobile */
+.validation-error .campo,
+.campo.validation-error,
+.validation-error .uiselect-btn,
+.uiselect.validation-error .uiselect-btn,
+[aria-invalid="true"].campo {
+  border-color: var(--cor-perigo, #B42318) !important;
+  box-shadow: 0 0 0 3px rgba(180,35,24,.12) !important;
+}
+.checklist-item.validation-error,
+.item-row.validation-error,
+.sig-pad-wrap.validation-error,
+.permit-row.validation-error,
+.linha-dinamica.validation-error,
+.campo-grupo.validation-error {
+  background: rgba(180,35,24,.045) !important;
+  outline: 1px solid rgba(180,35,24,.42);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+@media (max-width: 720px) {
+  .app-content { padding: 12px !important; }
+  .card { padding: 16px !important; border-radius: 16px !important; }
+  .secao { margin-bottom: 16px !important; }
+  input.campo, select.campo, textarea.campo, .uiselect-btn { font-size: 16px !important; }
+  textarea.campo { min-height: 76px; }
+  .form-footer, .day-footer, .sig-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .form-footer .btn, .day-footer .btn, .sig-actions .btn { width: 100% !important; justify-content: center; }
+  .simnao {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+    margin-left: 0 !important;
+    gap: 3px !important;
+  }
+  .simnao button { min-width: 0 !important; padding: 8px 5px !important; }
+  .periodo-summary, .day-summary { padding: 12px 14px !important; gap: 8px !important; }
+  .periodo-body, .day-body { padding-left: 14px !important; padding-right: 14px !important; padding-bottom: 14px !important; }
+  .linha-dinamica { padding: 12px !important; }
+  .permit-row { flex-wrap: wrap !important; align-items: flex-start !important; }
+  .sig-pad { height: 150px !important; }
+  .app-topbar { padding-left: 10px !important; padding-right: 10px !important; }
+  .app-topbar h1 { font-size: .98rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-actions { gap: 6px !important; }
+  .user-chip span { display:none; }
+}

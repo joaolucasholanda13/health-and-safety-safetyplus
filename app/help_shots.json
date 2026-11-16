@@ -1,0 +1,643 @@
+{
+ "acessar": [
+  [
+   0,
+   "acessar-1.webp",
+   "Tela de entrada do Safety Plus."
+  ]
+ ],
+ "instalar": [
+  [
+   1,
+   "instalar-1.webp",
+   "Botão “Instalar Safety Plus” em Minha Conta."
+  ]
+ ],
+ "senha": [
+  [
+   1,
+   "senha-1.webp",
+   "Troca de senha em Minha Conta."
+  ]
+ ],
+ "painel": [
+  [
+   0,
+   "painel-1.webp",
+   "Painel com as pendências no topo."
+  ],
+  [
+   2,
+   "painel-2.webp",
+   "Pesquisa e filtros de documentos."
+  ]
+ ],
+ "qr": [
+  [
+   0,
+   "qr-1.webp",
+   "Ícone de leitura de QR Code no topo."
+  ],
+  [
+   2,
+   "qr-2.webp",
+   "No celular, o QR abre a tela de assinatura."
+  ]
+ ],
+ "pdf": [
+  [
+   2,
+   "pdf-1.webp",
+   "Botão Compartilhar no documento finalizado."
+  ],
+  [
+   3,
+   "pdf-2.webp",
+   "Gerar dossiê completo (APR + PTs)."
+  ]
+ ],
+ "apr-criar": [
+  [
+   1,
+   "apr-1.webp",
+   "Dados gerais da APR."
+  ],
+  [
+   2,
+   "apr-2.webp",
+   "Etapas com perigo, risco, severidade e controle."
+  ],
+  [
+   3,
+   "apr-3.webp",
+   "Checklist com Sim, Não e N/A."
+  ],
+  [
+   4,
+   "apr-4.webp",
+   "Atividade crítica e PTs aplicáveis."
+  ],
+  [
+   5,
+   "apr-5.webp",
+   "Equipe: busque por CPF ou nome."
+  ],
+  [
+   6,
+   "apr-6.webp",
+   "Escolha o líder ou responsável pela aprovação."
+  ],
+  [
+   7,
+   "apr-7.webp",
+   "Botão para avançar (PTs ou assinaturas)."
+  ]
+ ],
+ "apr-etapas": [
+  [
+   1,
+   "etapas-1.webp",
+   "Selecionar, Digitar ou Voz em perigos e riscos."
+  ]
+ ],
+ "apr-nao": [
+  [
+   0,
+   "nao-1.webp",
+   "Aviso de APR bloqueada por resposta NÃO."
+  ]
+ ],
+ "apr-equipe": [
+  [
+   1,
+   "equipe-1.webp",
+   "Resultado da busca do integrante."
+  ]
+ ],
+ "apr-assinaturas": [
+  [
+   1,
+   "assin-1.webp",
+   "QR Code geral para as assinaturas."
+  ],
+  [
+   2,
+   "assin-2.webp",
+   "Lista de integrantes e coleta presencial."
+  ]
+ ],
+ "apr-aprovacao-envio": [
+  [
+   1,
+   "envio-1.webp",
+   "APR aguardando aprovação no Painel."
+  ]
+ ],
+ "apr-modelos": [
+  [
+   0,
+   "modelos-1.webp",
+   "Modelos de APR."
+  ]
+ ],
+ "apr-duplicar": [
+  [
+   0,
+   "dup-1.webp",
+   "Mais ações → Duplicar como nova APR."
+  ],
+  [
+   1,
+   "dup-2.webp",
+   "Confirmação da duplicação."
+  ]
+ ],
+ "apr-membro": [
+  [
+   0,
+   "membro-1.webp",
+   "Botão “+ Integrante” na APR finalizada."
+  ],
+  [
+   1,
+   "membro-2.webp",
+   "Tela de inclusão do integrante."
+  ]
+ ],
+ "apr-observacao": [
+  [
+   0,
+   "obs-1.webp",
+   "Botão “+ Observação”."
+  ]
+ ],
+ "apr-diaria": [
+  [
+   0,
+   "diaria-1.webp",
+   "Assinar APR de hoje."
+  ],
+  [
+   1,
+   "diaria-2.webp",
+   "QR Code e assinatura manual do dia."
+  ]
+ ],
+ "apr-vigencia": [
+  [
+   1,
+   "vig-1.webp",
+   "Linha do tempo da vigência."
+  ]
+ ],
+ "pt-geral": [
+  [
+   0,
+   "ptg-1.webp",
+   "Escolha a permissão em Emissão de Documentos."
+  ]
+ ],
+ "pt-diaria": [
+  [
+   0,
+   "ptd-1.webp",
+   "Botão “PTs / Dossiê” no Painel."
+  ],
+  [
+   1,
+   "ptd-2.webp",
+   "“+ Nova PT para hoje”."
+  ],
+  [
+   3,
+   "ptd-3.webp",
+   "PTs de hoje e histórico."
+  ]
+ ],
+ "pt-anexar": [
+  [
+   1,
+   "anexar-1.webp",
+   "Cartão “Adicionar outro tipo”."
+  ]
+ ],
+ "pt-fluxo-apr": [
+  [
+   1,
+   "ptfluxo-1.webp",
+   "Com PTs marcadas, o botão vira “Próxima etapa — Preencher PTs”."
+  ]
+ ],
+ "pt-iniciar": [
+  [
+   1,
+   "ptini-1.webp",
+   "Checklist da PT."
+  ],
+  [
+   3,
+   "ptini-2.webp",
+   "Botão “Iniciar PT”."
+  ]
+ ],
+ "pt-encerrar": [
+  [
+   0,
+   "ptenc-1.webp",
+   "“Encerrar PT” no Painel."
+  ],
+  [
+   1,
+   "ptenc-2.webp",
+   "Encerramento com responsável e rubrica."
+  ]
+ ],
+ "pt-altura": [
+  [
+   0,
+   "altura-1.webp",
+   "Tipos de trabalho em altura."
+  ]
+ ],
+ "pt-confinado": [
+  [
+   0,
+   "conf-1.webp",
+   "Tipo de entrada no espaço confinado."
+  ],
+  [
+   1,
+   "conf-2.webp",
+   "Medições de gases."
+  ]
+ ],
+ "pt-eletrica": [
+  [
+   0,
+   "pt-eletrica-1.webp",
+   "Formulário da PT."
+  ]
+ ],
+ "pt-linhaviva": [
+  [
+   0,
+   "pt-linhaviva-1.webp",
+   "Formulário da PT."
+  ]
+ ],
+ "pt-vegetacao": [
+  [
+   0,
+   "pt-vegetacao-1.webp",
+   "Formulário da PT."
+  ]
+ ],
+ "pt-tme": [
+  [
+   0,
+   "pt-tme-1.webp",
+   "Formulário da PT."
+  ]
+ ],
+ "pt-icamento": [
+  [
+   0,
+   "icam-1.webp",
+   "Equipamentos de içamento."
+  ]
+ ],
+ "notificacoes": [
+  [
+   1,
+   "notif-1.webp",
+   "Ative as notificações neste aparelho."
+  ]
+ ],
+ "ajuda-acompanhar": [
+  [
+   1,
+   "minhas-1.webp",
+   "Andamento e resposta da equipe."
+  ]
+ ],
+ "rac": [
+  [
+   0,
+   "rac-1.webp",
+   "Escolha o tipo de RAC."
+  ],
+  [
+   2,
+   "rac-2.webp",
+   "Itens com Atende, Não atende e N/A."
+  ],
+  [
+   4,
+   "rac-3.webp",
+   "Finalizar RAC e gerar PDF."
+  ]
+ ],
+ "insp-geral": [
+  [
+   0,
+   "insp-1.webp",
+   "Menu Inspeções Prévias."
+  ]
+ ],
+ "insp-veiculo-pesado": [
+  [
+   1,
+   "insp-veiculo-pesado-1.webp",
+   "Inspeção de Veículo Pesado."
+  ]
+ ],
+ "insp-veiculo-leve": [
+  [
+   1,
+   "insp-veiculo-leve-1.webp",
+   "Inspeção de Veículo Leve."
+  ]
+ ],
+ "insp-talha": [
+  [
+   1,
+   "insp-talha-1.webp",
+   "Inspeção de Talha Guincho."
+  ]
+ ],
+ "insp-kit": [
+  [
+   1,
+   "insp-kit-1.webp",
+   "Kit de Trabalho em Altura."
+  ]
+ ],
+ "insp-climber": [
+  [
+   1,
+   "insp-climber-1.webp",
+   "Climber Assist."
+  ]
+ ],
+ "insp-cinto": [
+  [
+   1,
+   "insp-cinto-1.webp",
+   "Inspeção de cinto."
+  ]
+ ],
+ "insp-loto": [
+  [
+   1,
+   "insp-loto-1.webp",
+   "Formulário de LOTO."
+  ],
+  [
+   3,
+   "insp-loto-2.webp",
+   "Parte 2 — Trabalhadores LOTO afetados."
+  ]
+ ],
+ "ajuda-erro": [
+  [
+   1,
+   "ajuda-1.webp",
+   "Nova solicitação: erro ou melhoria."
+  ],
+  [
+   3,
+   "ajuda-2.webp",
+   "Anexe um print: clique, arraste ou cole."
+  ]
+ ],
+ "rac-evidencias": [
+  [
+   0,
+   "racev-1.webp",
+   "Fotos e voz como evidência."
+  ]
+ ],
+ "adm-dashboard": [
+  [
+   1,
+   "dash-1.webp",
+   "Dashboard operacional."
+  ]
+ ],
+ "adm-cadastrar": [
+  [
+   0,
+   "cad-1.webp",
+   "Botão “Novo colaborador”."
+  ],
+  [
+   1,
+   "cad-2.webp",
+   "Dados do colaborador com CPF validado."
+  ],
+  [
+   2,
+   "cad-3.webp",
+   "Acesso: criar login no próprio cadastro."
+  ]
+ ],
+ "adm-editar": [
+  [
+   1,
+   "edit-1.webp",
+   "Ícone de editar na lista."
+  ],
+  [
+   2,
+   "edit-2.webp",
+   "Gaveta de edição do colaborador."
+  ]
+ ],
+ "adm-excel": [
+  [
+   1,
+   "excel-1.webp",
+   "Botão Excel na empresa."
+  ],
+  [
+   2,
+   "excel-2.webp",
+   "Modelo, exportação e importação."
+  ]
+ ],
+ "adm-acessos": [
+  [
+   0,
+   "acessos-1.webp",
+   "Acessos ao sistema."
+  ],
+  [
+   2,
+   "acessos-2.webp",
+   "Perfil Administrador com escopo por site."
+  ]
+ ],
+ "adm-exclusao": [
+  [
+   1,
+   "excl-1.webp",
+   "Exclusão em massa com confirmação."
+  ]
+ ],
+ "adm-consulta": [
+  [
+   1,
+   "cons-1.webp",
+   "Pesquise por nome ou CPF."
+  ],
+  [
+   2,
+   "cons-2.webp",
+   "Painel do colaborador."
+  ],
+  [
+   3,
+   "cons-3.webp",
+   "Documentos recentes do colaborador."
+  ]
+ ],
+ "adm-divergencias": [
+  [
+   1,
+   "div-1.webp",
+   "Mesmo nome, seleções diferentes."
+  ]
+ ],
+ "adm-solicitacoes": [
+  [
+   1,
+   "sol-1.webp",
+   "Solicitações recebidas."
+  ],
+  [
+   2,
+   "sol-2.webp",
+   "Resposta e situação."
+  ]
+ ],
+ "adm-notificacoes": [
+  [
+   1,
+   "notifadm-1.webp",
+   "Tipos de aviso do sistema."
+  ]
+ ],
+ "adm-aprovar": [
+  [
+   0,
+   "aprov-1.webp",
+   "Botão Aprovar na APR aguardando aprovação."
+  ],
+  [
+   2,
+   "aprov-2.webp",
+   "Rubrica e “Aprovar e gerar PDF”."
+  ]
+ ],
+ "adm-reprovar": [
+  [
+   1,
+   "reprov-1.webp",
+   "Reprovar com o motivo."
+  ],
+  [
+   2,
+   "reprov-2.webp",
+   "Alterar o aprovador."
+  ]
+ ],
+ "adm-cancelar": [
+  [
+   1,
+   "cancel-1.webp",
+   "Cancelar documento aguardando aprovação."
+  ]
+ ],
+ "off-preparar": [
+  [
+   1,
+   "offp-1.webp",
+   "“Preparar este aparelho”."
+  ],
+  [
+   2,
+   "offp-2.webp",
+   "Aparelho preparado."
+  ]
+ ],
+ "off-salvar": [
+  [
+   1,
+   "offs-1.webp",
+   "Sem internet: guardado no aparelho."
+  ],
+  [
+   2,
+   "offs-2.webp",
+   "Fila de envio no Modo Offline."
+  ]
+ ],
+ "off-apr": [
+  [
+   1,
+   "offa-1.webp",
+   "Sem internet aparece “Concluir offline”."
+  ],
+  [
+   3,
+   "offa-3.webp",
+   "Equipe: rubrica na tela + CPF."
+  ],
+  [
+   4,
+   "offa-4.webp",
+   "Líder: rubrica + senha + declaração."
+  ],
+  [
+   5,
+   "offa-5.webp",
+   "Pronto para guardar no aparelho."
+  ]
+ ],
+ "off-revisar": [
+  [
+   1,
+   "offr-1.webp",
+   "Item “Para revisar” com a mensagem do servidor."
+  ]
+ ],
+ "pt-excluir": [
+  [
+   1,
+   "ptexc-1.webp",
+   "Lista de PTs com a opção de excluir rascunho."
+  ]
+ ],
+ "assinar-qr": [
+  [
+   0,
+   "aqr-1.webp",
+   "O responsável mostra o QR Code geral da APR."
+  ],
+  [
+   0,
+   "aqr-1b.webp",
+   "QR Code em tela cheia, para a equipe ler de longe."
+  ],
+  [
+   2,
+   "aqr-2.webp",
+   "No celular do integrante abre a leitura completa da APR."
+  ],
+  [
+   4,
+   "aqr-3.webp",
+   "Identificação por nome e CPF, aceite e rubrica."
+  ]
+ ]
+}

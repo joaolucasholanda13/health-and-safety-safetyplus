@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}PTs da {{ doc_reference_code(doc) }} · Safety Plus{% endblock %}
+{% block page_title %}PTs da APR{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/serena-admin.css?v=361895">{% endblock %}
+{% block content %}
+{% set is_admin = user.role in ['Administrador','Super Administrador','DEV'] %}
+{% set can_add = doc.status == 'Finalizada' and validity.valid_today %}
+<style>
+.ap-head { background: var(--serena-grafite); color: #fff; border-radius: 22px; padding: 22px 24px; border-top: 5px solid var(--serena-coral); display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; align-items: start; }
+.ap-head .code { font-family: var(--fonte-display); font-size: 1.45rem; font-weight: 700; margin: 6px 0 4px; word-break: break-word; line-height: 1.2; }
+.ap-head .act { color: #CFCBC6; font-size: .9rem; line-height: 1.45; }
+.ap-head .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.ap-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #3A3A3A; border-radius: 999px; padding: 5px 11px; font-size: .76rem; color: #E7E4E0; }
+.ap-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--serena-grafite-claro); }
+.ap-chip i.ok { background: var(--serena-verde); } .ap-chip i.warn { background: var(--serena-amarelo); } .ap-chip i.bad { background: var(--serena-coral); }
+.ap-actions { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+.ap-actions .sx-btn { justify-content: flex-start; }
+.ap-actions .sx-btn-ghost { background: transparent; color: #fff; border-color: #3A3A3A; }
+.ap-actions .sx-btn-ghost:hover { border-color: #fff; }
+
+.ap-vig { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 18px; align-items: center; }
+.ap-vig h3 { margin: 0 0 4px; font-family: var(--fonte-display); font-size: 1.05rem; }
+.ap-vig .range { font-size: .82rem; color: var(--serena-grafite-medio); }
+.ap-days { display: grid; grid-template-columns: repeat(var(--n, 7), minmax(0, 1fr)); gap: 6px; margin-top: 14px; width: 100%; }
+.ap-day { text-align: center; font-size: .7rem; color: var(--serena-grafite-claro); }
+.ap-day b { display: block; height: 10px; border-radius: 999px; background: #EFEBE6; margin-bottom: 6px; position: relative; }
+.ap-day.past b { background: var(--serena-grafite-claro); }
+.ap-day.today b { background: var(--serena-coral); box-shadow: 0 0 0 3px rgba(255,82,70,.18); }
+.ap-day.today { color: var(--serena-grafite); font-weight: 600; }
+.ap-day.expired b { background: #D8D3CC; }
+.ap-day small { display: block; font-size: .64rem; color: var(--serena-grafite-claro); margin-top: 1px; }
+.ap-big { text-align: right; }
+.ap-big b { display: block; font-family: var(--fonte-display); font-size: 2rem; line-height: 1.05; }
+.ap-big span { font-size: .8rem; color: var(--serena-grafite-medio); }
+.ap-big.bad b { color: var(--serena-coral-escuro); } .ap-big.ok b { color: var(--serena-grafite); }
+
+.ap-alert { display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-radius: 16px; padding: 16px 18px; background: color-mix(in srgb, var(--serena-amarelo) 22%, white); border: 1px solid color-mix(in srgb, var(--serena-amarelo) 70%, white); }
+.ap-alert .txt { display: flex; gap: 12px; align-items: flex-start; flex: 1 1 380px; }
+.ap-alert svg { width: 22px; height: 22px; flex: 0 0 22px; fill: none; stroke: #7A5B00; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; margin-top: 2px; }
+.ap-alert strong { display: block; color: #5F4700; } .ap-alert span { font-size: .86rem; color: #5F4700; line-height: 1.45; }
+.ap-alert.ok { background: color-mix(in srgb, var(--serena-verde) 12%, white); border-color: color-mix(in srgb, var(--serena-verde) 45%, white); }
+.ap-alert.ok svg { stroke: #157357; } .ap-alert.ok strong, .ap-alert.ok span { color: #134E3D; }
+
+.ap-types { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.ap-type { background: #fff; border: 1px solid #ECE8E3; border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.ap-type .top { display: flex; gap: 12px; align-items: center; }
+.ap-type .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--serena-areia); display: grid; place-items: center; flex: 0 0 40px; }
+.ap-type .ic svg { width: 20px; height: 20px; fill: none; stroke: var(--serena-grafite); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ap-type h4 { margin: 0; font-size: .95rem; } .ap-type small { color: var(--serena-grafite-claro); font-size: .76rem; }
+.ap-type .today { font-size: .8rem; color: var(--serena-grafite-medio); display: flex; flex-direction: column; gap: 6px; }
+.ap-type .today a { display: flex; justify-content: space-between; gap: 8px; align-items: center; text-decoration: none; color: var(--serena-grafite); background: #FBFAF8; border-radius: 10px; padding: 7px 10px; font-size: .8rem; }
+.ap-type .today a:hover { background: var(--serena-areia); }
+.ap-type .foot { margin-top: auto; }
+.ap-type .foot .sx-btn { width: 100%; }
+.ap-type.locked { background: #FBFAF8; }
+.ap-type.locked .ic { background: #EFEBE6; } .ap-type.locked .ic svg { stroke: var(--serena-grafite-claro); }
+.ap-lock { display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px dashed #D8D3CC; border-radius: 999px; padding: 9px 12px; font-size: .8rem; color: var(--serena-grafite-claro); }
+.ap-lock svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; }
+.ap-add { border: 1.5px dashed #CFC9C2; background: transparent; }
+.ap-add form { display: flex; flex-direction: column; gap: 10px; }
+.ap-add select { border: 1px solid #DCD7D1; border-radius: 12px; padding: 10px 12px; font: .86rem var(--fonte-base); background: #fff; }
+
+.ap-list .row { display: grid; grid-template-columns: 70px minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 13px 18px; border-bottom: 1px solid #F3F0EC; }
+.ap-list .row:last-child { border-bottom: 0; }
+.ap-list .day { font-size: .72rem; font-weight: 600; color: var(--serena-grafite-claro); text-transform: uppercase; letter-spacing: .05em; }
+.ap-list .day b { display: block; font-family: var(--fonte-display); font-size: 1.15rem; color: var(--serena-grafite); letter-spacing: 0; }
+.ap-list strong { display: block; font-size: .9rem; } .ap-list small { display: block; font-size: .76rem; color: var(--serena-grafite-claro); }
+.ap-list .acts { display: flex; gap: 6px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.ap-del { width: 34px; height: 34px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--serena-coral-escuro) 35%, white); background: #fff; color: var(--serena-coral-escuro); cursor: pointer; display: inline-grid; place-items: center; }
+.ap-del svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+.ap-del:hover { background: color-mix(in srgb, var(--serena-coral-escuro) 7%, white); }
+@media (max-width: 900px) {
+  .ap-head { grid-template-columns: 1fr; } .ap-actions { min-width: 0; flex-direction: row; flex-wrap: wrap; } .ap-actions .sx-btn { flex: 1 1 160px; justify-content: center; }
+  .ap-vig { grid-template-columns: 1fr; } .ap-big { text-align: left; }
+  .ap-list .row { grid-template-columns: 56px minmax(0,1fr); } .ap-list .row > :nth-child(3) { grid-column: 2; } .ap-list .acts { grid-column: 1 / -1; justify-content: flex-start; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="ap-doc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+  <symbol id="ap-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="ap-x" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+</svg>
+
+<div class="sx-page">
+  {% if expired_days and doc.status == 'Finalizada' %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:0 0 14px;padding:14px 16px;border-radius:14px;background:#FFF1EF;border:1px solid #FFC9C3;">
+    <div><b style="color:var(--serena-coral-escuro);">APR encerrada — vigência de 7 dias terminou.</b><div style="font-size:.85rem;color:#5b4b48;margin-top:3px;">Esta APR está fechada e não aceita novas permissões nem rubricas. Para continuar a atividade, clone esta APR ou crie uma nova do zero.</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><a class="btn btn-primario" href="/apr/{{ doc.id }}/duplicar">Clonar APR</a><a class="btn btn-secundario" href="/apr/new">Nova APR do zero</a></div>
+  </div>
+  {% endif %}
+  <!-- Cabeçalho da APR -->
+  <section class="ap-head">
+    <div style="min-width:0">
+      <div class="sx-kicker" style="color:#CFCBC6">APR principal · Permissões de Trabalho</div>
+      <div class="code">{{ doc_reference_code(doc) }}</div>
+      <div class="act">{{ data.activity or 'Atividade não informada' }}</div>
+      <div class="meta">
+        {% if data.cluster %}<span class="ap-chip">{{ data.cluster }}{% if data.site %} · {{ data.site }}{% endif %}</span>{% endif %}
+        {% if doc.status != 'Finalizada' %}<span class="ap-chip"><i class="warn"></i>{{ doc.status }}</span>
+        {% elif validity.valid_today %}<span class="ap-chip"><i class="ok"></i>Vigente · dia {{ validity.day_number }}</span>
+        {% elif not_started %}<span class="ap-chip"><i class="warn"></i>Vigência ainda não começou</span>
+        {% else %}<span class="ap-chip"><i class="bad"></i>Fora da vigência</span>{% endif %}
+        <span class="ap-chip">{{ records|length }} PT(s) no histórico</span>
+      </div>
+    </div>
+    <div class="ap-actions">
+      {% if validity.valid_today %}<a class="sx-btn sx-btn-coral" href="/apr/{{ doc.id }}/assinatura-diaria">Assinar APR de hoje</a>{% endif %}
+      <a class="sx-btn sx-btn-ghost" href="/document/{{ doc.id }}/pdf">Abrir PDF da APR</a>
+      <a class="sx-btn sx-btn-ghost" href="/apr/{{ doc.id }}/dossie" target="_blank" rel="noopener">Gerar dossiê completo</a>
+    </div>
+  </section>
+
+  <!-- Vigência -->
+  <section class="sx-card sx-card-pad">
+    <div class="ap-vig">
+      <div>
+        <h3>Vigência da APR</h3>
+        <div class="range">{{ validity.start_label or '—' }} a {{ validity.end_label or '—' }}</div>
+        {% if timeline_days %}
+        <div class="ap-days" aria-label="Dias de vigência" style="--n: {{ timeline_days|length }}">
+          {% for d in timeline_days %}
+          <div class="ap-day {{ d.state }} {{ 'expired' if expired_days and d.state == 'past' }}" title="Dia {{ d.n }} · {{ d.label }} · {{ d.count }} PT(s)"><b></b>Dia {{ d.n }}<small>{{ d.label }}{% if d.count %} · {{ d.count }} PT{% endif %}</small></div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% if validity.valid_today %}
+      <div class="ap-big ok"><b>{{ days_left }} dia{{ 's' if days_left != 1 }}</b><span>restante{{ 's' if days_left != 1 }} depois de hoje</span></div>
+      {% elif expired_days %}
+      <div class="ap-big bad"><b>Vencida</b><span>há {{ expired_days }} dia{{ 's' if expired_days != 1 }}</span></div>
+      {% elif not_started %}
+      <div class="ap-big"><b>Em breve</b><span>começa em {{ validity.start_label }}</span></div>
+      {% else %}
+      <div class="ap-big"><b>—</b><span>sem vigência definida</span></div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if data.replaced_by_apr_id %}
+  <div class="ap-alert">
+    <div class="txt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><strong>APR substituída</strong><span>Um integrante foi incluído em {{ data.replaced_at }}. Esta é uma versão anterior, somente para consulta.</span></div></div>
+    <a class="sx-btn sx-btn-dark sx-btn-sm" href="/apr/{{ data.replaced_by_apr_id }}/pts">Abrir APR atual ({{ data.replaced_by_apr_code }})</a>
+  </div>
+  {% endif %}
+  {% if data.previous_versions %}
+  <div class="ap-alert ok">
+    <div class="txt"><svg viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg><div><strong>Versões anteriores</strong>
+      <span>{% for v in data.previous_versions|reverse %}<a href="/document/{{ v.id }}/pdf">{{ v.code }}</a> (substituída em {{ v.replaced_at }}{% if v.added_member %} · incluiu {{ v.added_member }}{% endif %}){{ '; ' if not loop.last }}{% endfor %}</span></div></div>
+  </div>
+  {% endif %}
+  <!-- Situação de hoje -->
+  {% if doc.status == 'Substituída' %}
+  {% elif doc.status != 'Finalizada' %}
+  <div class="ap-alert">
+    <div class="txt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><strong>APR ainda não aprovada</strong><span>As PTs diárias ficam disponíveis depois que o líder aprovar a APR.</span></div></div>
+    <a class="sx-btn sx-btn-dark sx-btn-sm" href="/apr/{{ doc.id }}/edit">Abrir APR</a>
+  </div>
+  {% elif not validity.valid_today %}
+  <div class="ap-alert">
+    <div class="txt"><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+      <div><strong>{% if not_started %}A vigência desta APR ainda não começou{% else %}APR fora da vigência — novas PTs estão bloqueadas{% endif %}</strong>
+      <span>{% if not_started %}As PTs poderão ser emitidas a partir de {{ validity.start_label }}.{% else %}Para emitir PTs hoje, crie uma nova APR. As PTs anteriores continuam no histórico abaixo.{% endif %}</span></div></div>
+  </div>
+  {% else %}
+  <div class="ap-alert ok">
+    <div class="txt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg><div><strong>APR vigente hoje</strong><span>Cada PT emitida aqui vale somente para hoje, até 23:59. Uma PT encerrada nunca é reaproveitada no dia seguinte.{% if open_today %} Há {{ open_today }} PT(s) de hoje em aberto.{% endif %}</span></div></div>
+  </div>
+  {% endif %}
+
+  <!-- Emitir PT de hoje -->
+  <section>
+    <div class="sx-card-title"><h3 style="font-family:var(--fonte-display);font-size:1.1rem;margin:0">Emitir PT de hoje</h3><small>{{ selected_permits|length }} tipo(s) vinculado(s) à APR</small></div>
+    <div class="ap-types">
+      {% for name in selected_permits %}
+      {% set todays = today_by_name.get(name, []) %}
+      <article class="ap-type {{ '' if can_add else 'locked' }}">
+        <div class="top"><span class="ic"><svg><use href="#ap-doc"/></svg></span><div><h4>{{ name }}</h4><small>{{ total_by_name.get(name, 0) }} emitida(s) nesta APR</small></div></div>
+        {% if todays %}
+        <div class="today">{% for r in todays %}<a href="{{ r.open_url }}"><span>{{ r.code }} · {{ r.open_time or '—' }}</span><span class="sx-tag dot sx-tag-{{ 'done' if r.status == 'Finalizada' else ('error' if r.status == 'Pendente de encerramento' else 'new') }}">{{ r.status }}</span></a>{% endfor %}</div>
+        {% endif %}
+        <div class="foot">
+          {% if can_add %}<a class="sx-btn sx-btn-coral" href="/apr/{{ doc.id }}/permit/{{ permit_kind[name] }}/open">+ Nova PT para hoje</a>
+          {% else %}<div class="ap-lock"><svg><use href="#ap-lock"/></svg>{% if doc.status == 'Substituída' %}APR substituída{% elif doc.status != 'Finalizada' %}Disponível após a aprovação{% else %}Bloqueada: APR fora da vigência{% endif %}</div>{% endif %}
+        </div>
+      </article>
+      {% else %}
+      <div class="sx-card sx-empty" style="grid-column:1/-1">Esta APR não tem Permissões de Trabalho vinculadas.</div>
+      {% endfor %}
+      {% if can_add and available_permits %}
+      <article class="ap-type ap-add">
+        <div class="top"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span><div><h4>Adicionar outro tipo</h4><small>Inclua uma nova permissão nesta APR</small></div></div>
+        <form method="post" action="/apr/{{ doc.id }}/pts/adicionar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <select name="permit_name" required aria-label="Tipo de permissão"><option value="" selected disabled>Escolha a permissão</option>{% for name in available_permits %}<option value="{{ name }}">{{ name }}</option>{% endfor %}</select>
+          <button type="submit" class="sx-btn sx-btn-dark">Adicionar à APR</button>
+        </form>
+      </article>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- PTs: hoje e histórico -->
+  <section class="sx-card">
+    <div class="sx-card-pad" style="padding-bottom:0">
+      <nav class="sx-tabs" role="tablist">
+        <button type="button" class="is-active" data-ap-tab="hoje">PTs de hoje <em>{{ today_records|length }}</em></button>
+        <button type="button" data-ap-tab="hist">Histórico completo <em>{{ records|length }}</em></button>
+      </nav>
+    </div>
+    {% for tab, rows in [('hoje', today_records), ('hist', records)] %}
+    <div class="ap-list" data-ap-panel="{{ tab }}" {% if tab == 'hist' %}hidden{% endif %}>
+      {% for row in rows %}
+      <div class="row">
+        <div class="day">{% if row.day_number %}Dia<b>{{ row.day_number }}</b>{% else %}<b>—</b>{% endif %}</div>
+        <div style="min-width:0"><strong>{{ row.name }}</strong><small>{{ row.code }}</small></div>
+        <div><small>Abertura: {{ row.date or '—' }} {{ row.open_time }}</small>{% if row.close_date %}<small>Encerramento: {{ row.close_date }} {{ row.close_time }}</small>{% endif %}</div>
+        <div class="acts">
+          {% if row.status == 'Finalizada' %}<span class="sx-tag dot sx-tag-done">Finalizada</span><a class="sx-btn sx-btn-ghost sx-btn-sm" href="/document/{{ row.id }}/pdf">PDF</a>
+          {% elif row.status == 'Pendente de encerramento' %}<span class="sx-tag dot sx-tag-error">Pendente de encerramento</span><a class="sx-btn sx-btn-coral sx-btn-sm" href="{{ row.open_url }}">Encerrar</a>
+          {% else %}<span class="sx-tag dot sx-tag-new">{{ row.status }}</span><a class="sx-btn sx-btn-dark sx-btn-sm" href="{{ row.open_url }}">Abrir</a>{% endif %}
+          {% if row.can_delete %}<form method="post" action="/apr/{{ doc.id }}/pts/{{ row.id }}/excluir" onsubmit="return confirm('Excluir definitivamente a PT {{ row.code }} em rascunho? Esta ação não poderá ser desfeita.');" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="ap-del" title="Excluir PT em rascunho" aria-label="Excluir PT {{ row.code }} em rascunho"><svg><use href="#ap-x"/></svg></button></form>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="sx-empty">{% if tab == 'hoje' %}Nenhuma PT emitida hoje para esta APR.{% else %}Ainda não há PTs vinculadas a esta APR.{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('[data-ap-tab]').forEach(function(b){ b.addEventListener('click',function(){
+  document.querySelectorAll('[data-ap-tab]').forEach(function(x){ x.classList.toggle('is-active', x===b); });
+  document.querySelectorAll('[data-ap-panel]').forEach(function(p){ p.hidden = p.dataset.apPanel !== b.dataset.apTab; });
+}); });
+</script>
+{% endblock %}

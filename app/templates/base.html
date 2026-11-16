@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}{{ app_name }}{% endblock %}</title>
+<meta name="theme-color" content="#FF5246">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<meta name="application-name" content="Safety Plus">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Safety Plus">
+<link rel="manifest" href="/static/manifest.webmanifest?v=361831">
+<link rel="icon" type="image/png" sizes="64x64" href="/static/icons/safety-plus-favicon-64-v361831.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/safety-plus-favicon-32-v361831.png">
+<link rel="shortcut icon" href="/static/icons/favicon.ico?v=361831">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/icons/safety-plus-apple-touch-v361831.png">
+<link rel="stylesheet" href="/static/css/serena-tokens.css?v=361895">
+<style>
+  /* Layout específico do app — não faz parte dos tokens de marca */
+  .app-shell { display: flex; min-height: 100vh; }
+
+  .app-sidebar {
+    width: 248px; flex-shrink: 0;
+    background: var(--serena-grafite);
+    color: var(--serena-branco);
+    display: flex; flex-direction: column;
+    padding: var(--espaco-4) var(--espaco-3);
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  }
+  .app-sidebar .brand { display: flex; align-items: center; gap: 10px; padding: 0 var(--espaco-2) var(--espaco-4); }
+  .app-sidebar .brand svg { width: 26px; height: 26px; }
+  .app-sidebar .brand span { font-family: var(--fonte-display); font-weight: 700; font-size: 1.1rem; }
+  .nav-group { margin-bottom: var(--espaco-2); }
+  .nav-group summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    padding: 10px var(--espaco-2); border-radius: var(--raio-input);
+    font-weight: 500; font-size: 0.9rem; color: #E7E4E0;
+  }
+  .nav-group summary::-webkit-details-marker { display: none; }
+  .nav-group summary:hover, .nav-link:hover { background: rgba(255,255,255,0.08); }
+  .nav-group[open] summary { color: var(--serena-branco); }
+  .nav-group summary::after { content: '›'; transform: rotate(90deg); transition: transform .15s; font-size: 1.1rem; }
+  .nav-group[open] summary::after { transform: rotate(-90deg); }
+  .nav-links { display: flex; flex-direction: column; padding: 4px 0 4px 10px; }
+  .nav-link {
+    color: #C9C5C0; text-decoration: none; font-size: 0.85rem;
+    padding: 8px var(--espaco-2); border-radius: var(--raio-input);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .nav-link.active { background: var(--serena-coral); color: var(--serena-branco); }
+  .nav-single { color: #E7E4E0; text-decoration: none; font-size: 0.9rem; font-weight: 500; padding: 10px var(--espaco-2); border-radius: var(--raio-input); display: flex; align-items: center; gap: 9px; }
+  .nav-single:hover, .nav-single.active { background: rgba(255,255,255,0.1); }
+  .nav-single.active { background: var(--serena-coral); color: var(--serena-branco); }
+  .nav-icon {
+    width: 17px; height: 17px; flex: 0 0 17px;
+    color: var(--serena-coral); fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  .nav-link .nav-icon { width: 16px; height: 16px; flex-basis: 16px; }
+  .nav-single.active .nav-icon, .nav-link.active .nav-icon { color: var(--serena-branco); }
+  .nav-summary-label { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+  .nav-group summary .nav-icon { color: var(--serena-coral); }
+  .sidebar-footer { margin-top: auto; padding-top: var(--espaco-3); border-top: 1px solid rgba(255,255,255,0.12); }
+  .sidebar-footer a.sp-ver { display:flex; align-items:center; gap:8px; margin:0 0 6px; padding:6px 9px; border-radius:10px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); color:#E7E4E0; transition:background .15s,border-color .15s; }
+  .sidebar-footer a.sp-ver:hover { background:rgba(255,255,255,.13); border-color:rgba(255,82,70,.55); }
+  .sp-ver-ic { flex:0 0 22px; width:22px; height:22px; border-radius:7px; background:rgba(255,82,70,.18); color:var(--serena-coral); display:grid; place-items:center; }
+  .sp-ver-ic .nav-icon { width:13px; height:13px; margin:0; }
+  .sp-ver-tx { flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.25; }
+  .sp-ver-tx b { font-size:.72rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sp-ver-tx small { font-size:.64rem; color:#A9A39C; }
+  .sp-ver-new { background:var(--serena-coral); color:#fff; font-size:.58rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; border-radius:999px; padding:2px 6px; animation:sp-pulse 2s ease-in-out infinite; }
+  .sp-ver-go { width:12px; height:12px; flex:0 0 12px; fill:none; stroke:#8F8982; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+  @keyframes sp-pulse { 50% { box-shadow:0 0 0 4px rgba(255,82,70,.25); } }
+  @media (prefers-reduced-motion:reduce) { .sp-ver-new { animation:none; } }
+  /* Menu animado */
+  .nav-single,.nav-link,.nav-group summary{position:relative;transition:background .2s,transform .2s,color .2s,box-shadow .25s}
+  .nav-single:hover,.nav-link:hover,.nav-group summary:hover{transform:translateX(4px)}
+  .nav-single .nav-icon,.nav-link .nav-icon,.nav-group summary .nav-icon{transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+  .nav-single:hover .nav-icon,.nav-link:hover .nav-icon,.nav-group summary:hover .nav-icon{transform:scale(1.25) rotate(-8deg)}
+  .nav-single.active,.nav-link.active{box-shadow:0 6px 18px rgba(255,82,70,.35);animation:navGlow 2.8s ease-in-out infinite}
+  @keyframes navGlow{0%,100%{box-shadow:0 4px 12px rgba(255,82,70,.25)}50%{box-shadow:0 6px 22px rgba(255,82,70,.5)}}
+  .nav-single.active::before,.nav-link.active::before{content:'';position:absolute;left:-6px;top:22%;bottom:22%;width:3px;border-radius:3px;background:#fff;animation:navBar .5s ease both}
+  @keyframes navBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+  .nav-single,.nav-group{animation:navIn .45s ease both}
+  .app-sidebar>:nth-child(2){animation-delay:.03s}.app-sidebar>:nth-child(3){animation-delay:.06s}.app-sidebar>:nth-child(4){animation-delay:.09s}.app-sidebar>:nth-child(5){animation-delay:.12s}.app-sidebar>:nth-child(6){animation-delay:.15s}.app-sidebar>:nth-child(7){animation-delay:.18s}.app-sidebar>:nth-child(8){animation-delay:.21s}.app-sidebar>:nth-child(9){animation-delay:.24s}.app-sidebar>:nth-child(10){animation-delay:.27s}
+  @keyframes navIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+  .app-sidebar .brand svg{animation:brandPulse 4s ease-in-out infinite}
+  @keyframes brandPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08) rotate(-3deg)}}
+
+  /* Logo animado */
+  .app-sidebar .brand{position:relative;gap:12px;padding-bottom:var(--espaco-4);margin-bottom:var(--espaco-2);border-bottom:1px solid rgba(255,255,255,.08)}
+  .app-sidebar .brand::after{content:'';position:absolute;left:0;bottom:-1px;height:2px;width:46%;background:linear-gradient(90deg,var(--serena-coral),rgba(255,82,70,0));animation:brandLine 3.6s ease-in-out infinite}
+  @keyframes brandLine{0%,100%{width:18%;opacity:.5}50%{width:78%;opacity:1}}
+  .app-sidebar .brand svg{width:34px;height:34px;filter:drop-shadow(0 0 8px rgba(255,82,70,.55));animation:none}
+  .app-sidebar .brand:hover svg{transform:rotate(-6deg) scale(1.1)}
+  .app-sidebar .brand svg{transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+  .brand .lg1,.brand .lg2,.brand .lg3{transform-box:fill-box;transform-origin:left center;animation:lgIn .7s cubic-bezier(.22,1,.36,1) both,lgFloat 4.5s ease-in-out infinite}
+  .brand .lg1{animation-delay:0s,.7s}.brand .lg2{animation-delay:.12s,1s}.brand .lg3{animation-delay:.24s,1.3s}
+  @keyframes lgIn{from{opacity:0;transform:translateX(-26px) scaleX(.3)}to{opacity:1;transform:none}}
+  @keyframes lgFloat{0%,100%{transform:translateX(0)}50%{transform:translateX(3px)}}
+  .app-sidebar .brand .brand-name{font-size:1.25rem;letter-spacing:.2px;background:linear-gradient(100deg,#fff 0%,#fff 40%,#ffb3ac 50%,#fff 60%,#fff 100%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#fff;animation:brandShine 5s ease-in-out infinite}
+  @keyframes brandShine{0%,55%{background-position:120% 0}100%{background-position:-120% 0}}
+  @media (prefers-reduced-motion:reduce){.brand .lg1,.brand .lg2,.brand .lg3,.app-sidebar .brand::after,.app-sidebar .brand .brand-name{animation:none!important}}
+  .nav-single{line-height:1.25}
+  @media (prefers-reduced-motion:reduce){.nav-single,.nav-link,.nav-group,.nav-single.active,.nav-link.active,.app-sidebar .brand svg{animation:none!important;transition:none!important}.nav-single:hover,.nav-link:hover{transform:none}}
+
+  .sidebar-footer a { color: #C9C5C0; font-size: 0.8rem; text-decoration: none; display: block; padding: 6px var(--espaco-2); }
+
+  .app-main { flex: 1; min-width: 0; }
+  .app-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--espaco-3) var(--espaco-5); background: var(--serena-branco);
+    border-bottom: 1px solid #E3DFD9; position: sticky; top: 0; z-index: 5;
+  }
+  .app-topbar h1 { font-size: 1.15rem; margin: 0; }
+  .app-topbar > div:first-child { flex: 1 1 auto; min-width: 0; }
+  .topbar-actions { display: flex; align-items: center; gap: var(--espaco-3); flex: 0 1 auto; min-width: 0; max-width: 72%; }
+  .qr-topbar {
+    width: 42px; height: 42px; flex: 0 0 42px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid #E3DFD9; border-radius: 12px; background: #F8F6F3; color: var(--cor-texto);
+    cursor: pointer; transition: background .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .qr-topbar:hover { background: var(--serena-areia); border-color: #D2CDC6; transform: translateY(-1px); }
+  .qr-topbar:active { transform: translateY(0); }
+  .qr-topbar svg { width: 24px; height: 24px; display: block; }
+  .bell { position: relative; color: var(--cor-texto); text-decoration: none; display: inline-flex; padding: 8px; border-radius: 50%; }
+  .bell:hover { background: var(--serena-areia); }
+  .bell .dot { position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--cor-perigo); border: 2px solid var(--serena-branco); }
+  .user-chip { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--cor-texto-secundario); min-width: 0; max-width: 280px; white-space: nowrap; overflow: hidden; }
+  .user-chip strong { color: var(--cor-texto); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Em instalações antigas do PWA que ainda estiverem usando Window Controls Overlay,
+     reserva automaticamente o espaço dos botões minimizar/maximizar/fechar do Windows. */
+  @media (display-mode: window-controls-overlay) {
+    .app-topbar {
+      padding-right: max(var(--espaco-5), calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 14px));
+    }
+  }
+
+  @media (min-width: 901px) and (max-width: 1180px) {
+    .app-topbar { padding-left: var(--espaco-3); padding-right: var(--espaco-3); }
+    .topbar-actions { gap: 8px; max-width: 68%; }
+    .user-chip { max-width: 155px; }
+    .user-chip span { display: none; }
+  }
+  .menu-toggle { display: none; background: none; border: none; padding: 8px; cursor: pointer; color: var(--cor-texto); margin-right: 4px; }
+  .sidebar-close { display: none; background: none; border: none; color: #C9C5C0; cursor: pointer; padding: 8px; position: absolute; top: var(--espaco-2); right: var(--espaco-2); }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; display: inline-block; }
+  .avatar-ini { background: var(--serena-coral, #f2574b); color: #fff; font-weight: 700; font-size: .8rem; line-height: 28px; text-align: center; }
+  .user-chip { display: flex; align-items: center; gap: 6px; }
+  .cluster-badge { background: #fff1e9; color: #8d431c; border-radius: 999px; padding: 3px 9px; font-size: .74rem; font-weight: 700; }
+  .cluster-pick { padding: 0 var(--espaco-2) var(--espaco-3); }
+  .cluster-pick label { display: block; color: #C9C5C0; font-size: .72rem; margin-bottom: 4px; }
+  .cluster-pick select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.08); color: #fff; font-size: .85rem; }
+  .cluster-pick select option { color: #111; }
+  .sidebar-user { display: none; color: #C9C5C0; font-size: 0.82rem; padding: 0 var(--espaco-2) var(--espaco-3); border-bottom: 1px solid rgba(255,255,255,0.12); margin-bottom: var(--espaco-2); }
+  .sidebar-user strong { display: block; color: white; font-size: 0.95rem; }
+
+  .app-content { padding: var(--espaco-5); max-width: 1180px; margin: 0 auto; }
+
+  .flash-stack { display: flex; flex-direction: column; gap: var(--espaco-2); margin-bottom: var(--espaco-4); }
+  .flash { border-radius: var(--raio-input); padding: 12px 16px; font-size: 0.9rem; }
+  .flash-success { background: color-mix(in srgb, var(--serena-verde) 18%, white); color: #1C7A5E; }
+  .flash-error { background: color-mix(in srgb, var(--serena-coral-escuro) 14%, white); color: var(--serena-coral-escuro); }
+  .flash-info { background: var(--serena-areia); color: var(--cor-texto-secundario); }
+
+  @media (max-width: 900px) {
+    .app-shell { flex-direction: column; }
+
+    /* Menu vira um painel deslizante (off-canvas), não mais uma faixa
+       horizontal de rolar — padrão comum de app mobile. */
+    .app-sidebar {
+      position: fixed; top: 0; left: 0; height: 100dvh; width: min(84vw, 300px);
+      transform: translateX(-100%); transition: transform .22s ease;
+      z-index: 100; box-shadow: 0 0 0 rgba(0,0,0,0); overflow-y: auto;
+      padding-top: calc(var(--espaco-4) + env(safe-area-inset-top, 0px));
+    }
+    .app-shell.menu-aberto .app-sidebar { transform: translateX(0); box-shadow: 20px 0 40px rgba(0,0,0,0.25); }
+
+    .menu-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 90;
+    }
+    .app-shell.menu-aberto .menu-backdrop { display: block; }
+
+    .sidebar-close { display: flex; }
+    .sidebar-user { display: block; }
+
+    .app-content { padding: var(--espaco-4) var(--espaco-3); }
+
+    .app-topbar {
+      padding: var(--espaco-3) var(--espaco-3);
+      padding-top: calc(var(--espaco-3) + env(safe-area-inset-top, 0px));
+    }
+    .app-topbar h1 { font-size: 1rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .user-chip { display: none; } /* já sabemos quem é: está no menu */
+    .menu-toggle { display: inline-flex; }
+  }
+</style>
+{% block head %}{% endblock %}
+<script src="/static/js/sigsmooth.js?v={{ app_version }}"></script>
+</head>
+<body data-app-version="{{ app_version }}" data-user-id="{{ user.id if user else '' }}" data-authenticated="{{ '1' if user else '0' }}">
+<div class="app-shell" id="app-shell">
+  <div class="menu-backdrop" onclick="fecharMenu()"></div>
+  <aside class="app-sidebar">
+    <button type="button" class="sidebar-close" onclick="fecharMenu()" aria-label="Fechar menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <div class="brand">
+      <svg viewBox="35 93 136 135" width="26" height="26">
+        <polygon class="lg1" points="171,93 35,129 35,138 171,102" fill="var(--serena-coral)"/>
+        <rect class="lg2" x="35" y="144" width="136" height="18" fill="var(--serena-coral)"/>
+        <polygon class="lg3" points="171,167 35,203 35,227 171,191" fill="var(--serena-coral)"/>
+      </svg>
+      <span class="brand-name">{{ app_name }}</span>
+    </div>
+
+    {% if user %}
+    <div class="sidebar-user"><strong>{% if user.photo_path %}<img class="avatar" src="/avatar/{{ user.id }}" alt="">{% else %}<span class="avatar avatar-ini">{{ (user.full_name or user.username)[:1]|upper }}</span>{% endif %}{{ user.full_name or user.username }}</strong>{{ user.role }}</div>
+    {% if user.role in ('Super Administrador','DEV') %}
+    <form method="post" action="/cluster/select" class="cluster-pick">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="next" value="{{ request.url.path }}">
+      <label for="cluster-pick">Cluster em visualização</label>
+      <select id="cluster-pick" name="cluster" onchange="this.form.submit()"><option value="">Todos os clusters</option>{% for c in view_cluster_options %}<option value="{{ c }}" {{ 'selected' if c == view_cluster }}>{{ c }}</option>{% endfor %}</select>
+    </form>
+    {% endif %}
+    {% endif %}
+
+    <!-- Sprite de ícones do menu embutido no HTML. -->
+    <svg aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden">
+      <symbol id="mi-home" viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/><path d="M9 20v-6h6v6"/></symbol>
+      <symbol id="mi-chart" viewBox="0 0 24 24"><path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/></symbol>
+      <symbol id="mi-clipboard" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="M8 9h8M8 13h8M8 17h5"/></symbol>
+      <symbol id="mi-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 8A7 7 0 0 1 18 6l2 2"/><path d="M17.9 16A7 7 0 0 1 6 18l-2-2"/></symbol>
+      <symbol id="mi-hardhat" viewBox="0 0 24 24"><path d="M3 18h18"/><path d="M5 18v-2a7 7 0 0 1 14 0v2"/><path d="M9 9V6h6v3"/><path d="M12 6v7"/></symbol>
+      <symbol id="mi-confined" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 21V8h6v13"/><circle cx="13" cy="14" r=".7"/></symbol>
+      <symbol id="mi-zap" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+      <symbol id="mi-live" viewBox="0 0 24 24"><path d="M4 17c3-5 5-7 8-7 3 0 4 2 8-3"/><path d="M4 7c3 5 5 7 8 7 3 0 4-2 8 3"/><circle cx="4" cy="7" r="1"/><circle cx="20" cy="17" r="1"/></symbol>
+      <symbol id="mi-leaf" viewBox="0 0 24 24"><path d="M20 4C12 4 6 7 5 14c-.5 3 1.5 5 4 5 7 0 10-7 11-15Z"/><path d="M4 21c2-5 6-9 12-12"/></symbol>
+      <symbol id="mi-hook" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M8 3h8"/><path d="M12 12c0 5-2 7-5 7-2.5 0-4-1.5-4-4"/><path d="M3 15h4"/></symbol>
+      <symbol id="mi-tower" viewBox="0 0 24 24"><path d="M12 3 7 21M12 3l5 18M8 17h8M9 12h6M10 7h4M5 21h14"/></symbol>
+      <symbol id="mi-searchcheck" viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m14.5 14.5 5 5"/><path d="m7.5 10 1.7 1.7 3.4-3.7"/></symbol>
+      <symbol id="mi-truck" viewBox="0 0 24 24"><path d="M3 6h11v10H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+      <symbol id="mi-car" viewBox="0 0 24 24"><path d="m5 11 2-5h10l2 5"/><path d="M4 11h16v7H4z"/><circle cx="7" cy="18" r="1.5"/><circle cx="17" cy="18" r="1.5"/><path d="M7 13h10"/></symbol>
+      <symbol id="mi-hoist" viewBox="0 0 24 24"><path d="M4 5h16M6 5v4h12V5M12 9v4"/><path d="M12 13c0 4-1.5 6-4 6-1.7 0-3-1-3-3"/><path d="M5 16h3"/></symbol>
+      <symbol id="mi-kit" viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V4h6v3M4 12h16M10 12v2h4v-2"/></symbol>
+      <symbol id="mi-belt" viewBox="0 0 24 24"><path d="M7 4v5l5 4 5-4V4"/><path d="M7 9 5 20M17 9l2 11M9 14h6M8 20h8"/><circle cx="12" cy="5" r="2"/></symbol>
+      <symbol id="mi-climb" viewBox="0 0 24 24"><path d="M6 21 12 3l6 18M8 16h8M9.5 11h5M11 6h2"/><path d="m17 8 2-2 2 2"/></symbol>
+      <symbol id="mi-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></symbol>
+      <symbol id="mi-wifioff" viewBox="0 0 24 24"><path d="M2 8c2-2 4-3 6-3M16 5c2 .5 4 1.5 6 3M5 12c2-1.5 4-2 6-2M18 12c.5.3 1 .7 1.5 1"/><path d="M8.5 16c2-1.5 5-1.5 7 0"/><circle cx="12" cy="20" r="1"/><path d="m3 3 18 18"/></symbol>
+      <symbol id="mi-tools" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5-5L12 3.6 9.6 6 7.3 3.7a4 4 0 0 0 5 5L20 16.4a2 2 0 0 1-2.8 2.8l-7.7-7.7"/><path d="m5 15-3 3 4 4 3-3"/></symbol>
+      <symbol id="mi-help" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5Z"/><path d="M10 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1.2-1.5 2.5M12.5 16h.01"/></symbol>
+      <symbol id="mi-siren" viewBox="0 0 24 24"><path d="M7 18v-6a5 5 0 0 1 10 0v6"/><path d="M5 21h14"/><path d="M12 3v1M4.2 6.2l.8.8M19.8 6.2l-.8.8M2 12h1M21 12h1"/><path d="M9 18h6"/></symbol>
+      <symbol id="mi-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 8.2 8 9 4.8-.8 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+      <symbol id="mi-code" viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/></symbol>
+      <symbol id="mi-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></symbol>
+      <symbol id="mi-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7a7 7 0 0 0-.8-1.9l.9-1.9-2.1-2.1-1.9.9a7 7 0 0 0-1.9-.8L10.5 2h-3l-.7 2a7 7 0 0 0-1.9.8L3 3.9.9 6l.9 1.9A7 7 0 0 0 1 9.8l-2 .7v3l2 .7a7 7 0 0 0 .8 1.9L.9 18l2.1 2.1 1.9-.9a7 7 0 0 0 1.9.8l.7 2h3l.7-2a7 7 0 0 0 1.9-.8l1.9.9L18 18l-.9-1.9a7 7 0 0 0 .8-1.9z" transform="translate(2 0) scale(.83)"/></symbol>
+      <symbol id="mi-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6M15 14c3 0 5 2 5.5 5"/></symbol>
+      <symbol id="mi-idcard" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.5-2 1.3-3 2.5-3s2 .9 2.5 3M13 10h5M13 14h5"/></symbol>
+      <symbol id="mi-cloud" viewBox="0 0 24 24"><path d="M7 18h11a4 4 0 0 0 .6-8A7 7 0 0 0 5.5 8.5 5 5 0 0 0 7 18Z"/><path d="M9 13h6M12 10v6"/></symbol>
+      <symbol id="mi-download" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+      <symbol id="mi-logout" viewBox="0 0 24 24"><path d="M10 4H4v16h6"/><path d="M14 8l4 4-4 4M18 12H9"/></symbol>
+    </svg>
+
+    <a class="nav-single {% if request.url.path == '/' %}active{% endif %}" href="/"><svg class="nav-icon"><use href="#mi-home"/></svg>Painel</a>
+    <a class="nav-single {% if request.url.path == '/indicadores/riscos' %}active{% endif %}" href="/indicadores/riscos"><svg class="nav-icon"><use href="#mi-chart"/></svg>Dashboard</a>
+
+    <details class="nav-group" {% if request.url.path.startswith('/apr') %}open{% endif %}>
+      <summary><span class="nav-summary-label"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>APR</span></summary>
+      <div class="nav-links">
+        <a class="nav-link {% if request.url.path == '/apr/new' %}active{% endif %}" href="/apr/new"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Nova APR</a>
+        <a class="nav-link {% if request.url.path.startswith('/apr/modelos') %}active{% endif %}" href="/apr/modelos"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Modelos de APR</a>
+        {% for t,u in custom_apr_links or [] %}<a class="nav-link {% if request.url.path == u %}active{% endif %}" href="{{ u }}"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>{{ t }}</a>{% endfor %}
+      </div>
+    </details>
+    <a class="nav-single {% if request.url.path.startswith('/emissao-documentos') or request.url.path.startswith('/permit') %}active{% endif %}" href="/emissao-documentos/permissoes"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Permissões</a>
+
+    <a class="nav-single {% if request.url.path.startswith('/inspection') or request.url.path.startswith('/vehicle') %}active{% endif %}" href="/inspecoes"><svg class="nav-icon"><use href="#mi-searchcheck"/></svg>Inspeções Prévias</a>
+
+    <a class="nav-single {% if request.url.path.startswith('/rac') %}active{% endif %}" href="/rac"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>RAC</a>
+
+    {% if user and user.role == 'Usuário' %}
+    <a class="nav-single {% if request.url.path == '/account' %}active{% endif %}" href="/account"><svg class="nav-icon"><use href="#mi-settings"/></svg>Configurações</a>
+    {% endif %}
+    <a class="nav-single {% if request.url.path == '/admin/offline' %}active{% endif %}" href="/admin/offline"><svg class="nav-icon"><use href="#mi-cloud"/></svg>Modo Offline</a>
+    <a class="nav-single {% if request.url.path == '/ferramentas-sst' %}active{% endif %}" href="/ferramentas-sst"><svg class="nav-icon"><use href="#mi-tools"/></svg>Ferramentas SST</a>
+    <a class="nav-single {% if request.url.path == '/recursos-externos' %}active{% endif %}" href="/recursos-externos"><svg class="nav-icon"><use href="#mi-siren"/></svg>Recursos de Emergência</a>
+    <a class="nav-single {% if request.url.path == '/sobre-serena' %}active{% endif %}" href="/sobre-serena"><svg class="nav-icon"><use href="#mi-shield"/></svg>Política SST</a>
+
+    {% if user and user.role in ['Administrador', 'Super Administrador', 'DEV'] %}
+    <details class="nav-group" {% if request.url.path.startswith('/admin') or request.url.path.startswith('/colaboradores') or request.url.path == '/account' %}open{% endif %}>
+      <summary><span class="nav-summary-label"><svg class="nav-icon"><use href="#mi-settings"/></svg>Administração</span></summary>
+      <div class="nav-links">
+        <a class="nav-link {% if request.url.path == '/account' %}active{% endif %}" href="/account"><svg class="nav-icon"><use href="#mi-user"/></svg>Minha Conta</a>
+        {% if user.role in ['Super Administrador','DEV'] %}
+        <a class="nav-link {% if request.url.path == '/admin/people' %}active{% endif %}" href="/admin/people"><svg class="nav-icon"><use href="#mi-users"/></svg>Colaboradores</a>
+        {% endif %}
+        <a class="nav-link {% if request.url.path.startswith('/colaboradores/consulta') %}active{% endif %}" href="/colaboradores/consulta"><svg class="nav-icon"><use href="#mi-searchcheck"/></svg>Consulta de colaborador</a>
+        <a class="nav-link" href="/admin/notifications"><svg class="nav-icon"><use href="#mi-settings"/></svg>Configurações de Notificações</a>
+      </div>
+    </details>
+    {% endif %}
+
+    {% if user and user.role == 'DEV' %}
+    <details class="nav-group" {% if request.url.path.startswith('/admin/documentos-automaticos') or request.url.path.startswith('/dev') %}open{% endif %}>
+      <summary><span class="nav-summary-label"><svg class="nav-icon"><use href="#mi-code"/></svg>Ferramentas DEV</span></summary>
+      <div class="nav-links">
+        <a class="nav-link {% if request.url.path == '/dev' %}active{% endif %}" href="/dev"><svg class="nav-icon"><use href="#mi-tools"/></svg>Painel DEV</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/documentos') %}active{% endif %}" href="/dev/documentos"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Documentos</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/usuarios') %}active{% endif %}" href="/dev/usuarios"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Usuários e acessos</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/auditoria') %}active{% endif %}" href="/dev/auditoria"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Auditoria</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/integridade') %}active{% endif %}" href="/dev/integridade"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Integridade</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/recursos-emergencia') %}active{% endif %}" href="/dev/recursos-emergencia"><svg class="nav-icon"><use href="#mi-info"/></svg>Recursos de Emergência</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/atualizacoes') %}active{% endif %}" href="/dev/atualizacoes"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Atualizações</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/sso') %}active{% endif %}" href="/dev/sso"><svg class="nav-icon"><use href="#mi-users"/></svg>Login único (SSO)</a>
+        <a class="nav-link {% if request.url.path.startswith('/dev/backup') %}active{% endif %}" href="/dev/backup"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Backup</a>
+        <a class="nav-link {% if request.url.path.startswith('/admin/documentos-automaticos') %}active{% endif %}" href="/admin/documentos-automaticos"><svg class="nav-icon"><use href="#mi-clipboard"/></svg>Novos documentos</a>
+      </div>
+    </details>
+    {% endif %}
+
+    <a class="nav-single {% if request.url.path.startswith('/central-ajuda') %}active{% endif %}" href="/central-ajuda"><svg class="nav-icon"><use href="#mi-help"/></svg>Central de Ajuda</a>
+
+    <div class="sidebar-footer">
+      <a href="/novidades" class="sp-ver" id="sp-ver" title="Novidades e histórico de versões">
+        <span class="sp-ver-ic"><svg class="nav-icon"><use href="#mi-refresh"/></svg></span>
+        <span class="sp-ver-tx"><b>Versão {{ app_version }}</b><small>Atualizado em {{ app_release.date }}</small></span>
+        <span class="sp-ver-new" id="sp-ver-new" hidden>Novo</span>
+        <svg class="sp-ver-go" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </a>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <a href="#" onclick="this.closest('form').submit(); return false;" class="nav-single" style="color:#C9C5C0;"><svg class="nav-icon"><use href="#mi-logout"/></svg>Sair</a>
+      </form>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <header class="app-topbar">
+      <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+        <button type="button" class="menu-toggle" onclick="abrirMenu()" aria-label="Abrir menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <h1>{% block page_title %}{{ app_name }}{% endblock %}</h1>
+      </div>
+      <div class="topbar-actions">
+        {% if user %}<button type="button" class="qr-topbar" onclick="abrirLeitorQrGeral()" title="Ler QR Code" aria-label="Ler QR Code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 14h2v2M19 19h2v2M14 19h2v2"/></svg></button>{% endif %}
+        <a class="bell" href="/notifications" title="Notificações" aria-label="Notificações">
+          <svg width="22" height="22" viewBox="0 0 24 24" class="icone icone-ativo"><path d="M6 8a6 6 0 1 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z"/><path d="M10 21h4"/></svg>
+          {% if notification_count and notification_count > 0 %}<span class="dot"></span>{% endif %}
+        </a>
+        {% if user %}
+        <div class="user-chip">
+          {% if user.photo_path %}<img class="avatar" src="/avatar/{{ user.id }}" alt="">{% else %}<span class="avatar avatar-ini">{{ (user.full_name or user.username)[:1]|upper }}</span>{% endif %}
+          {% if view_cluster %}<span class="cluster-badge">{{ view_cluster }}</span>{% endif %}
+          <strong>{{ user.full_name or user.username }}</strong>
+          <span>· {{ user.role }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="app-content">
+      {% if system_notice %}<div class="flash flash-success" role="status" style="background:#FFF4E5;border-color:#F0B35A;color:#6B4200">{{ system_notice }}</div>{% endif %}
+      {% if flashes %}
+      <div class="flash-stack">
+        {% for f in flashes %}
+        <div class="flash flash-{{ f.level }}">{{ f.message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script>
+// Transforma todo <select class="campo"> num dropdown customizado (visual
+// próprio, sem o estilo nativo do sistema operacional na lista aberta).
+// O <select> original continua no DOM (escondido) e é quem realmente
+// envia o valor no formulário — nada muda no backend.
+function enhanceSelects(root) {
+  (root || document).querySelectorAll('select.campo').forEach(function (sel) {
+    if (sel.dataset.enhanced) return;
+    sel.dataset.enhanced = '1';
+
+    function dotClass(value) { return ['C', 'NC', 'NA'].includes(value) ? ' dot-' + value : ''; }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'uiselect';
+    sel.parentNode.insertBefore(wrap, sel);
+    sel.classList.add('uiselect-native');
+    wrap.appendChild(sel);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'uiselect-btn';
+    const list = document.createElement('ul');
+    list.className = 'uiselect-list';
+    list.hidden = true;
+
+    function render() {
+      const opt = sel.options[sel.selectedIndex];
+      const isPlaceholder = !sel.value;
+      const dc = dotClass(sel.value);
+      btn.innerHTML =
+        '<span class="rotulo' + (isPlaceholder ? ' placeholder' : '') + '">' +
+        (dc ? '<span class="dot' + dc + '"></span>' : '') +
+        (opt ? opt.textContent : '') + '</span>' +
+        '<svg class="chev" width="14" height="14" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" fill="none"/></svg>';
+      list.innerHTML = '';
+      Array.from(sel.options).forEach(function (opt) {
+        if (opt.hidden) return;
+        const li = document.createElement('li');
+        li.textContent = opt.textContent;
+        if (opt.disabled) li.classList.add('desabilitado');
+        const optDc = dotClass(opt.value);
+        if (optDc) {
+          const dot = document.createElement('span');
+          dot.className = 'dot' + optDc;
+          li.prepend(dot);
+        }
+        if (opt.value === sel.value) li.classList.add('selecionado');
+        li.addEventListener('click', function () {
+          if (opt.disabled) return;
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          render();
+          fechar();
+        });
+        list.appendChild(li);
+      });
+    }
+    function abrir() { wrap.classList.add('aberto'); list.hidden = false; }
+    function fechar() { wrap.classList.remove('aberto'); list.hidden = true; }
+
+    btn.addEventListener('click', function () {
+      wrap.classList.contains('aberto') ? fechar() : abrir();
+    });
+    document.addEventListener('click', function (e) {
+      if (!wrap.contains(e.target)) fechar();
+    });
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') fechar();
+    });
+
+    wrap.appendChild(btn);
+    wrap.appendChild(list);
+    render();
+    sel.addEventListener('change', render);
+  });
+}
+function validationTarget(field) {
+  if (!field) return null;
+  if (field.classList && field.classList.contains('uiselect-native')) return field.closest('.uiselect');
+  return field.closest('.checklist-item, .item-row, .campo-grupo, .sig-pad-wrap, .permit-row, .linha-dinamica') || field;
+}
+function applyValidationMarkers() {
+  const src = document.getElementById('validation-fields');
+  if (!src) return;
+  let names = [];
+  try { names = JSON.parse(src.textContent || '[]'); } catch (e) { names = []; }
+  let first = null;
+  names.forEach(function(name) {
+    document.querySelectorAll('[name="' + CSS.escape(name) + '"]').forEach(function(field) {
+      field.setAttribute('aria-invalid', 'true');
+      const target = validationTarget(field);
+      if (target) {
+        target.classList.add('validation-error');
+        if (!first) first = target;
+      }
+    });
+  });
+  if (first) setTimeout(function(){ first.scrollIntoView({behavior:'smooth', block:'center'}); }, 80);
+}
+function clearValidationMarker(field) {
+  if (!field) return;
+  field.removeAttribute('aria-invalid');
+  const target = validationTarget(field);
+  if (target) target.classList.remove('validation-error');
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  enhanceSelects(document);
+  applyValidationMarkers();
+});
+document.addEventListener('input', function(e){ clearValidationMarker(e.target); });
+document.addEventListener('change', function(e){ clearValidationMarker(e.target); });
+
+// Se uma página autenticada reaparecer pela seta "Voltar" depois do logout,
+// confere a sessão no servidor.
+async function verifySessionOnHistoryReturn() {
+  if (document.body.dataset.authenticated !== '1') return;
+  try {
+    const resp = await fetch('/api/session/status', {credentials:'same-origin', cache:'no-store'});
+    if (resp.status === 401) window.location.replace('/login?expired=1');
+  } catch (e) {}
+}
+window.addEventListener('pageshow', verifySessionOnHistoryReturn);
+
+// ---- Menu mobile (off-canvas) ----
+function abrirMenu() { document.getElementById('app-shell').classList.add('menu-aberto'); document.body.style.overflow = 'hidden'; }
+function fecharMenu() { document.getElementById('app-shell').classList.remove('menu-aberto'); document.body.style.overflow = ''; }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharMenu(); });
+// Fecha o menu ao navegar para outra tela (clicar num link do menu).
+document.querySelectorAll('.app-sidebar a, .app-sidebar summary').forEach(function (el) {
+  el.addEventListener('click', function () {
+    if (el.tagName === 'A') fecharMenu();
+  });
+});
+</script>
+<script src="/static/js/pwa.js?v={{ app_version }}"></script>
+<script src="/static/js/offline-core.js?v=361919"></script>
+<script src="/static/js/offline-sync.js?v=361920"></script>
+<script src="/static/js/offline-drafts.js?v=361895"></script>
+<script src="/static/js/offline-apr.js?v=361901"></script>
+<script src="/static/js/notifications-push.js?v={{ app_version }}"></script>
+<script src="/static/js/permissions-onboarding.js?v={{ app_version }}"></script>
+<script type="application/json" id="sp-maint">{{ maint_notice|tojson }}</script>
+<script type="application/json" id="sp-release">{{ app_release|tojson }}</script>
+<script src="/static/js/app-updates.js?v={{ app_version }}"></script>
+
+
+{% block scripts %}{% endblock %}
+<script>
+async function abrirLeitorQrGeral(){
+ if(!('BarcodeDetector' in window)){ alert('Use Chrome ou Edge atualizado no celular para ler QR Code.'); return; }
+ let stream=null, box=document.createElement('div'); box.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;color:white';
+ box.innerHTML='<video autoplay playsinline style="width:min(94vw,520px);border-radius:14px;background:#111"></video><p>Aponte a câmera para o QR Code do Safety Plus.</p><button type="button" class="btn btn-secundario">Cancelar</button>'; document.body.appendChild(box);
+ const close=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());box.remove()}; box.querySelector('button').onclick=close;
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false}); const v=box.querySelector('video');v.srcObject=stream;await v.play();const d=new BarcodeDetector({formats:['qr_code']});
+ const tick=async()=>{if(!document.body.contains(box))return;try{const rs=await d.detect(v);if(rs.length){const val=rs[0].rawValue||'';if(val){close();try{const u=new URL(val,location.origin);if(u.origin===location.origin)location.href=u.pathname+u.search;else if(confirm('Abrir o link lido no QR Code?'))location.href=val;}catch(e){alert('QR Code lido: '+val)}return;}}}catch(e){}requestAnimationFrame(tick)};tick();
+ }catch(e){close();alert('Não foi possível abrir a câmera. Libere a permissão da câmera no navegador.');}
+}
+</script>
+
+{% if user and user.role in ['Administrador','Super Administrador','DEV'] %}
+<script>
+// Central de Ajuda: contador de solicitações recebidas pendentes no menu lateral (sem sobrepor a tela).
+(function(){
+  const link=document.querySelector('.app-sidebar a[href="/central-ajuda"]'); if(!link)return;
+  const badge=document.createElement('span'); badge.className='sp-help-badge'; badge.hidden=true; link.appendChild(badge);
+  const st=document.createElement('style'); st.textContent='.sp-help-badge{margin-left:auto;background:var(--serena-coral);color:#fff;border-radius:999px;font:600 11px/1 var(--fonte-base);padding:4px 8px}.sp-help-badge[hidden]{display:none}'; document.head.appendChild(st);
+  async function check(){try{const r=await fetch('/api/support/pending-alerts',{credentials:'same-origin',cache:'no-store'});if(!r.ok)return;const d=await r.json();
+    badge.hidden=!d.count; badge.textContent=d.count; link.title=d.count?d.count+' solicitação(ões) recebida(s) aguardando você':'';
+    let old=[];try{old=JSON.parse(sessionStorage.getItem('sp-support-seen')||'[]');}catch(e){}
+    const fresh=d.tickets.filter(x=>!old.includes(x.id));
+    if(sessionStorage.getItem('sp-support-ready')==='yes'&&fresh.length&&'Notification' in window&&Notification.permission==='granted'){const n=new Notification('Nova solicitação — Safety Plus',{body:fresh[0].subject,tag:'sp-support-'+fresh[0].id});n.onclick=()=>{window.focus();location.href='/central-ajuda?aba=recebidas&ticket='+fresh[0].id;};}
+    try{sessionStorage.setItem('sp-support-seen',JSON.stringify(d.tickets.map(x=>x.id)));sessionStorage.setItem('sp-support-ready','yes');}catch(e){}
+  }catch(e){}}
+  check(); setInterval(check,45000);
+})();
+</script>
+{% endif %}
+</body>
+</html>

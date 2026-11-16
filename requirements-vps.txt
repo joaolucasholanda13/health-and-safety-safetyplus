@@ -1,0 +1,3 @@
+# Dependências de produção/VPS do Safety Plus
+-r requirements.txt
+

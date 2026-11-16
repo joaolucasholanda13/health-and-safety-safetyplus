@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Painel DEV · Safety Plus{% endblock %}
+{% block page_title %}Painel DEV{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/serena-admin.css?v=361895">
+<style>
+.ti-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.ti-card{background:#fff;border:1px solid #ECE8E3;border-radius:16px;padding:16px}
+.ti-card h3{margin:0 0 8px;font-size:.95rem}
+.ti-big{font-size:1.6rem;font-weight:700}
+.ti-muted{color:#6b6661;font-size:.82rem}
+.ti-bar{height:8px;background:#ECE8E3;border-radius:6px;overflow:hidden;margin:8px 0 4px}
+.ti-bar>i{display:block;height:100%;background:#2f7d4f}
+.ti-bar>i.warn{background:#d9902f}.ti-bar>i.crit{background:#c0392b}
+.ti-table{width:100%;border-collapse:collapse;font-size:.86rem;background:#fff;border:1px solid #ECE8E3;border-radius:12px}
+.ti-table th,.ti-table td{padding:8px 10px;border-bottom:1px solid #ECE8E3;text-align:left;vertical-align:top}
+.ti-box{background:#fff;border:1px solid #ECE8E3;border-radius:16px;padding:18px;margin-top:14px}
+.ti-row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.ti-row .sx-field{flex:1;min-width:160px}
+.ti-btn{padding:9px 16px;border-radius:10px;border:1px solid #181818;background:#181818;color:#fff;cursor:pointer;font:inherit}
+.ti-btn.alt{background:#fff;color:#181818}.ti-btn.danger{background:#c0392b;border-color:#c0392b}
+.ti-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.ti-tabs a{padding:6px 12px;border:1px solid #ECE8E3;border-radius:999px;text-decoration:none;color:inherit;font-size:.85rem}
+.ti-tabs a.on{background:#181818;color:#fff}
+textarea.ti-json{width:100%;min-height:340px;font-family:monospace;font-size:.8rem}
+</style>{% endblock %}
+{% macro money(n) %}{% if n is none %}—{% else %}{% set u=['B','KB','MB','GB','TB'] %}{% set ns=namespace(v=n,i=0) %}{% for _ in range(4) %}{% if ns.v>=1024 %}{% set ns.v=ns.v/1024 %}{% set ns.i=ns.i+1 %}{% endif %}{% endfor %}{{ '%.1f'|format(ns.v) }} {{ u[ns.i] }}{% endif %}{% endmacro %}
+{% macro bar(p) %}<div class="ti-bar"><i class="{% if p is not none and p>=90 %}crit{% elif p is not none and p>=75 %}warn{% endif %}" style="width:{{ p or 0 }}%"></i></div>{% endmacro %}
+{% block content %}
+<div class="sx-page">
+  <div class="sx-head"><div><div class="sx-kicker">Administração · DEV</div><h2>Ferramentas DEV</h2>
+    <p>Ajustes de todo o sistema. Toda ação fica registrada na auditoria.</p></div></div>
+  <nav class="ti-tabs">
+    <a href="/dev" class="{{ 'on' if section=='home' }}">Painel</a>
+    <a href="/dev/documentos" class="{{ 'on' if section in ('docs','doc') }}">Documentos</a>
+    <a href="/dev/usuarios" class="{{ 'on' if section=='users' }}">Usuários e acessos</a>
+    <a href="/dev/auditoria" class="{{ 'on' if section=='audit' }}">Auditoria</a>
+    <a href="/dev/integridade" class="{{ 'on' if section=='integrity' }}">Integridade</a>
+    <a href="/dev/monitoramento" class="{{ 'on' if section=='monitor' }}">Monitoramento</a>
+    <a href="/dev/backup" class="{{ 'on' if section=='backup' }}">Backup</a>
+    <a href="/admin/documentos-automaticos">Novos documentos</a>
+  </nav>
+
+{% if section=='home' %}
+  <h3>Saúde do servidor</h3>
+  <div class="ti-grid" id="ti-health">
+    <div class="ti-card"><h3>Espaço em disco</h3><div class="ti-big" id="h-disk">{{ money(stats.disk.used) }} / {{ money(stats.disk.total) }}</div>{{ bar(stats.disk.percent) }}<div class="ti-muted"><span id="h-disk-p">{{ stats.disk.percent }}</span>% usado · livre {{ money(stats.disk.free) }}</div></div>
+    <div class="ti-card"><h3>Memória RAM{% if stats.memory and stats.memory.percent>=90 %} ⚠ CRÍTICA{% elif stats.memory and stats.memory.percent>=75 %} ⚠ alta{% endif %}</h3>{% if stats.memory %}<div class="ti-big" id="h-mem">{{ money(stats.memory.used) }} / {{ money(stats.memory.total) }}</div>{{ bar(stats.memory.percent) }}<div class="ti-muted"><span id="h-mem-p">{{ stats.memory.percent }}</span>% em uso · aplicação: {{ money(stats.process_rss) }}</div>{% else %}<div class="ti-muted">Indisponível neste servidor.</div>{% endif %}</div>
+    <div class="ti-card"><h3>Processador</h3>{% if stats.cpu_percent is not none %}<div class="ti-big" id="h-cpu">{{ stats.cpu_percent }}%</div>{{ bar(stats.cpu_percent) }}{% endif %}<div class="ti-muted">{{ stats.cpu_count }} núcleo(s){% if stats.load %} · carga {{ stats.load|join(' / ') }}{% endif %}{% if stats.uptime is not none %} · ligado há {{ (stats.uptime//86400) }}d {{ (stats.uptime%86400)//3600 }}h{% endif %}</div></div>
+  </div>
+  <p class="ti-muted">Atualiza sozinho a cada 5 segundos.</p>
+
+  <h3>Espaço usado pelo sistema</h3>
+  <div class="ti-grid">{% for n,s in sizes.items() %}<div class="ti-card"><div class="ti-muted">{{ n }}</div><div class="ti-big">{{ money(s) }}</div></div>{% endfor %}</div>
+
+  <h3 style="margin-top:18px">Dados</h3>
+  <div class="ti-grid">{% for n,c in counts.items() %}<div class="ti-card"><div class="ti-muted">{{ n }}</div><div class="ti-big">{{ c }}</div></div>{% endfor %}
+    {% for n,c in info.items() %}<div class="ti-card"><div class="ti-muted">{{ n }}</div><div style="word-break:break-all">{{ c }}</div></div>{% endfor %}</div>
+
+  <div class="ti-box"><h3>Aviso global</h3>
+    <p class="ti-muted">Aparece no topo de todas as telas. Deixe vazio para remover.</p>
+    <form method="post" action="/dev/aviso" class="ti-row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sx-field"><span>Mensagem</span><input name="notice" maxlength="500" value="{{ settings.get('notice','') }}"></label>
+      <button class="ti-btn">Salvar aviso</button></form></div>
+  <div class="ti-box" {% if maint.on %}style="border-color:#c0392b"{% endif %}><h3>Modo manutenção {% if maint.on %}<span style="color:#c0392b">· LIGADO</span>{% endif %}</h3>
+    <p class="ti-muted">Ligado, ninguém além do DEV consegue usar o sistema (quem está logado vê a mensagem). Use antes de restaurar backup.</p>
+    <form method="post" action="/dev/manutencao/modo" class="ti-row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sx-field"><span>Mensagem para os usuários</span><input name="message" maxlength="300" value="{{ maint.message }}" placeholder="Voltamos às 22h."></label>
+      <label class="sx-field" style="max-width:140px"><span>Estado</span><select name="on"><option value="0" {{ 'selected' if not maint.on }}>Desligado</option><option value="1" {{ 'selected' if maint.on }}>Ligado</option></select></label>
+      <button class="ti-btn">Aplicar</button></form></div>
+  <div class="ti-box"><h3>Manutenção</h3>
+    <form method="post" action="/dev/manutencao/limpar-notificacoes"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Apagar notificações já lidas</button></form></div>
+
+  <div class="ti-box"><h3>Auditoria recente</h3>
+    <table class="ti-table"><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Detalhe</th></tr>
+    {% for l in logs %}<tr><td>{{ l.created_at.strftime('%d/%m %H:%M') }}</td><td>{{ names.get(l.user_id,'—') }}</td><td>{{ l.action }}</td><td>{{ (l.detail or '')[:160] }}</td></tr>{% endfor %}</table></div>
+<script>
+(function(){
+  function fmt(n){var u=['B','KB','MB','GB','TB'],i=0;while(n>=1024&&i<4){n/=1024;i++}return n.toFixed(1)+' '+u[i]}
+  function setBar(card,p){var b=card.querySelector('.ti-bar>i');if(!b)return;b.style.width=p+'%';b.className=p>=90?'crit':p>=75?'warn':''}
+  function tick(){fetch('/dev/sistema.json',{credentials:'same-origin'}).then(function(r){return r.ok?r.json():null}).then(function(s){
+    if(!s)return;
+    var d=document.getElementById('h-disk');if(d){d.textContent=fmt(s.disk.used)+' / '+fmt(s.disk.total);setBar(d.closest('.ti-card'),s.disk.percent);document.getElementById('h-disk-p').textContent=s.disk.percent}
+    var m=document.getElementById('h-mem');if(m&&s.memory){m.textContent=fmt(s.memory.used)+' / '+fmt(s.memory.total);setBar(m.closest('.ti-card'),s.memory.percent);document.getElementById('h-mem-p').textContent=s.memory.percent}
+    var c=document.getElementById('h-cpu');if(c&&s.cpu_percent!=null){c.textContent=s.cpu_percent+'%';setBar(c.closest('.ti-card'),s.cpu_percent)}
+  }).catch(function(){})}
+  setInterval(tick,5000);
+})();
+</script>
+
+{% elif section=='docs' %}
+  <form method="get" class="ti-row"><label class="sx-field"><span>Buscar</span><input name="q" value="{{ q }}" placeholder="Código, atividade, site..."></label>
+    <label class="sx-field"><span>Tipo</span><select name="kind"><option value="">Todos</option>{% for k in kinds %}<option value="{{ k }}" {{ 'selected' if k==kind_filter }}>{{ titles.get(k,k) }}</option>{% endfor %}</select></label>
+    <label class="sx-field"><span>Status</span><select name="status"><option value="">Todos</option>{% for s in statuses %}<option {{ 'selected' if s==status_filter }}>{{ s }}</option>{% endfor %}</select></label>
+    <button class="ti-btn">Filtrar</button></form>
+  <p class="ti-muted">{{ total }} documento(s){% if total>100 %} — mostrando os 100 mais recentes{% endif %}.</p>
+  <form method="post" action="/dev/documentos/massa" id="bulk"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="ti-box" style="margin:0 0 10px"><h3>Edição em massa</h3><p class="ti-muted">Marque os documentos abaixo e preencha só o que quer mudar.</p><div class="ti-row">
+    <label class="sx-field"><span>Novo status</span><select name="status"><option value="">(não mudar)</option>{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select></label>
+    <label class="sx-field"><span>Novo cluster</span><input name="cluster"></label><label class="sx-field"><span>Novo site</span><input name="site"></label>
+    <button class="ti-btn">Aplicar aos marcados</button></div></div>
+  <table class="ti-table"><tr><th><input type="checkbox" onclick="document.querySelectorAll('#bulk .bk').forEach(function(c){c.checked=this.checked}.bind(this))"></th><th>Código</th><th>Tipo</th><th>Status</th><th>Local</th><th>Criado por</th><th>Atualizado</th><th></th></tr>
+  {% for d in docs %}<tr><td><input type="checkbox" class="bk" name="ids" value="{{ d.id }}"></td><td>{{ d.code }}</td><td>{{ titles.get(d.kind,d.kind) }}</td><td>{{ d.status }}</td><td>{{ d.cluster }} {{ d.site }}</td><td>{{ names.get(d.created_by,'—') }}</td><td>{{ d.updated_at.strftime('%d/%m/%Y %H:%M') }}</td><td><a href="/dev/documentos/{{ d.id }}">Editar</a></td></tr>{% endfor %}</table></form>
+
+{% elif section=='doc' %}
+  <div class="ti-box"><h3>{{ doc.code }} · {{ titles.get(doc.kind,doc.kind) }}</h3>
+    <p class="ti-muted">Criado por {{ (creator.full_name or creator.username) if creator else '—' }}. O código não pode ser alterado. Os valores anteriores ficam na auditoria.</p>
+    <form method="post" action="/dev/documentos/{{ doc.id }}/salvar"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="ti-row">
+        <label class="sx-field"><span>Status</span><select name="status">{% for s in statuses %}<option {{ 'selected' if s==doc.status }}>{{ s }}</option>{% endfor %}{% if doc.status not in statuses %}<option selected>{{ doc.status }}</option>{% endif %}</select></label>
+        <label class="sx-field"><span>Título</span><input name="title" value="{{ doc.title }}" maxlength="120"></label>
+        <label class="sx-field"><span>Cluster</span><input name="cluster" value="{{ doc.cluster }}"></label>
+        <label class="sx-field"><span>Site</span><input name="site" value="{{ doc.site }}"></label>
+      </div>
+      <label class="sx-field" style="margin-top:10px"><span>Atividade</span><textarea name="activity" rows="2">{{ doc.activity }}</textarea></label>
+      <label class="sx-field" style="margin-top:10px"><span>Dados completos (JSON)</span><textarea class="ti-json" name="data_json" spellcheck="false">{{ raw }}</textarea></label>
+      <div class="ti-row" style="margin-top:12px"><button class="ti-btn">Salvar alterações</button><a class="ti-btn alt" style="text-decoration:none" href="/dev/documentos/{{ doc.id }}/versoes">Histórico de versões</a><a class="ti-btn alt" style="text-decoration:none" href="/dev/documentos">Voltar</a></div>
+    </form>
+    <div class="ti-row" style="margin-top:14px">
+      <form method="post" action="/dev/documentos/{{ doc.id }}/reabrir"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Reabrir como Rascunho</button></form>
+      <form method="post" action="/dev/documentos/{{ doc.id }}/pdf"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Regenerar PDF</button></form>
+      <form method="post" action="/dev/documentos/{{ doc.id }}/excluir"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn danger">Excluir documento</button></form>
+    </div>
+  </div>
+
+{% elif section=='versions' %}
+  <div class="ti-box"><h3>Histórico · {{ doc.code }}</h3>
+    <p class="ti-muted">Cada alteração guarda o estado anterior (até 30 versões). Restaurar volta o documento àquele estado.</p>
+    <table class="ti-table"><tr><th>Guardada em</th><th>Status</th><th>Local</th><th>Atividade</th><th></th></tr>
+    {% for v in versions %}<tr><td>{{ v.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td><td>{{ v.status }}</td><td>{{ v.cluster }} {{ v.site }}</td><td>{{ (v.activity or '')[:80] }}</td>
+      <td><form method="post" action="/dev/documentos/{{ doc.id }}/versoes/{{ v.id }}/restaurar"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Restaurar</button></form></td></tr>
+    {% else %}<tr><td colspan="5" class="ti-muted">Nenhuma alteração registrada ainda.</td></tr>{% endfor %}</table>
+    <p><a href="/dev/documentos/{{ doc.id }}">← Voltar ao documento</a></p></div>
+
+{% elif section=='audit' %}
+  <form method="get" class="ti-row">
+    <label class="sx-field"><span>Buscar detalhe, IP ou navegador</span><input name="q" value="{{ f.q }}"></label>
+    <label class="sx-field"><span>Ação</span><select name="action"><option value="">Todas</option>{% for a in actions %}<option {{ 'selected' if a==f.action }}>{{ a }}</option>{% endfor %}</select></label>
+    <label class="sx-field"><span>ID do usuário</span><input name="user_id" value="{{ f.user_id }}" inputmode="numeric"></label>
+    <label class="sx-field"><span>De</span><input type="date" name="start" value="{{ f.start }}"></label>
+    <label class="sx-field"><span>Até</span><input type="date" name="end" value="{{ f.end }}"></label>
+    <button class="ti-btn">Filtrar</button><a class="ti-btn alt" style="text-decoration:none" href="/dev/auditoria.csv?{{ qs }}">Exportar CSV</a>
+  </form>
+  <p class="ti-muted">{{ total }} registro(s) · página {{ page }} de {{ pages }}. IP de origem da conexão; usuários da mesma rede podem compartilhar o endereço. Registros antigos podem não ter os novos dados.</p>
+  <div style="overflow-x:auto"><table class="ti-table"><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>IP / Navegador</th><th>O que foi feito</th></tr>
+  {% for l in logs %}<tr>
+    <td>{{ l.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+    <td>{% if l.user_id %}{{ names.get(l.user_id,'(removido)') }} <a href="/dev/auditoria?user_id={{ l.user_id }}">ID {{ l.user_id }}</a>{% else %}Sem usuário identificado{% endif %}</td>
+    <td>{{ audit_label(l.action) }}<br><small class="ti-muted">{{ l.action }}</small></td>
+    <td><strong>{{ l.ip_address or 'Não registrado' }}</strong><details><summary>Navegador e operação</summary><p style="overflow-wrap:anywhere">{{ l.user_agent or 'Não registrado' }}</p><p>{{ l.http_method }} {{ l.request_path }}</p><small>{{ l.request_id }}</small></details></td>
+    <td style="min-width:240px;overflow-wrap:anywhere">
+      {% set detail=detail_view(l.detail) %}
+      {% if detail.document %}<strong>{{ detail.document }}</strong> {{ detail.title }}{% endif %}
+      {% if detail.changes %}<details><summary>{{ detail.changes|length }} campo(s) alterado(s)</summary>
+        <table class="ti-table"><tr><th>Campo</th><th>Antes</th><th>Depois</th></tr>
+        {% for change in detail.changes %}<tr><td>{{ change.field }}</td><td>{{ change.before }}</td><td>{{ change.after }}</td></tr>{% endfor %}</table>
+        {% if detail.omitted %}<p>{{ detail.omitted }} outras alterações. Consulte o histórico do documento.</p>{% endif %}
+      </details>{% endif %}
+      {% if detail.text %}<details><summary>{{ detail.text[:180] }}{{ '…' if detail.text|length>180 else '' }}</summary><div style="white-space:pre-wrap">{{ detail.text }}</div></details>{% endif %}
+    </td>
+  </tr>{% endfor %}</table></div>
+  <div class="ti-row" style="margin-top:10px">{% if page>1 %}<a class="ti-btn alt" style="text-decoration:none" href="/dev/auditoria?{{ qs }}&page={{ page-1 }}">← Anterior</a>{% endif %}{% if page<pages %}<a class="ti-btn alt" style="text-decoration:none" href="/dev/auditoria?{{ qs }}&page={{ page+1 }}">Próxima →</a>{% endif %}</div>
+
+{% elif section=='integrity' %}
+  {% set labels={'docs_sem_pdf':'Documentos finalizados sem PDF','docs_json_invalido':'Documentos com dados (JSON) inválidos','docs_sem_criador':'Documentos cujo criador não existe mais','notificacoes_orfas':'Notificações órfãs','escopos_orfaos':'Escopos de acesso órfãos','colaboradores_sem_empresa':'Colaboradores sem empresa','pdfs_orfaos':'PDFs sem documento'} %}
+  <p class="ti-muted">{% if total==0 %}Nenhum problema encontrado.{% else %}{{ total }} problema(s) encontrado(s).{% endif %}</p>
+  {% for k,items in rep.items() %}<div class="ti-box"><h3>{{ labels[k] }} · {{ items|length }}</h3>
+    {% if items %}<p class="ti-muted">{% for i in items[:30] %}{% if i.id is defined and k.startswith('docs') %}<a href="/dev/documentos/{{ i.id }}">{{ i.code }}</a>{% elif i.path is defined %}{{ i.path }}{% else %}#{{ i.id }}{% endif %}{{ ', ' if not loop.last }}{% endfor %}{% if items|length>30 %} … e mais {{ items|length-30 }}{% endif %}</p>
+    {% if k=='docs_sem_pdf' %}<form method="post" action="/dev/integridade/regenerar-pdfs"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Regenerar PDFs</button></form>{% endif %}{% endif %}</div>{% endfor %}
+  {% if rep.notificacoes_orfas or rep.escopos_orfaos or rep.docs_sem_criador or rep.pdfs_orfaos %}
+  <form method="post" action="/dev/integridade/corrigir"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn" style="margin-top:12px">Corrigir automaticamente</button>
+  <span class="ti-muted"> Apaga notificações/escopos órfãos, passa documentos sem criador para você e move PDFs órfãos para a pasta quarentena.</span></form>{% endif %}
+
+{% elif section=='users' %}
+  <table class="ti-table"><tr><th>Login</th><th>Nome</th><th>Perfil</th><th>Ativo</th><th>Nova senha</th><th></th></tr>
+  {% for u in users %}<tr>
+    <td>{{ u.username }}<form id="uf{{ u.id }}" method="post" action="/dev/usuarios/{{ u.id }}/atualizar"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"></form></td>
+    <td><input form="uf{{ u.id }}" name="full_name" value="{{ u.full_name }}"></td>
+    <td><select form="uf{{ u.id }}" name="role">{% for r in roles %}<option {{ 'selected' if r==u.role }}>{{ r }}</option>{% endfor %}</select></td>
+    <td><select form="uf{{ u.id }}" name="active"><option value="1" {{ 'selected' if u.active }}>Sim</option><option value="0" {{ 'selected' if not u.active }}>Não</option></select></td>
+    <td><input form="uf{{ u.id }}" type="password" name="password" minlength="8" autocomplete="new-password" placeholder="(manter)"></td>
+    <td style="white-space:nowrap"><button form="uf{{ u.id }}" class="ti-btn alt">Salvar</button>
+      <button form="lo{{ u.id }}" class="ti-btn alt" title="Encerra as sessões deste usuário">Deslogar</button><form id="lo{{ u.id }}" method="post" action="/dev/usuarios/{{ u.id }}/deslogar"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"></form></td></tr>{% endfor %}</table>
+  <div class="ti-box"><h3>Sessões e documentos</h3>
+    <form method="post" action="/dev/usuarios/deslogar-todos" onsubmit="return confirm('Deslogar todos os usuários agora?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Deslogar todos os usuários</button></form>
+    <h3 style="margin-top:16px">Mover documentos entre usuários</h3><p class="ti-muted">Passa todos os documentos criados por um usuário para outro (ex.: quando alguém sai da empresa).</p>
+    <form method="post" action="/dev/usuarios/mover-documentos" class="ti-row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sx-field"><span>De</span><select name="from_user" required>{% for u in users %}<option value="{{ u.id }}">{{ u.full_name or u.username }}</option>{% endfor %}</select></label>
+      <label class="sx-field"><span>Para</span><select name="to_user" required>{% for u in users %}<option value="{{ u.id }}">{{ u.full_name or u.username }}</option>{% endfor %}</select></label>
+      <button class="ti-btn danger">Mover</button></form></div>
+  <div class="ti-box"><h3>Novo usuário</h3>
+    <form method="post" action="/dev/usuarios/criar" class="ti-row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sx-field"><span>Login</span><input name="username" required></label>
+      <label class="sx-field"><span>Nome</span><input name="full_name"></label>
+      <label class="sx-field"><span>Senha (mín. 8)</span><input type="password" name="password" minlength="8" required autocomplete="new-password"></label>
+      <label class="sx-field"><span>Perfil</span><select name="role">{% for r in roles %}<option>{{ r }}</option>{% endfor %}</select></label>
+      <button class="ti-btn">Criar</button></form></div>
+
+{% elif section=='monitor' %}
+  <nav class="ti-tabs" style="margin-top:0">
+    {% for k,l in [('servidor','Servidor'),('usuarios','Usuários online'),('requisicoes','Requisições'),('erros','Erros'),('banco','Banco e arquivos'),('robo','Robô de manutenção')] %}
+    <a href="/dev/monitoramento?aba={{ k }}&janela={{ janela }}" class="{{ 'on' if aba==k }}">{{ l }}</a>{% endfor %}
+    <span style="margin-left:auto;font-size:.8rem;display:flex;gap:10px;align-items:center">
+      {% if aba in ('servidor','requisicoes') %}Janela:
+      {% for j in (5,15,30,60) %}<a href="/dev/monitoramento?aba={{ aba }}&janela={{ j }}" class="{{ 'on' if janela==j }}">{{ j }} min</a>{% endfor %}{% endif %}
+      <label><input type="checkbox" id="auto-ref"> atualizar a cada 15 s</label></span>
+  </nav>
+  <script>(function(){var c=document.getElementById('auto-ref'),k='dev-mon-auto',t;try{c.checked=localStorage.getItem(k)==='1'}catch(e){}
+  function go(){clearTimeout(t);if(c.checked)t=setTimeout(function(){location.reload()},15000)}
+  c.addEventListener('change',function(){try{localStorage.setItem(k,c.checked?'1':'0')}catch(e){}go()});go()})();</script>
+  <p class="ti-muted">Os números de requisições, usuários online e erros ficam na memória do servidor e zeram quando ele reinicia (com vários processos, cada um tem o seu).</p>
+
+  {% macro spark(series) %}{% set mx=(series|map(attribute=1)|max) or 1 %}<div style="display:flex;align-items:flex-end;gap:2px;height:60px">{% for t,n in series %}<i title="{{ n }} req" style="flex:1;background:#FF5246;height:{{ (n/mx*100)|round }}%;min-height:2px;border-radius:2px"></i>{% endfor %}</div>{% endmacro %}
+
+  {% if aba=='robo' %}
+    {% include '_robot_status.html' %}
+  {% elif aba=='servidor' %}
+  <div class="ti-grid">
+    <div class="ti-card"><h3>Processador</h3>{% if stats.cpu_percent is not none %}<div class="ti-big">{{ stats.cpu_percent }}%</div>{{ bar(stats.cpu_percent) }}{% else %}—{% endif %}<div class="ti-muted">{{ stats.cpu_count }} núcleo(s){% if stats.load %} · carga {{ stats.load|join(' / ') }}{% endif %}</div></div>
+    <div class="ti-card"><h3>Memória RAM</h3>{% if stats.memory %}<div class="ti-big">{{ money(stats.memory.used) }} / {{ money(stats.memory.total) }}</div>{{ bar(stats.memory.percent) }}{% else %}—{% endif %}<div class="ti-muted">Processo do sistema: {{ money(stats.process_rss) }}</div></div>
+    <div class="ti-card"><h3>Disco (HD){% if stats.disk.percent>=90 %} ⚠ QUASE CHEIO{% elif stats.disk.percent>=75 %} ⚠ alto{% endif %}</h3><div class="ti-big">{{ money(stats.disk.used) }} / {{ money(stats.disk.total) }}</div>{{ bar(stats.disk.percent) }}</div>
+    <div class="ti-card"><h3>Requisições</h3><div class="ti-big">{{ mon.per_min }}/min</div><div class="ti-muted">p95: {{ mon.p95 }} ms · {{ mon.total }} na janela</div>{{ spark(mon.series) }}</div>
+  </div>
+  {% set ram=stats.memory.percent if stats.memory else 0 %}{% set hd=stats.disk.percent %}
+  {% if hd>=90 or ram>=90 %}<div style="background:#c0392b;color:#fff;padding:12px 16px;border-radius:10px;margin:12px 0;font-weight:600">⚠ CRÍTICO:{% if hd>=90 %} disco com {{ hd }}% (quase cheio){% endif %}{% if ram>=90 %} memória RAM com {{ ram }}%{% endif %} — libere espaço / aumente o servidor.</div>
+  {% elif hd>=75 or ram>=75 %}<div style="background:#f5a623;color:#181818;padding:12px 16px;border-radius:10px;margin:12px 0;font-weight:600">⚠ Atenção:{% if hd>=75 %} disco com {{ hd }}%{% endif %}{% if ram>=75 %} memória RAM com {{ ram }}%{% endif %} — acompanhe.</div>{% endif %}
+  <div class="ti-box"><h3>Documentos por cluster <span class="ti-muted">· PDFs, assinaturas e evidências</span></h3>
+    {% set tot=(clusters|sum(attribute='bytes')) or 1 %}
+    <table class="ti-table"><tr><th>Cluster</th><th>Documentos</th><th>Arquivos</th><th>Tamanho</th><th style="width:30%">% do total</th></tr>
+    {% for c in clusters %}<tr><td>{{ c.cluster }}</td><td>{{ c.docs }}</td><td>{{ c.files }}</td><td><b>{{ money(c.bytes) }}</b></td><td>{{ bar((c.bytes/tot*100)|round(1)) }}</td></tr>
+    {% else %}<tr><td colspan="5" class="ti-muted">Nenhum documento ainda.</td></tr>{% endfor %}
+    <tr><td><b>Total</b></td><td>{{ clusters|sum(attribute='docs') }}</td><td>{{ clusters|sum(attribute='files') }}</td><td><b>{{ money(clusters|sum(attribute='bytes')) }}</b></td><td></td></tr></table>
+    <p class="ti-muted">Disco livre no servidor: {{ money(stats.disk.free) }}.</p></div>
+  <p class="ti-muted">Sistema ligado há {{ (mon.uptime//3600) }}h {{ (mon.uptime%3600//60) }}min.{% if stats.swap and stats.swap.used %} Atenção: swap em uso ({{ money(stats.swap.used) }}).{% endif %}</p>
+
+  {% elif aba=='usuarios' %}
+  <div class="ti-box"><h3>{{ online|length }} usuário(s) ativo(s) nos últimos 5 minutos <span class="ti-muted">· de {{ total_users }} cadastrados</span></h3>
+    <table class="ti-table"><tr><th>Usuário</th><th>Perfil</th><th>Última atividade</th><th>Requisições</th></tr>
+    {% for o in online %}<tr><td>{{ o.name }}</td><td>{{ o.role }}</td><td>{{ o.last }}</td><td>{{ o.n }}</td></tr>
+    {% else %}<tr><td colspan="4" class="ti-muted">Ninguém ativo (ou o sistema acabou de reiniciar).</td></tr>{% endfor %}</table></div>
+
+  {% elif aba=='requisicoes' %}
+  <div class="ti-grid">
+    <div class="ti-card"><h3>Volume</h3><div class="ti-big">{{ mon.total }}</div><div class="ti-muted">{{ mon.per_min }} por minuto</div>{{ spark(mon.series) }}</div>
+    <div class="ti-card"><h3>Tempo de resposta</h3><div class="ti-big">{{ mon.p50 }} ms</div><div class="ti-muted">mediana · p95 {{ mon.p95 }} ms · p99 {{ mon.p99 }} ms</div></div>
+    <div class="ti-card"><h3>Status</h3>{% for k,v in mon.codes.items()|sort %}<div>{{ k }}: <b>{{ v }}</b></div>{% else %}<div class="ti-muted">Sem dados.</div>{% endfor %}</div>
+  </div>
+  <div class="ti-box"><h3>Rotas mais lentas (média)</h3>
+    <table class="ti-table"><tr><th>Rota</th><th>Qtd</th><th>Média</th><th>Máx</th><th>Erros 5xx</th></tr>
+    {% for r in mon.slowest %}<tr><td>{{ r.method }} {{ r.route }}</td><td>{{ r.n }}</td><td>{{ r.avg }} ms</td><td>{{ r.max }} ms</td><td>{{ r.err }}</td></tr>{% endfor %}</table></div>
+  <div class="ti-box"><h3>Rotas mais usadas</h3>
+    <table class="ti-table"><tr><th>Rota</th><th>Qtd</th><th>Média</th></tr>
+    {% for r in mon.busiest %}<tr><td>{{ r.method }} {{ r.route }}</td><td>{{ r.n }}</td><td>{{ r.avg }} ms</td></tr>{% endfor %}</table></div>
+
+  {% elif aba=='erros' %}
+  <div class="ti-box"><h3>Últimos erros do servidor (5xx e exceções)</h3>
+    <table class="ti-table"><tr><th>Quando</th><th>Rota</th><th>Status</th><th>Mensagem</th></tr>
+    {% for e in errs %}<tr><td>{{ e.ts }}</td><td>{{ e.method }} {{ e.path }}</td><td>{{ e.status }}</td><td>{{ e.msg }}</td></tr>
+    {% else %}<tr><td colspan="4" class="ti-muted">Nenhum erro registrado desde que o sistema iniciou.</td></tr>{% endfor %}</table></div>
+
+  {% else %}
+  <div class="ti-grid">
+    <div class="ti-card"><h3>Conexões do banco</h3><div class="ti-muted" style="word-break:break-word">{{ pool }}</div></div>
+    {% for n,sz in sizes.items() %}<div class="ti-card"><h3>{{ n }}</h3><div class="ti-big">{{ money(sz) }}</div></div>{% endfor %}
+  </div>
+  <div class="ti-box"><h3>Registros por tabela</h3>
+    <table class="ti-table"><tr><th>Tabela</th><th>Registros</th></tr>
+    {% for n,c in tables %}<tr><td>{{ n }}</td><td>{{ c if c is not none else '—' }}</td></tr>{% endfor %}</table></div>
+  {% endif %}
+
+{% elif section=='backup' %}
+  <div class="ti-box"><h3>Backup do robô externo</h3><p>Status: <strong>{{ robot.label }}</strong></p><p class="ti-muted">Os backups abaixo pertencem ao sistema. Os backups da VPS são separados e podem ser acompanhados em Monitoramento.</p><a href="/dev/monitoramento?aba=robo">Ver robô e backups da VPS</a></div>
+  <div class="ti-grid">
+    <div class="ti-box" style="margin:0"><h3>Backup geral</h3><p class="ti-muted">Banco inteiro + PDFs, assinaturas e evidências.</p>
+      <form method="post" action="/dev/backup/completo"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn">Gerar e baixar</button></form></div>
+    <div class="ti-box" style="margin:0"><h3>Backup por usuário</h3><p class="ti-muted">Todos os documentos criados pelo usuário.</p>
+      <form method="post" action="/dev/backup/usuario" class="ti-row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="sx-field"><select name="user_id" required>{% for u in users %}<option value="{{ u.id }}">{{ u.full_name or u.username }} ({{ u.username }})</option>{% endfor %}</select></label>
+        <button class="ti-btn">Baixar</button></form></div>
+    <div class="ti-box" style="margin:0"><h3>Restaurar (upload)</h3><p class="ti-muted">Backup geral substitui todo o sistema; backup de usuário só adiciona documentos ausentes. Um backup de segurança é gerado antes.</p>
+      <form method="post" action="/dev/backup/restaurar" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="file" name="file" accept=".zip" required>
+        <label class="sx-field" style="margin-top:8px"><span>Usuário de destino (só backup de usuário)</span><select name="target_user_id"><option value="">Mesmo login do backup</option>{% for u in users %}<option value="{{ u.id }}">{{ u.full_name or u.username }}</option>{% endfor %}</select></label>
+        <button class="ti-btn danger" style="margin-top:10px">Restaurar</button></form></div>
+  </div>
+  <div class="ti-box" style="border:1px solid #c0392b"><h3 style="color:#c0392b">Apagar tudo</h3>
+    <p class="ti-muted">Apaga TODOS os documentos, usuários (exceto você), cadastros, PDFs, assinaturas e evidências. Um backup completo é gerado antes e fica em "Backups guardados no servidor", então dá para restaurar depois.</p>
+    <form method="post" action="/dev/backup/apagar-tudo" class="ti-row" onsubmit="return confirm('Isto apaga TODOS os dados do sistema. Continuar?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sx-field"><span>Digite APAGAR TUDO para confirmar</span><input name="confirm" autocomplete="off" required></label>
+      <button class="ti-btn danger">Apagar tudo</button></form></div>
+  <div class="ti-box"><h3>Backup automático</h3>
+    <form method="post" action="/dev/backup/automatico" class="ti-row"><input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="sx-field"><span>Ativo</span><select name="enabled"><option value="1" {{ 'selected' if auto.enabled }}>Sim</option><option value="0" {{ 'selected' if not auto.enabled }}>Não</option></select></label>
+      <label class="sx-field"><span>A cada (horas)</span><input type="number" name="interval_hours" min="1" max="720" value="{{ auto.interval_hours }}"></label>
+      <label class="sx-field"><span>Manter os últimos</span><input type="number" name="keep" min="1" max="60" value="{{ auto.keep }}"></label>
+      <button class="ti-btn">Salvar</button></form>
+    <p class="ti-muted">Último automático: {{ auto.last_run[:16].replace('T',' ') if auto.last_run else 'nunca' }}. Os backups automáticos antigos são apagados sozinhos.</p></div>
+  <div class="ti-box"><h3>Backups guardados no servidor</h3>
+    <table class="ti-table"><tr><th>Arquivo</th><th>Tamanho</th><th>Data</th><th></th></tr>
+    {% for b in backups %}<tr><td><a href="/dev/backup/baixar/{{ b.name }}">{{ b.name }}</a></td><td>{{ money(b.size) }}</td><td>{{ b.mtime.strftime('%d/%m/%Y %H:%M') }}</td><td><form method="post" action="/dev/backup/excluir/{{ b.name }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="ti-btn alt">Excluir</button></form></td></tr>{% else %}<tr><td colspan="4" class="ti-muted">Nenhum ainda.</td></tr>{% endfor %}</table></div>
+{% endif %}
+</div>
+{% endblock %}

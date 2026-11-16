@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block page_title %}Exclusão em massa de usuários{% endblock %}
+{% block content %}
+<style>
+.bulk-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.bulk-muted{color:var(--cor-texto-secundario);font-size:.87rem}
+.bulk-list{max-height:380px;overflow:auto;border:1px solid #e8e3de;border-radius:12px;margin:12px 0}
+.bulk-line{display:flex;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid #eee}
+.bulk-line:last-child{border-bottom:0}.bulk-line span{overflow-wrap:anywhere}
+.bulk-fields{display:flex;gap:14px;flex-wrap:wrap;align-items:end}
+.bulk-warning{padding:14px;border:1px solid #edd5d1;border-radius:12px;margin:14px 0}
+</style>
+<div class="card">
+ <div class="bulk-head"><div><h2 style="margin-bottom:6px">Exclusão em massa de usuários</h2><p class="bulk-muted">{{ total }} conta(s) de perfil Usuário disponível(is) para remoção.</p></div><a href="/admin/users" class="btn btn-fantasma">Voltar a Usuários e acessos</a></div>
+ <div class="bulk-warning"><strong>Atenção: exclusão permanente de contas de acesso.</strong><p class="bulk-muted">A ação remove login, senha, permissões, notificações e assinaturas de push ligadas às contas selecionadas. Participantes cadastrados continuam na empresa, mas perdem o vínculo de login. APRs, PTs, PDFs, rubricas já coletadas e histórico documental são preservados. Documentos criados pelos usuários serão atribuídos ao Super Administrador que executa a operação. Se houver assinatura pendente, a exclusão será bloqueada e nenhuma conta será apagada.</p><p class="bulk-muted">Contas de Administrador e Super Administrador não podem ser selecionadas neste módulo.</p></div>
+ <form method="post" action="/admin/users/bulk/delete" id="bulk-users-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="bulk-fields"><label><strong>Tipo de seleção</strong><select class="campo" name="selection" id="bulk-mode"><option value="selected">Apenas usuários marcados</option><option value="all">Todos os usuários comuns ({{ total }})</option></select></label><label><input type="checkbox" id="bulk-checkall"> Marcar/desmarcar todos</label><span class="bulk-muted" id="bulk-counter">0 selecionado(s)</span></div>
+  <div class="bulk-list" id="bulk-list">{% for u in users %}<label class="bulk-line"><input type="checkbox" name="user_ids" value="{{ u.id }}" class="bulk-item"><span><strong>{{ u.full_name or u.username }}</strong> — {{ u.username }}</span></label>{% else %}<div class="bulk-line">Nenhum usuário comum cadastrado.</div>{% endfor %}</div>
+  <label style="display:block;margin-bottom:10px"><strong>Confirmação obrigatória</strong><span class="bulk-muted" style="display:block">Digite EXCLUIR para confirmar.</span><input class="campo" name="confirmation" required autocomplete="off" placeholder="EXCLUIR" style="max-width:250px"></label>
+  <button class="btn" type="submit" style="background:#b42318;color:white" {% if not total %}disabled{% endif %}>Excluir usuários selecionados</button>
+ </form>
+</div>
+<script>
+(function(){const form=document.getElementById('bulk-users-form'),mode=document.getElementById('bulk-mode'),all=document.getElementById('bulk-checkall'),items=[...document.querySelectorAll('.bulk-item')],counter=document.getElementById('bulk-counter'),list=document.getElementById('bulk-list'),button=form.querySelector('button[type=submit]');function sync(){const count=items.filter(x=>x.checked).length;const isAll=mode.value==='all';counter.textContent=isAll?items.length+' conta(s) (todas)':count+' selecionado(s)';list.style.opacity=isAll?'.45':'1';items.forEach(x=>x.disabled=isAll);all.disabled=isAll;button.textContent=isAll?'Excluir todos os usuários comuns':'Excluir usuários selecionados'}all.addEventListener('change',()=>{items.forEach(x=>x.checked=all.checked);sync()});items.forEach(x=>x.addEventListener('change',()=>{all.checked=items.length>0&&items.every(y=>y.checked);sync()}));mode.addEventListener('change',sync);form.addEventListener('submit',e=>{const count=mode.value==='all'?items.length:items.filter(x=>x.checked).length;if(!count||!confirm('CONFIRMA A EXCLUSÃO PERMANENTE DE '+count+' CONTA(S) DE ACESSO?'))e.preventDefault()});sync()})();
+</script>
+{% endblock %}

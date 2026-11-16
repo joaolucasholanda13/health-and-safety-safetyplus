@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block page_title %}Aprovar APR · {{ doc_reference_code(doc) }}{% endblock %}
+{% block content %}
+<style>
+  .resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); margin-bottom: var(--espaco-4); }
+  .resumo .campo-somente-leitura { background: var(--serena-areia); border-radius: var(--raio-input); padding: 10px 14px; min-height:42px; }
+  .resumo label { display: block; font-size: 0.78rem; color: var(--cor-texto-secundario); margin-bottom: 4px; }
+  .secao { margin-bottom: var(--espaco-4); }
+  .secao > h2 { font-size: 1rem; margin-bottom: var(--espaco-3); }
+  .lista-simples { display: flex; flex-direction: column; gap: 6px; font-size: 0.88rem; }
+  .lista-simples .linha { display: flex; justify-content: space-between; gap:12px; border-bottom: 1px dashed #EFEBE5; padding: 8px 0; }
+  .sig-pad { border: 1px dashed #BFB8AF; border-radius: var(--raio-input); background: #fff; touch-action: none; width: 100%; height: 160px; display: block; margin-bottom: var(--espaco-2); }
+  .acoes { display: grid; grid-template-columns: 1.15fr .85fr; gap: var(--espaco-3); align-items:start; }
+  .acoes .card.reprovar { border: 1px solid color-mix(in srgb, var(--cor-perigo) 30%, white); }
+  .tabela-wrap { overflow-x:auto; }
+  table.readonly { width:100%; border-collapse:collapse; font-size:.82rem; min-width:720px; }
+  table.readonly th, table.readonly td { border:1px solid #E3DFD9; padding:8px; text-align:left; vertical-align:top; }
+  table.readonly td.multi-text { white-space:pre-line; }
+  table.readonly th { background:var(--serena-areia); }
+  .check-read { display:grid; grid-template-columns:1fr auto; gap:8px 12px; padding:8px 0; border-bottom:1px dashed #E3DFD9; font-size:.84rem; }
+  .nao-aviso { display:flex; gap:14px; align-items:flex-start; margin-bottom:var(--espaco-4); padding:18px 20px; background:#FFF8F5; border:1px solid #F3C9C2; border-left:6px solid var(--serena-coral-escuro); }
+  .nao-ico svg { width:34px; height:34px; padding:7px; border-radius:50%; background:var(--serena-coral-escuro); fill:none; stroke:#fff; stroke-width:2; }
+  .nao-aviso strong { display:block; color:var(--serena-coral-escuro); margin-bottom:4px; }
+  .nao-aviso p { margin:0 0 8px; font-size:.88rem; line-height:1.5; }
+  .nao-lista { list-style:none; margin:0 0 10px; padding:0; display:grid; gap:6px; }
+  .nao-lista li { background:#fff; border:1px solid #EFD9D4; border-radius:10px; padding:8px 10px; font-size:.84rem; }
+  .nao-lista li b { color:var(--serena-coral-escuro); margin-right:6px; }
+  .nao-just { background:#fff; border:1px solid #EFD9D4; border-radius:10px; padding:12px 14px; }
+  .nao-just-t { display:block; font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--cor-texto-secundario); margin-bottom:4px; }
+  .nao-just p { margin:0 0 6px; white-space:pre-line; }
+  .nao-just small { color:var(--cor-texto-secundario); }
+  .nao-ack { display:flex; gap:10px; align-items:flex-start; background:#FFF8F5; border:1px solid #F3C9C2; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:.84rem; line-height:1.45; cursor:pointer; }
+  .nao-ack input { margin-top:3px; width:18px; height:18px; flex:0 0 18px; }
+  .check-read.is-nao { background:#FFF8F5; border-left:4px solid var(--serena-coral-escuro); padding-left:8px; }
+  @media (max-width:850px) { .resumo { grid-template-columns:1fr 1fr; } .acoes { grid-template-columns:1fr; } }
+  @media (max-width:520px) { .resumo { grid-template-columns:1fr; } }
+</style>
+
+{% set nao_itens = [] %}
+{% for question in checklist_items %}{% if loop.index0 < data.checklist|length and data.checklist[loop.index0] == 'NÃO' %}{% set _ = nao_itens.append((loop.index, question)) %}{% endif %}{% endfor %}
+{% if nao_itens %}
+<div class="card nao-aviso" role="alert">
+  <div class="nao-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></div>
+  <div style="flex:1;min-width:0">
+    <strong>Atenção: esta APR tem {{ nao_itens|length }} item{{ 's' if nao_itens|length > 1 }} do checklist respondido{{ 's' if nao_itens|length > 1 }} como NÃO</strong>
+    <p>Avalie a justificativa e as medidas de controle informadas pelo responsável antes de aprovar. Se não forem suficientes, reprove e devolva para correção.</p>
+    <ul class="nao-lista">{% for n, q in nao_itens %}<li><b>{{ '%02d'|format(n) }}</b>{{ q }}</li>{% endfor %}</ul>
+    <div class="nao-just">
+      <span class="nao-just-t">Justificativa do responsável</span>
+      <p>{{ data.get('checklist_no_justification') or 'Nenhuma justificativa registrada.' }}</p>
+      {% if data.get('checklist_no_by') %}<small>Registrada por {{ data.checklist_no_by }} em {{ data.checklist_no_at }}</small>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card resumo">
+  <div><label>Atividade</label><div class="campo-somente-leitura">{{ data.activity }}</div></div>
+  <div><label>Cluster / Site</label><div class="campo-somente-leitura">{{ data.cluster }}{% if data.site %} · {{ data.site }}{% endif %}</div></div>
+  <div><label>Severidade</label><div class="campo-somente-leitura">{{ data.severity }}</div></div>
+  <div><label>Vigência se aprovada</label><div class="campo-somente-leitura">{{ approval_start }} até {{ approval_end }}</div></div>
+</div>
+
+<div class="card secao">
+  <h2>APR completa — somente leitura</h2>
+  <div class="resumo">
+    <div><label>Data da APR</label><div class="campo-somente-leitura">{{ data.apr_date }}{% if data.apr_time %} · {{ data.apr_time }}{% endif %}</div></div>
+    <div><label>Validade</label><div class="campo-somente-leitura">{{ data.apr_valid_until }}</div></div>
+    <div><label>Canal de rádio</label><div class="campo-somente-leitura">{{ data.radio_channel }}</div></div>
+    <div><label>Atividade crítica</label><div class="campo-somente-leitura">{{ data.critical_activity }}</div></div>
+  </div>
+
+  <h3 style="font-size:.95rem; margin:16px 0 8px;">Etapas, perigos, riscos e controles</h3>
+  <div class="tabela-wrap">
+    <table class="readonly">
+      <thead><tr><th>#</th><th>Etapa</th><th>Perigo</th><th>Risco</th><th>Severidade</th><th>Medida de controle</th></tr></thead>
+      <tbody>
+        {% for step in data.steps %}
+        <tr><td>{{ loop.index }}</td><td>{{ step.stage }}</td><td class="multi-text">{{ step.hazard }}</td><td class="multi-text">{{ step.risk }}</td><td>{{ step.severity }}</td><td>{{ step.control }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-size:.95rem; margin:16px 0 8px;">Checklist</h3>
+  {% for question in checklist_items %}
+    {% set resposta = data.checklist[loop.index0] if loop.index0 < data.checklist|length else '' %}
+    <div class="check-read{{ ' is-nao' if resposta == 'NÃO' }}"><span>{{ '%02d'|format(loop.index) }}. {{ question }}</span><span class="badge badge-{{ 'sucesso' if resposta in ['SIM','N/A'] else 'atencao' }}">{{ resposta or '—' }}</span></div>
+  {% endfor %}
+</div>
+
+<div class="card secao">
+  <h2>Assinaturas dos integrantes</h2>
+  <p style="color:var(--cor-texto-secundario); font-size:0.88rem; margin-top:-8px;">{{ participant_signed_count }} de {{ participant_total }} integrantes assinaram.</p>
+  <div class="lista-simples">
+    {% for w in data.workers %}
+    <div class="linha">
+      <span>{{ w.worker }} — {{ w.company }}{% if w.role %} · {{ w.role }}{% endif %}</span>
+      {% if w.signature_image %}<span class="badge badge-sucesso">Assinado</span>{% else %}<span class="badge badge-atencao">Pendente</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if data.critical_activity == 'SIM' %}
+<div class="card secao">
+  <h2>Permissões vinculadas</h2>
+  <div class="lista-simples">
+    {% for name in critical_permits %}
+    {% if name in data.critical_permits %}
+    {% set st = linked_permit_states[name] %}
+    <div class="linha">
+      <span>{{ name }} {% if st.code %}— {{ st.code }}{% endif %}</span>
+      {% if st.ready %}<span class="badge badge-sucesso">Finalizada</span>
+      {% elif name in linked_permits_pending %}<span class="badge badge-atencao">{{ st.status }}</span>
+      {% else %}<span class="badge badge-neutro">{{ st.status }}</span>{% endif %}
+      {% if st.open_url %}<a class="btn btn-fantasma" style="padding:4px 10px" href="{{ st.open_url }}" target="_blank" rel="noopener">Ver PT</a>{% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <p style="margin-top:12px"><a class="btn btn-secundario" href="/apr/{{ doc.id }}/pts" target="_blank" rel="noopener">Ver todas as PTs desta APR (histórico diário)</a></p>
+  {% if linked_permits_pending %}
+  <p style="color:var(--cor-perigo); font-size:0.85rem; margin-top:10px;">Ainda não é possível aprovar: existem PTs vinculadas não finalizadas.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card secao">
+  <h2>Responsável pela aprovação</h2>
+  <p style="font-size:.84rem;color:var(--cor-texto-secundario);margin-top:-6px;">Se o líder selecionado não puder assinar, o administrador que recebeu a APR pode encaminhá-la para outro líder responsável pelo mesmo Cluster/Site.</p>
+  <form method="post" action="/apr/{{ doc.id }}/alterar-aprovador" style="display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:10px;align-items:end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo-grupo">
+      <label>Novo líder ou responsável</label>
+      <input class="campo" type="search" id="transfer-leader-search" placeholder="Pesquisar líder pelo nome ou usuário" autocomplete="off" style="margin-bottom:8px;">
+      <select class="campo" id="transfer-leader-select" name="approver_user_id" required>
+        <option value="">Selecione</option>
+        {% for admin in admins %}
+        <option value="{{ admin.id }}" {% if data.approver_user_id == admin.id|string %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-secundario">Alterar administrador</button>
+  </form>
+</div>
+
+<div class="acoes">
+  <div class="card">
+    <h2 style="font-size:1rem; margin-bottom:10px;">Aprovar e gerar PDF</h2>
+    <form method="post" action="/apr/{{ doc.id }}/approve" id="form-aprovacao">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="approval_signature_only" value="1">
+      <input type="hidden" name="sig_approval_0" id="sig-input-approval">
+      {% if nao_itens %}
+      <label class="nao-ack"><input type="checkbox" name="no_ack_approver" value="1" id="no-ack-approver"><span>Li a justificativa do NÃO e confirmo que as medidas de controle são suficientes para aprovar esta APR.</span></label>
+      {% endif %}
+      <label style="font-size:0.8125rem; font-weight:600; margin-bottom:6px; display:block;">Sua rubrica</label>
+      <canvas class="sig-pad" id="pad-approval"></canvas>
+      <div style="display:flex; gap:8px; margin-bottom:12px;">
+        <button type="button" class="btn btn-fantasma" onclick="limparAssinatura()">Limpar</button>
+      </div>
+      <button type="submit" class="btn btn-primario" style="width:100%;" {% if linked_permits_pending or participant_signed_count < participant_total %}disabled{% endif %}>Aprovar e gerar PDF</button>
+      <div class="sig-envio-status" style="font-size:.82rem; color:var(--cor-texto-secundario); margin-top:8px;"></div>
+    </form>
+  </div>
+  <div class="card reprovar">
+    <h2 style="font-size:1rem; margin-bottom:12px;">Reprovar</h2>
+    <p style="font-size:.82rem; color:var(--cor-texto-secundario);">Informe o motivo para devolver a APR ao criador e liberar as correções necessárias.</p>
+    <form method="post" action="/apr/{{ doc.id }}/reject" id="form-reprovar">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label style="font-size:0.8125rem; font-weight:600; margin-bottom:6px; display:block;">Motivo da reprovação</label>
+      <textarea class="campo" name="reason" style="min-height:100px; margin-bottom:12px;" required placeholder="Explique o que precisa ser corrigido"></textarea>
+      <button type="submit" class="btn btn-secundario" style="width:100%;">Reprovar e devolver para rascunho</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function filtrarTransferenciaLider(){
+  const q=(document.getElementById('transfer-leader-search')?.value||'').trim().toLocaleLowerCase('pt-BR');
+  const sel=document.getElementById('transfer-leader-select'); if(!sel)return;
+  Array.from(sel.options).forEach(o=>{if(!o.value){o.hidden=false;return;}o.hidden=!!q&&!(o.textContent||'').toLocaleLowerCase('pt-BR').includes(q);});
+}
+document.getElementById('transfer-leader-search')?.addEventListener('input',filtrarTransferenciaLider);
+const canvas=document.getElementById('pad-approval'), ctx=canvas.getContext('2d');
+const ratio=window.devicePixelRatio||1; canvas.width=Math.max(1,Math.floor(canvas.clientWidth*ratio)); canvas.height=Math.max(1,Math.floor(canvas.clientHeight*ratio));
+ctx.setTransform(ratio,0,0,ratio,0,0);ctx.lineWidth=2.4;ctx.lineCap='round';ctx.strokeStyle='#181818';
+let drawing=false,has=false;
+function pos(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+function startDraw(e){drawing=true;try{canvas.setPointerCapture(e.pointerId)}catch(_e){}const p=pos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()}
+function moveDraw(e){if(!drawing)return;const p=pos(e);ctx.lineTo(p.x,p.y);ctx.stroke();has=true;e.preventDefault()}
+function endDraw(e){if(!drawing)return;drawing=false;if(has)document.getElementById('sig-input-approval').value=canvas.toDataURL('image/png');if(e)e.preventDefault()}
+canvas.addEventListener('pointerdown',startDraw,{passive:false});canvas.addEventListener('pointermove',moveDraw,{passive:false});canvas.addEventListener('pointerup',endDraw,{passive:false});canvas.addEventListener('pointercancel',endDraw,{passive:false});window.addEventListener('pointerup',endDraw,{passive:false});
+function limparAssinatura(){ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);has=false;document.getElementById('sig-input-approval').value='';}
+document.getElementById('form-aprovacao').addEventListener('submit',(ev)=>{
+  const sig=document.getElementById('sig-input-approval').value, statusEl=ev.currentTarget.querySelector('.sig-envio-status');
+  const ack=document.getElementById('no-ack-approver');
+  if(ack&&!ack.checked){ev.preventDefault();statusEl.style.color='var(--cor-perigo)';statusEl.textContent='Marque a ciência da justificativa do NÃO para aprovar.';ack.focus();return;}
+  if(!sig){ev.preventDefault();statusEl.style.color='var(--cor-perigo)';statusEl.textContent='Faça sua rubrica antes de aprovar.';return;}
+  const btn=ev.currentTarget.querySelector('button[type=submit]');btn.disabled=true;statusEl.style.color='var(--cor-texto-secundario)';statusEl.textContent='Aprovando e gerando PDF…';
+});
+</script>
+{% endblock %}

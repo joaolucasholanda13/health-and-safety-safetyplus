@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Consulta de colaborador · Safety Plus{% endblock %}
+{% block page_title %}Consulta de colaborador{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/serena-admin.css?v=361895">{% endblock %}
+{% block content %}
+<style>
+.cl-kpis-7 .sx-kpis, .sx-kpis.k7 { grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); }
+.cl-search-card { background: var(--serena-grafite); color: #fff; border-radius: 22px; padding: 26px 28px; position: relative; overflow: visible; }
+.cl-search-card::after { content: ''; position: absolute; right: 26px; top: 22px; width: 90px; height: 70px; opacity: .9; pointer-events: none;
+  background: linear-gradient(170deg, transparent 0 18%, var(--serena-coral) 18% 26%, transparent 26% 40%, var(--serena-coral) 40% 54%, transparent 54% 68%, var(--serena-coral) 68% 86%, transparent 86%); clip-path: polygon(0 20%,100% 0,100% 80%,0 100%); }
+.cl-search-card h2 { font-family: var(--fonte-display); font-size: 1.6rem; margin: 0 0 4px; color: #fff; }
+.cl-search-card p { margin: 0 0 18px; color: #CFCBC6; font-size: .9rem; max-width: 620px; }
+.cl-search { position: relative; max-width: 720px; }
+.cl-search input { width: 100%; border: 0; border-radius: 16px; padding: 16px 18px 16px 50px; font: 500 1rem var(--fonte-base); color: var(--serena-grafite); background: #fff; }
+.cl-search input:focus { outline: 3px solid var(--serena-coral); outline-offset: 0; }
+.cl-search > svg { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; fill: none; stroke: var(--serena-grafite-medio); stroke-width: 2; }
+.cl-suggest { position: absolute; left: 0; right: 0; top: calc(100% + 8px); background: #fff; border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.25); z-index: 40; padding: 6px; max-height: 360px; overflow-y: auto; color: var(--serena-grafite); }
+.cl-suggest[hidden] { display: none; }
+.cl-suggest button { display: flex; gap: 12px; align-items: center; width: 100%; border: 0; background: none; text-align: left; padding: 10px 12px; border-radius: 12px; cursor: pointer; font: inherit; color: inherit; }
+.cl-suggest button:hover, .cl-suggest button.is-active { background: var(--serena-areia); }
+.cl-suggest strong { display: block; font-size: .92rem; }
+.cl-suggest small { color: var(--serena-grafite-claro); font-size: .76rem; }
+.cl-suggest .none { padding: 14px; color: var(--serena-grafite-claro); font-size: .86rem; }
+.cl-hints { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; font-size: .78rem; color: #CFCBC6; }
+.cl-hints span { border: 1px solid #3A3A3A; border-radius: 999px; padding: 5px 11px; }
+
+.cl-empty { text-align: center; padding: 50px 20px; color: var(--serena-grafite-medio); }
+.cl-empty svg { width: 54px; height: 54px; fill: none; stroke: var(--serena-coral); stroke-width: 1.5; margin-bottom: 8px; }
+.cl-empty h3 { font-family: var(--fonte-display); margin: 0 0 6px; color: var(--serena-grafite); }
+.cl-loading { padding: 40px; text-align: center; color: var(--serena-grafite-claro); }
+
+.cl-profile { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; padding: 20px 22px; }
+.cl-profile .who { flex: 1 1 260px; min-width: 0; }
+.cl-profile h3 { font-family: var(--fonte-display); font-size: 1.45rem; margin: 0 0 6px; }
+.cl-profile .facts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: .82rem; color: var(--serena-grafite-medio); }
+.cl-grid { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 14px; }
+.cl-span-4 { grid-column: span 4; } .cl-span-5 { grid-column: span 5; } .cl-span-6 { grid-column: span 6; } .cl-span-7 { grid-column: span 7; } .cl-span-8 { grid-column: span 8; } .cl-span-12 { grid-column: span 12; }
+.cl-bars { display: flex; flex-direction: column; gap: 11px; }
+.cl-bar-row { display: grid; grid-template-columns: minmax(0, 1fr) 42px; gap: 4px 10px; align-items: center; font-size: .82rem; }
+.cl-bar-row .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--serena-grafite); }
+.cl-bar-row .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cl-bar-track { grid-column: 1 / -1; height: 8px; border-radius: 999px; background: #F1EEEA; overflow: hidden; display: flex; }
+.cl-bar-track i { display: block; height: 100%; }
+.cl-bar-track i.a { background: var(--serena-grafite); } .cl-bar-track i.b { background: var(--serena-grafite-claro); } .cl-bar-track i.c { background: var(--serena-coral); }
+.cl-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .74rem; color: var(--serena-grafite-medio); margin-top: 12px; }
+.cl-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.cl-legend span::before { content: ''; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.cl-donuts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cl-donut { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.cl-donut .ring { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; }
+.cl-donut .ring div { width: 92px; height: 92px; border-radius: 50%; background: #fff; display: grid; place-items: center; }
+.cl-donut .ring b { font-family: var(--fonte-display); font-size: 1.5rem; line-height: 1; }
+.cl-donut .ring small { display: block; font-size: .68rem; color: var(--serena-grafite-claro); }
+.cl-donut > span { font-size: .78rem; font-weight: 600; color: var(--serena-grafite-medio); }
+.cl-sev-list { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.cl-sev-list div { display: flex; justify-content: space-between; font-size: .8rem; padding: 6px 10px; border-radius: 10px; background: #FBFAF8; }
+.cl-sev-list div span { display: inline-flex; align-items: center; gap: 8px; }
+.cl-sev-list div span::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.cl-timeline { width: 100%; height: 190px; display: block; }
+.cl-div-card { border: 1px solid #ECE8E3; border-radius: 16px; overflow: hidden; margin-bottom: 12px; background: #fff; }
+.cl-div-card > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.cl-div-card > summary::-webkit-details-marker { display: none; }
+.cl-div-card > summary h4 { margin: 0; font-size: .95rem; font-weight: 600; }
+.cl-div-card > summary small { color: var(--serena-grafite-claro); font-size: .76rem; }
+.cl-div-card[open] > summary { border-bottom: 1px solid #F0ECE7; background: #FBFAF8; }
+.cl-div-card.critical { border-left: 4px solid var(--serena-coral-escuro); }
+.cl-div-body { padding: 14px 18px 18px; }
+.cl-docchips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.cl-docchips a { text-decoration: none; }
+.cl-diff { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.cl-diff th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--serena-grafite-claro); padding: 8px 10px; border-bottom: 1px solid #ECE8E3; }
+.cl-diff td { padding: 9px 10px; border-bottom: 1px solid #F3F0EC; vertical-align: top; }
+.cl-diff td:first-child { font-weight: 500; width: 38%; }
+.cl-diff .opt { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin: 2px 0 6px; }
+.cl-diff .opt b { font-weight: 600; }
+.cl-diff .opt small { color: var(--serena-grafite-claro); }
+.cl-ok { display: flex; gap: 12px; align-items: center; padding: 18px; border-radius: 14px; background: color-mix(in srgb, var(--serena-verde) 12%, white); color: #157357; font-size: .88rem; }
+.cl-ok svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2; flex: 0 0 26px; }
+.cl-sev { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; font-weight: 700; font-size: .78rem; color: #fff; }
+.cl-sev.A { background: var(--serena-coral-escuro); } .cl-sev.B { background: var(--serena-amarelo); color: var(--serena-grafite); } .cl-sev.C { background: var(--serena-verde); }
+.cl-section-title { display: flex; align-items: center; gap: 10px; margin: 8px 0 12px; }
+.cl-section-title h3 { font-family: var(--fonte-display); font-size: 1.15rem; margin: 0; }
+.cl-section-title::before { content: ''; width: 22px; height: 4px; background: var(--serena-coral); transform: skewY(-8deg); }
+@media (max-width: 1000px) { .cl-span-4, .cl-span-5, .cl-span-6, .cl-span-7, .cl-span-8 { grid-column: span 12; } }
+@media (max-width: 560px) { .cl-search-card { padding: 20px; } .cl-search-card::after { display: none; } .cl-donuts { grid-template-columns: 1fr; } .cl-diff td:first-child { width: auto; } }
+</style>
+
+<div class="sx-page">
+  <section class="cl-search-card">
+    <h2>Consulta inteligente de colaborador</h2>
+    <p>Pesquise por nome ou CPF e veja, em um só painel, os documentos que a pessoa mais gera, as severidades, as respostas NÃO e os documentos com o mesmo nome preenchidos com seleções diferentes.</p>
+    <div class="cl-search">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="cl-q" type="search" placeholder="Digite o nome ou o CPF do colaborador" autocomplete="off" aria-label="Nome ou CPF do colaborador" aria-controls="cl-suggest" aria-expanded="false">
+      <div class="cl-suggest" id="cl-suggest" role="listbox" hidden></div>
+    </div>
+    <div class="cl-hints"><span>Ex.: “maria silva”</span><span>Ex.: 123.456 (início do CPF)</span><span>↑ ↓ e Enter para escolher</span></div>
+  </section>
+
+  <div id="cl-result">
+    <div class="sx-card cl-empty">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.6-4 3-6 6-6s5.4 2 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .7 3 2.6 3.4 6"/></svg>
+      <h3>Selecione um colaborador</h3>
+      <p>O painel é montado a partir das APRs, PTs, RACs e inspeções em que o colaborador é emitente, integrante ou citado.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const input=$('#cl-q'), box=$('#cl-suggest'), out=$('#cl-result');
+  let timer=null, results=[], active=-1, seq=0;
+  const SEV={A:{label:'A · Alta',c:'var(--serena-coral-escuro)'},B:{label:'B · Média',c:'var(--serena-amarelo)'},C:{label:'C · Baixa',c:'var(--serena-verde)'}};
+  const statusTag=s=>{const k=/Finalizada/.test(s)?'done':/Cancel|Reprov/.test(s)?'error':/Rascunho/.test(s)?'off':'new';return `<span class="sx-tag dot sx-tag-${k}">${esc(s)}</span>`};
+
+  function renderSuggest(){
+    input.setAttribute('aria-expanded', box.hidden ? 'false':'true');
+    if(!results.length){ box.innerHTML='<div class="none">Nenhum colaborador encontrado.</div>'; return; }
+    box.innerHTML=results.map((r,i)=>`<button type="button" role="option" data-i="${i}" class="${i===active?'is-active':''}"><span class="sx-avatar ${r.active?'':'sand'}">${esc(initials(r.name))}</span><span><strong>${esc(r.name)}</strong><small>${esc([r.company,r.job,r.cpf].filter(Boolean).join(' · '))}${r.active?'':' · inativo'}</small></span></button>`).join('');
+  }
+  function initials(n){return String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase();}
+  async function search(){
+    const q=input.value.trim(); const my=++seq;
+    if(q.length<2){ box.hidden=true; return; }
+    try{
+      const r=await fetch('/api/colaboradores/busca?q='+encodeURIComponent(q),{credentials:'same-origin'});
+      if(!r.ok) throw Error(); const d=await r.json(); if(my!==seq) return;
+      results=d.results||[]; active=results.length?0:-1; box.hidden=false; renderSuggest();
+    }catch(e){ box.hidden=false; box.innerHTML='<div class="none">Não foi possível pesquisar agora. Verifique a conexão.</div>'; }
+  }
+  input.addEventListener('input',()=>{clearTimeout(timer); timer=setTimeout(search,220);});
+  input.addEventListener('keydown',e=>{
+    if(box.hidden||!results.length) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); active=(active+1)%results.length; renderSuggest(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); active=(active-1+results.length)%results.length; renderSuggest(); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(active>=0) choose(results[active]); }
+    else if(e.key==='Escape'){ box.hidden=true; }
+  });
+  box.addEventListener('click',e=>{const b=e.target.closest('button[data-i]'); if(b) choose(results[+b.dataset.i]);});
+  document.addEventListener('click',e=>{ if(!e.target.closest('.cl-search')) box.hidden=true; });
+
+  function choose(r){ box.hidden=true; input.value=r.name; load(r.id); }
+
+  async function load(id){
+    out.innerHTML='<div class="sx-card cl-loading">Montando o painel do colaborador…</div>';
+    try{ history.replaceState(null,'','?id='+id); }catch(e){}
+    try{
+      const r=await fetch('/api/colaboradores/'+id+'/painel',{credentials:'same-origin'});
+      if(!r.ok) throw Error(r.status===404?'Colaborador não encontrado.':'Não foi possível carregar o painel.');
+      render(await r.json());
+    }catch(e){ out.innerHTML=`<div class="sx-card cl-empty"><h3>Ops</h3><p>${esc(e.message||'Erro ao carregar.')}</p></div>`; }
+  }
+
+  function bars(items,labelKey,max){
+    if(!items.length) return '<div class="sx-empty" style="padding:20px">Sem dados.</div>';
+    const m=max||Math.max(...items.map(i=>i.count),1);
+    return '<div class="cl-bars">'+items.map(i=>{
+      const em=i.emitted||0, rest=i.count-em;
+      const seg=i.emitted!==undefined?`<i class="a" style="width:${em/m*100}%"></i><i class="b" style="width:${rest/m*100}%"></i>`:`<i class="c" style="width:${i.count/m*100}%"></i>`;
+      return `<div class="cl-bar-row"><span class="lbl" title="${esc(i[labelKey])}">${esc(i[labelKey])}</span><span class="val">${i.count}</span><span class="cl-bar-track">${seg}</span></div>`;
+    }).join('')+'</div>';
+  }
+  function donut(dist,title){
+    const t=(dist.A||0)+(dist.B||0)+(dist.C||0);
+    let g='#F1EEEA 0 100%';
+    if(t){ const a=dist.A/t*100,b=dist.B/t*100; g=`var(--serena-coral-escuro) 0 ${a}%, var(--serena-amarelo) ${a}% ${a+b}%, var(--serena-verde) ${a+b}% 100%`; }
+    return `<div class="cl-donut"><div class="ring" style="background:conic-gradient(${g})"><div><span><b>${t}</b><small>registros</small></span></div></div><span>${esc(title)}</span></div>`;
+  }
+  function timeline(rows){
+    const W=640,H=190,P=24,bw=(W-P*2)/rows.length; const m=Math.max(1,...rows.map(r=>r.emitted+r.member));
+    let s=`<svg class="cl-timeline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Documentos por mês">`;
+    for(let k=0;k<=2;k++){const y=P+(H-P*2)*k/2; s+=`<line x1="${P}" x2="${W-P}" y1="${y}" y2="${y}" stroke="#EFEBE6" stroke-width="1"/>`;}
+    rows.forEach((r,i)=>{
+      const x=P+i*bw+bw*.2, w=bw*.6, h1=(H-P*2)*r.emitted/m, h2=(H-P*2)*r.member/m, base=H-P;
+      s+=`<rect x="${x}" y="${base-h1}" width="${w}" height="${h1}" rx="3" fill="var(--serena-grafite)"><title>${esc(r.label)}: ${r.emitted} emitido(s)</title></rect>`;
+      s+=`<rect x="${x}" y="${base-h1-h2}" width="${w}" height="${h2}" rx="3" fill="var(--serena-coral)"><title>${esc(r.label)}: ${r.member} participação(ões)</title></rect>`;
+      if(r.emitted+r.member) s+=`<text x="${x+w/2}" y="${base-h1-h2-5}" text-anchor="middle" font-size="10" fill="#4B4B4B" font-family="Poppins">${r.emitted+r.member}</text>`;
+      s+=`<text x="${x+w/2}" y="${H-6}" text-anchor="middle" font-size="10" fill="#858585" font-family="Poppins">${esc(r.label)}</text>`;
+    });
+    return s+'</svg>';
+  }
+
+  function render(d){
+    const p=d.participant, t=d.totals;
+    const kpi=(v,l,s,acc)=>`<div class="sx-kpi ${acc}"><b>${v}</b><span>${l}</span>${s?`<small>${s}</small>`:''}</div>`;
+    const pct=t.apr?Math.round(t.severity_a/t.apr*100):0;
+    let html=`<div class="sx-page">
+    <section class="sx-card cl-profile">
+      <span class="sx-avatar lg ${p.active?'':'sand'}">${esc(p.initials)}</span>
+      <div class="who"><h3>${esc(p.name)}</h3>
+        <div class="facts">${p.job?`<span>${esc(p.job)}</span>·`:''}<span>${esc(p.company)}</span>·<span class="sx-mono">CPF ${esc(p.cpf)}</span>
+          ${p.active?'<span class="sx-tag dot sx-tag-done">Ativo</span>':'<span class="sx-tag sx-tag-off">Inativo</span>'}
+          ${p.username?`<span class="sx-tag sx-tag-dark">Login: ${esc(p.username)}</span>`:'<span class="sx-tag sx-tag-off">Sem login</span>'}
+        </div></div>
+      ${p.since?`<small style="color:var(--serena-grafite-claro)">Cadastrado em ${esc(p.since)}</small>`:''}
+    </section>
+    <div class="sx-kpis k7">
+      ${kpi(t.documents,'Documentos','total relacionado','sx-accent-gray')}
+      ${kpi(t.emitted,'Emitidos por ele','como criador',p.username?'sx-accent-coral':'sx-accent-gray')}
+      ${kpi(t.member,'Participações','como integrante','sx-accent-gray')}
+      ${kpi(t.apr,'APRs',t.pt+' PT(s)','sx-accent-gray')}
+      ${kpi(t.severity_a,'APRs severidade A',pct+'% das APRs','sx-accent-red')}
+      ${kpi(t.negatives,'Respostas NÃO',t.docs_with_negative+' documento(s)','sx-accent-yellow')}
+      ${kpi(t.divergences,'Divergências','mesmo nome, seleções diferentes',t.divergences?'sx-accent-red':'sx-accent-green')}
+    </div>`;
+    if(!t.documents){
+      html+=`<div class="sx-card cl-empty"><h3>Nenhum documento encontrado</h3><p>Ainda não há APR, PT, RAC ou inspeção em que ${esc(p.name)} seja emitente, integrante ou citado${p.username?'':'. Este colaborador não tem login vinculado, então só aparecem documentos em que ele é integrante'}.</p></div></div>`;
+      out.innerHTML=html; return;
+    }
+    html+=`<div class="cl-grid">
+      <section class="sx-card sx-card-pad cl-span-7"><div class="sx-card-title"><h3>Documentos mais gerados</h3><small>por tipo</small></div>${bars(d.by_kind,'label')}
+        <div class="cl-legend"><span style="--c:var(--serena-grafite)">Emitidos</span><span style="--c:var(--serena-grafite-claro)">Como integrante / citado</span></div></section>
+      <section class="sx-card sx-card-pad cl-span-5"><div class="sx-card-title"><h3>Severidade</h3><small>APRs</small></div>
+        <div class="cl-donuts">${donut(d.severity_overall,'Severidade geral')}${donut(d.severity_steps,'Etapas avaliadas')}</div>
+        <div class="cl-sev-list">${['A','B','C'].map(k=>`<div><span style="--c:${SEV[k].c}">${SEV[k].label}</span><b>${d.severity_overall[k]} geral · ${d.severity_steps[k]} etapas</b></div>`).join('')}</div></section>
+      <section class="sx-card sx-card-pad cl-span-8"><div class="sx-card-title"><h3>Atividade nos últimos 12 meses</h3><small>documentos por mês</small></div>${timeline(d.timeline)}
+        <div class="cl-legend"><span style="--c:var(--serena-grafite)">Emitidos</span><span style="--c:var(--serena-coral)">Participações</span></div></section>
+      <section class="sx-card sx-card-pad cl-span-4"><div class="sx-card-title"><h3>Situação</h3></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">${d.by_status.map(s=>`${statusTag(s.status)}<b style="font-size:.8rem;margin-right:6px">${s.count}</b>`).join('')}</div>
+        <div class="sx-card-title"><h3>Locais</h3><small>cluster · site</small></div>${bars(d.by_site,'site')}</section>
+      <section class="sx-card sx-card-pad cl-span-6"><div class="sx-card-title"><h3>Perigos mais frequentes</h3><small>etapas da APR</small></div>${bars(d.top_hazards,'label')}</section>
+      <section class="sx-card sx-card-pad cl-span-6"><div class="sx-card-title"><h3>Riscos mais frequentes</h3><small>etapas da APR</small></div>${bars(d.top_risks,'label')}</section>
+    </div>`;
+
+    html+=`<div><div class="cl-section-title"><h3>Mesmo nome, seleções diferentes</h3></div>`;
+    if(!d.divergences.length){
+      html+=`<div class="cl-ok"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg><span>Nenhuma divergência: documentos com o mesmo nome de atividade foram preenchidos com as mesmas seleções.</span></div>`;
+    } else {
+      html+=`<p style="margin:0 0 12px;color:var(--serena-grafite-medio);font-size:.86rem">Documentos do mesmo tipo e com o mesmo nome de atividade (ou muito parecido) em que as respostas ou seleções não batem. Divergências de severidade, atividade crítica, PTs ou respostas NÃO aparecem primeiro.</p>`;
+      d.divergences.forEach((g,gi)=>{
+        html+=`<details class="cl-div-card ${g.critical?'critical':''}" ${gi<2?'open':''}><summary><div><h4>${esc(g.name)}</h4><small>${esc(g.kind_label)} · ${g.documents.length} documentos · ${g.field_count} campo(s) divergente(s)</small></div>${g.critical?'<span class="sx-tag sx-tag-error">Atenção</span>':'<span class="sx-tag">Revisar</span>'}</summary>
+          <div class="cl-div-body"><div class="cl-docchips">${g.documents.map(x=>`<a href="/document/${x.id}" class="sx-tag sx-tag-dark" title="${esc(x.status+' · '+x.role)}">${esc(x.code)} · ${esc(x.date)}</a>`).join('')}</div>
+          <div class="sx-table-wrap"><table class="cl-diff"><thead><tr><th>Campo</th><th>Seleções encontradas</th></tr></thead><tbody>
+          ${g.fields.map(f=>`<tr><td>${esc(f.field)}</td><td>${f.values.map(v=>`<div class="opt"><b>${esc(v.value)}</b><small>${esc(v.docs.join(', '))}</small></div>`).join('')}</td></tr>`).join('')}
+          </tbody></table></div></div></details>`;
+      });
+    }
+    html+='</div>';
+
+    html+=`<section class="sx-card"><div class="sx-card-title sx-card-pad" style="margin:0;padding-bottom:6px"><h3>Documentos recentes</h3><small>${d.recent.length} mais recentes</small></div>
+      <div class="sx-table-wrap"><table class="sx-table"><thead><tr><th>Documento</th><th>Atividade</th><th class="sx-hide-sm">Local</th><th>Papel</th><th>Sev.</th><th>NÃO</th><th>Situação</th><th class="sx-hide-sm">Data</th></tr></thead><tbody>
+      ${d.recent.map(r=>`<tr><td><a href="/document/${r.id}" style="color:var(--serena-grafite);font-weight:600">${esc(r.code)}</a><br><small style="color:var(--serena-grafite-claro)">${esc(r.kind_label)}</small></td>
+        <td>${esc(r.activity||'—')}</td><td class="sx-hide-sm">${esc(r.site||'—')}</td><td><span class="sx-tag ${r.role==='Emitente'?'sx-tag-dark':''}">${esc(r.role)}</span></td>
+        <td>${r.severity?`<span class="cl-sev ${r.severity}">${r.severity}</span>`:'—'}</td><td>${r.negatives?`<b style="color:var(--serena-coral-escuro)">${r.negatives}</b>`:'0'}</td><td>${statusTag(r.status)}</td><td class="sx-hide-sm">${esc(r.date)}</td></tr>`).join('')}
+      </tbody></table></div></section></div>`;
+    out.innerHTML=html;
+  }
+
+  const pre={{ preselected|tojson }};
+  if(pre) load(pre); else input.focus();
+})();
+</script>
+{% endblock %}

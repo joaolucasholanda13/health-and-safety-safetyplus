@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block page_title %}{% if user.role in ['Administrador', 'Super Administrador', 'DEV'] %}Minha Conta{% else %}Configurações{% endif %}{% endblock %}
+{% block content %}
+<style>
+  .campo-grupo { margin-bottom: var(--espaco-3); }
+  .campo-grupo label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  .perfil-linha { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #EFEBE5; font-size: 0.9rem; }
+  .perfil-linha span.rotulo { color: var(--cor-texto-secundario); }
+</style>
+
+<div class="card" style="margin-bottom: var(--espaco-4); max-width: 480px;">
+  <h2 style="font-size:1rem; margin-bottom:12px;">Meu perfil</h2>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:wrap;">
+    {% if user.photo_path %}<img src="/avatar/{{ user.id }}" alt="Foto de perfil" style="width:84px;height:84px;border-radius:50%;object-fit:cover;">{% else %}<span class="avatar avatar-ini" style="width:84px;height:84px;line-height:84px;font-size:2rem;margin:0;">{{ (user.full_name or user.username)[:1]|upper }}</span>{% endif %}
+    <form method="post" action="/account/photo" enctype="multipart/form-data" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="file" name="photo" accept="image/*" required style="max-width:220px;">
+      <button type="submit" class="btn btn-primario">Salvar foto</button>
+    </form>
+    {% if user.photo_path %}<form method="post" action="/account/photo"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="remove" value="1"><button type="submit" class="btn btn-fantasma">Remover</button></form>{% endif %}
+  </div>
+  <div class="perfil-linha"><span class="rotulo">Nome</span><strong>{{ user.full_name or user.username }}</strong></div>
+  <div class="perfil-linha"><span class="rotulo">Usuário</span><strong>{{ user.username }}</strong></div>
+  <div class="perfil-linha"><span class="rotulo">ID</span><strong>{{ user.id }}</strong></div>
+  <div class="perfil-linha"><span class="rotulo">Perfil</span><strong>{{ user.role }}</strong></div>
+</div>
+
+
+{% if user.role == 'Usuário' %}
+<div id="notificacoes" class="card" style="max-width:760px; margin-bottom:var(--espaco-4);">
+  <h2 style="font-size:1rem; margin-bottom:6px;">Notificações</h2>
+  <p style="font-size:.86rem;color:var(--cor-texto-secundario);margin:0 0 14px;">Ative as notificações neste aparelho e escolha quais tipos de aviso deseja receber.</p>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;">
+    <span id="push-status" style="font-size:.8rem;font-weight:700;padding:7px 10px;border-radius:999px;background:#fff1e9;color:#8d431c;">Verificando...</span>
+    <button type="button" id="push-enable" class="btn btn-primario">Ativar neste aparelho</button>
+    <button type="button" id="push-test" class="btn btn-secundario" style="display:none">Enviar teste</button>
+    <button type="button" id="push-disable" class="btn btn-fantasma" style="display:none">Desativar neste aparelho</button>
+  </div>
+  <div id="push-message" style="font-size:.82rem;margin-bottom:10px"></div>
+  <form method="post" action="/account/notifications">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% for key,cfg in notification_types.items() %}
+    <label style="display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid #eee;{% if not global_notification_prefs.get(key,True) %}opacity:.5{% endif %}">
+      <span><strong style="display:block">{{ cfg.label }}</strong>{% if not global_notification_prefs.get(key,True) %}<small>Desativado pela Administração</small>{% else %}<small>Receber este tipo de aviso</small>{% endif %}</span>
+      <input type="checkbox" name="notification_types" value="{{ key }}" style="width:21px;height:21px;accent-color:var(--cor-primaria)" {% if effective_notification_prefs.get(key,True) %}checked{% endif %} {% if not global_notification_prefs.get(key,True) %}disabled{% endif %}>
+    </label>
+    {% endfor %}
+    <button class="btn btn-primario" type="submit" style="margin-top:14px">Salvar preferências</button>
+  </form>
+</div>
+
+{% endif %}
+
+<div class="card" style="max-width: 480px; margin-bottom:var(--espaco-4);">
+  <h2 style="font-size:1rem; margin-bottom:8px;">Aplicativo Safety Plus</h2>
+  <p style="font-size:.86rem;color:var(--cor-texto-secundario);margin:0 0 12px;">Instale o Safety Plus para abrir como aplicativo, sem barra de endereço, com o mesmo ícone no computador e no celular.</p>
+  <button type="button" class="btn btn-primario pwa-install-action" onclick="installSafetyPlus()">Instalar Safety Plus</button>
+  <p style="font-size:.76rem;color:var(--cor-texto-secundario);margin:10px 0 0;">Em navegadores que não mostram instalação automática, o botão exibe o caminho correto para adicionar à tela inicial.</p>
+</div>
+
+<div class="card" style="max-width: 480px;">
+  <h2 style="font-size:1rem; margin-bottom:12px;">Trocar senha</h2>
+  <form method="post" action="/account/password">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo-grupo">
+      <label for="current_password">Senha atual</label>
+      <input class="campo" type="password" id="current_password" name="current_password" required>
+    </div>
+    <div class="campo-grupo">
+      <label for="new_password">Nova senha</label>
+      <input class="campo" type="password" id="new_password" name="new_password" minlength="8" required>
+      <span style="font-size:0.78rem; color:var(--cor-texto-secundario);">Mínimo de 8 caracteres.</span>
+    </div>
+    <button type="submit" class="btn btn-primario">Salvar nova senha</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>(function(){const st=document.getElementById('push-status'),en=document.getElementById('push-enable'),dis=document.getElementById('push-disable'),test=document.getElementById('push-test'),msg=document.getElementById('push-message');if(!st)return;function m(t,ok){msg.textContent=t||'';msg.style.color=ok?'#21683d':'#8d431c'}async function refresh(){if(!window.SafetyPlusNotifications){st.textContent='Indisponível';return}const x=await window.SafetyPlusNotifications.status();if(!x.supported){st.textContent='Não suportado';en.style.display='none';return}if(x.subscribed){st.textContent='Ativo neste aparelho';st.style.background='#e8f7ee';st.style.color='#21683d';en.style.display='none';dis.style.display='';test.style.display=''}else{st.textContent='Desativado';en.style.display='';dis.style.display='none';test.style.display='none'}}en.onclick=async()=>{try{await window.SafetyPlusNotifications.enable();m('Notificações ativadas neste aparelho.',true)}catch(e){m(e.message||'Não foi possível ativar.',false)}await refresh()};dis.onclick=async()=>{try{await window.SafetyPlusNotifications.disable();m('Notificações desativadas neste aparelho.',true)}catch(e){m(e.message||'Não foi possível desativar.',false)}await refresh()};test.onclick=async()=>{try{const r=await fetch('/api/notifications/push/test',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({csrf_token:(document.querySelector('meta[name="csrf-token"]')||{}).content||''})});if(!r.ok)throw new Error('Falha ao enviar teste.');m('Teste enviado.',true)}catch(e){m(e.message,false)}};refresh()})();</script>{% endblock %}

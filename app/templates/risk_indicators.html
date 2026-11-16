@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<style>
+.dash-overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:28px}
+.dash-overview-panel{padding:22px;min-width:0}.dash-overview-panel h3{margin:0 0 4px;font-size:1.08rem}
+.dash-overview-panel>p{color:#737a7e;font-size:.8rem;margin:0 0 20px}.dash-wide{grid-column:span 2}
+.dash-ov-row{display:grid;grid-template-columns:minmax(115px,38%) 1fr 36px;align-items:center;gap:12px;margin:12px 0;font-size:.81rem}
+.dash-ov-row span{overflow-wrap:anywhere}.dash-ov-row b{text-align:right}
+.dash-ov-track{background:#eeeae6;height:12px;border-radius:20px;overflow:hidden}.dash-ov-track>div{background:linear-gradient(90deg,#fb6359,#d43b32);height:100%;border-radius:20px}
+.dash-cluster-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px}
+.dash-completion{display:flex;gap:12px;align-items:center;margin-top:22px;padding:16px;background:#f8f6f3;border-radius:12px}.dash-completion b{font-size:1.8rem;color:#b53e34}.dash-completion span{font-size:.82rem;color:#5c6368}
+@media(max-width:800px){.dash-overview-grid{grid-template-columns:1fr}.dash-wide{grid-column:auto}.dash-cluster-grid{grid-template-columns:1fr}}
+</style>
+
+<style>
+.dash-pro-head{background:linear-gradient(120deg,#202528,#363d40);color:#fff;padding:28px 30px;border-radius:18px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+.dash-pro-head h1{color:white;font-size:clamp(1.6rem,3vw,2.25rem);margin:7px 0}
+.dash-pro-head p{max-width:700px;color:#d6dbdd;margin:0;line-height:1.5}
+.dash-eyebrow{font-size:.7rem;letter-spacing:.13em;color:#ff9e94;font-weight:800}
+.dash-back{background:white;color:#23292c;padding:12px 18px;border-radius:30px;font-weight:750;text-decoration:none;white-space:nowrap}
+.dash-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:30px}
+.dash-summary-card{border:1px solid #e8e4df;background:#fff;border-radius:15px;padding:22px;min-height:130px;display:flex;flex-direction:column;justify-content:space-between;gap:10px}
+.dash-summary-card span{font-size:.85rem;color:#646b70}.dash-summary-card strong{font-size:2.2rem;line-height:1}.dash-summary-card small{color:#798087}
+.dash-summary-card.dark{background:#181b1d;color:#fff}.dash-summary-card.dark span,.dash-summary-card.dark small{color:#c6cacc}
+.dash-section-caption{display:flex;align-items:center;gap:12px;margin:20px 0 14px}
+.dash-section-caption>span{background:#fff0ed;color:#ac3c30;border-radius:10px;padding:10px;font-weight:850}
+.dash-section-caption h2{margin:0;font-size:1.2rem}.dash-section-caption p{margin:4px 0 0;color:#70777b;font-size:.82rem}
+@media(max-width:900px){.dash-summary{grid-template-columns:repeat(2,1fr)}}@media(max-width:500px){.dash-summary{grid-template-columns:1fr}.dash-pro-head{padding:22px}}
+</style>
+
+<style>
+  .dash-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:var(--espaco-4); }
+  .dash-head h2 { margin:0 0 6px; font-size:1.55rem; }
+  .dash-head p { margin:0; color:var(--cor-texto-secundario); max-width:760px; }
+  .dash-filter { display:grid; grid-template-columns:1fr 1fr 1fr auto auto; gap:10px; align-items:end; padding:var(--espaco-3); margin-bottom:var(--espaco-4); }
+  .dash-filter .field { min-width:0; }
+  .dash-filter label { display:block; font-size:.76rem; font-weight:800; color:var(--cor-texto-secundario); margin-bottom:6px; }
+  .dash-filter select { width:100%; border-radius:var(--raio-input); border:1px solid #D8D3CC; padding:11px 36px 11px 12px; font-family:var(--fonte-base); background:#fff; color:var(--cor-texto); }
+
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--espaco-3); margin-bottom:var(--espaco-4); }
+  .kpi { padding:18px; border-top:4px solid var(--serena-coral); }
+  .kpi strong { display:block; font-family:var(--fonte-display); font-size:1.9rem; line-height:1; margin-bottom:7px; }
+  .kpi span { color:var(--cor-texto-secundario); font-size:.82rem; }
+
+  .highlight-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--espaco-3); margin-bottom:var(--espaco-4); }
+  .highlight-card { padding:18px; min-height:122px; background:#171717; color:#fff; border-radius:var(--raio-card); }
+  .highlight-card .eyebrow { color:#C8C3BE; font-size:.75rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px; }
+  .highlight-card strong { display:block; font-size:1.05rem; line-height:1.25; }
+  .highlight-card .metric { margin-top:8px; color:#FF736A; font-weight:800; }
+
+  .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--espaco-4); margin-bottom:var(--espaco-4); }
+  .chart-card { padding:var(--espaco-4); min-width:0; }
+  .chart-card h3 { margin:0 0 4px; font-size:1.02rem; }
+  .chart-sub { color:var(--cor-texto-secundario); font-size:.8rem; margin-bottom:16px; }
+  .bar-list { display:flex; flex-direction:column; gap:12px; max-height:500px; overflow:auto; padding-right:4px; }
+  .bar-item { display:grid; grid-template-columns:minmax(145px, 42%) 1fr 54px; gap:10px; align-items:center; }
+  .bar-label { font-size:.82rem; line-height:1.25; overflow-wrap:anywhere; }
+  .bar-track { height:17px; border-radius:999px; background:#ECE8E2; overflow:hidden; }
+  .bar-fill { height:100%; min-width:5px; border-radius:999px; background:linear-gradient(90deg, #FF5246, #D8312A); }
+  .bar-count { text-align:right; font-weight:800; font-size:.82rem; }
+  .bar-count small { display:block; color:var(--cor-texto-secundario); font-size:.65rem; font-weight:600; }
+  .empty-chart { padding:32px 14px; text-align:center; color:var(--cor-texto-secundario); background:#F8F5F1; border-radius:12px; }
+
+  .secondary-grid { display:grid; grid-template-columns:.85fr 1.15fr; gap:var(--espaco-4); margin-bottom:var(--espaco-4); }
+  .severity-chart { display:flex; align-items:flex-end; justify-content:center; gap:22px; height:210px; padding:18px 10px 2px; border-bottom:1px solid #E4DDD6; }
+  .severity-col { width:min(26%,96px); text-align:center; display:flex; flex-direction:column; justify-content:flex-end; height:100%; }
+  .severity-bar-wrap { flex:1; display:flex; align-items:flex-end; justify-content:center; min-height:80px; }
+  .severity-bar { width:56px; min-height:8px; border-radius:10px 10px 4px 4px; display:flex; align-items:flex-start; justify-content:center; padding-top:7px; font-weight:800; color:#111; }
+  .sev-A { background:#FF6B61; }
+  .sev-B { background:#FFD15C; }
+  .sev-C { background:#78C98D; }
+  .sev-other { background:#CBC5BE; }
+  .severity-col strong { margin-top:9px; font-size:.86rem; }
+  .severity-col small { color:var(--cor-texto-secundario); font-size:.68rem; }
+
+  .pair-list { display:flex; flex-direction:column; gap:10px; max-height:260px; overflow:auto; }
+  .pair-item { display:grid; grid-template-columns:1fr 42px; gap:10px; align-items:center; padding:10px 12px; background:#F8F5F1; border-radius:10px; }
+  .pair-item .pair-text { font-size:.8rem; line-height:1.3; }
+  .pair-item .pair-text b { display:block; margin-bottom:2px; }
+  .pair-item .pair-count { text-align:center; background:#171717; color:#fff; border-radius:999px; padding:5px 8px; font-weight:800; font-size:.75rem; }
+
+  .ranking-card { margin-bottom:var(--espaco-4); }
+  .ranking-table-wrap { overflow:auto; max-height:520px; border:1px solid #E8E2DB; border-radius:12px; }
+  .ranking-table { width:100%; border-collapse:collapse; min-width:720px; }
+  .ranking-table th, .ranking-table td { text-align:left; padding:10px 12px; border-bottom:1px solid #EEE9E3; vertical-align:middle; font-size:.82rem; }
+  .ranking-table th { position:sticky; top:0; background:#F8F5F1; z-index:1; color:var(--cor-texto-secundario); font-size:.74rem; }
+  .rank-number { width:52px; font-weight:900; color:var(--serena-coral-escuro); }
+  .mini-track { width:180px; height:9px; background:#ECE8E2; border-radius:999px; overflow:hidden; }
+  .mini-fill { height:100%; background:var(--serena-coral); border-radius:999px; }
+
+  .detail-wrap { overflow:auto; max-height:620px; border:1px solid #E8E2DB; border-radius:12px; }
+  .detail-table { width:100%; border-collapse:collapse; min-width:980px; }
+  .detail-table th, .detail-table td { text-align:left; padding:10px 12px; border-bottom:1px solid #EEE9E3; vertical-align:top; font-size:.8rem; }
+  .detail-table th { position:sticky; top:0; background:#F8F5F1; z-index:1; color:var(--cor-texto-secundario); font-size:.73rem; }
+  .doc-code { font-weight:800; white-space:nowrap; }
+  .pill { display:inline-flex; min-width:30px; justify-content:center; border-radius:999px; padding:4px 9px; font-weight:800; font-size:.72rem; }
+  .pill-A { background:#FFE1DE; color:#B42318; }
+  .pill-B { background:#FFF1C2; color:#8A5B00; }
+  .pill-C { background:#DDF4E4; color:#21613A; }
+
+  @media (max-width:980px) {
+    .dash-filter { grid-template-columns:1fr 1fr; }
+    .kpi-grid, .highlight-grid { grid-template-columns:1fr 1fr; }
+    .charts-grid, .secondary-grid { grid-template-columns:1fr; }
+  }
+  @media (max-width:620px) {
+    .dash-head { flex-direction:column; }
+    .dash-filter, .kpi-grid, .highlight-grid { grid-template-columns:1fr; }
+    .bar-item { grid-template-columns:minmax(118px,44%) 1fr 44px; gap:7px; }
+    .mini-track { width:110px; }
+  }
+</style>
+
+<header class="dash-pro-head"><div><span class="dash-eyebrow">SAFETY PLUS · INTELIGÊNCIA OPERACIONAL</span><h1>Dashboard operacional</h1><p>Visão consolidada dos documentos, indicadores de segurança e riscos das APRs. Os dados respeitam as permissões do seu perfil.</p></div></header>
+<section class="dash-summary" aria-label="Indicadores de documentos">
+ <div class="dash-summary-card dark"><span>Documentos acessíveis</span><strong>{{ overview.total }}</strong><small>{{ overview.today }} atualizados hoje</small></div>
+ <div class="dash-summary-card"><span>Rascunhos</span><strong>{{ overview.drafts }}</strong><small>Aguardando preenchimento</small></div>
+ <div class="dash-summary-card"><span>Pendentes</span><strong>{{ overview.pending }}</strong><small>Precisam de acompanhamento</small></div>
+ <div class="dash-summary-card"><span>Finalizados / PDFs</span><strong>{{ overview.final }}</strong><small>Documentos concluídos</small></div>
+</section>
+<section class="dash-operational" aria-label="Distribuição operacional">
+  <div class="dash-section-caption"><span>01</span><div><h2>Distribuição dos documentos</h2><p>Indicadores por módulo, situação e parque ou cluster, conforme o acesso do usuário.</p></div></div>
+  <div class="dash-overview-grid">
+    <article class="card dash-overview-panel"><h3>Documentos por módulo</h3><p>Quantidade de registros por tipo de documento</p>
+      {% for label, value in overview.by_kind %}<div class="dash-ov-row"><span title="{{ label }}">{{ label }}</span><div class="dash-ov-track"><div style="width:{{ (value / overview.max_kind * 100)|round }}%"></div></div><b>{{ value }}</b></div>{% else %}<p>Sem documentos registrados.</p>{% endfor %}
+    </article>
+    <article class="card dash-overview-panel"><h3>Documentos por situação</h3><p>Distribuição dos status atuais</p>
+      {% for label, value in overview.by_status %}<div class="dash-ov-row"><span title="{{ label }}">{{ label }}</span><div class="dash-ov-track"><div style="width:{{ (value / overview.max_status * 100)|round }}%"></div></div><b>{{ value }}</b></div>{% else %}<p>Sem documentos registrados.</p>{% endfor %}
+      <div class="dash-completion"><b>{{ overview.final_pct }}%</b><span>do total de documentos está finalizado</span></div>
+    </article>
+    <article class="card dash-overview-panel dash-wide"><h3>Distribuição por parque / cluster</h3><p>Visão das unidades com documentos registrados</p>
+      <div class="dash-cluster-grid">{% for label, value in overview.by_cluster %}<div class="dash-ov-row"><span title="{{ label }}">{{ label }}</span><div class="dash-ov-track"><div style="width:{{ (value / overview.max_cluster * 100)|round }}%"></div></div><b>{{ value }}</b></div>{% else %}<p>Sem informações de cluster.</p>{% endfor %}</div>
+    </article>
+  </div>
+</section>
+<div class="dash-section-caption"><span>02</span><div><h2>Perigos e riscos das APRs</h2><p>Explore indicadores, severidades e ocorrências registradas nas análises.</p></div></div>
+<form class="card dash-filter" method="get" action="/indicadores/riscos">
+  <div class="field">
+    <label for="dash-status">Status da APR</label>
+    <select id="dash-status" name="status">
+      <option value="">Todos os status</option>
+      {% for s in ['Rascunho', 'Pendente assinatura', 'Aguardando aprovação', 'Finalizada'] %}
+      <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="dash-cluster">Cluster / Site</label>
+    <select id="dash-cluster" name="cluster">
+      <option value="">Todos os clusters</option>
+      {% for c in cluster_options %}<option value="{{ c }}" {% if cluster_filter == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="dash-severity">Severidade</label>
+    <select id="dash-severity" name="severity">
+      <option value="">Todas as severidades</option>
+      {% for s in ['A','B','C'] %}<option value="{{ s }}" {% if severity_filter == s %}selected{% endif %}>Severidade {{ s }}</option>{% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primario" type="submit">Atualizar</button>
+  {% if status_filter or cluster_filter or severity_filter %}<a class="btn btn-fantasma" href="/indicadores/riscos">Limpar filtros</a>{% endif %}
+</form>
+
+<div class="kpi-grid">
+  <div class="card kpi"><strong>{{ aprs_with_selection }}</strong><span>APRs com perigo/risco selecionado</span></div>
+  <div class="card kpi"><strong>{{ total_selections }}</strong><span>Seleções registradas nas etapas</span></div>
+  <div class="card kpi"><strong>{{ unique_risks }}</strong><span>Riscos diferentes selecionados</span></div>
+  <div class="card kpi"><strong>{{ unique_hazards }}</strong><span>Perigos diferentes selecionados</span></div>
+</div>
+
+<div class="highlight-grid">
+  <div class="highlight-card">
+    <div class="eyebrow">Risco mais selecionado</div>
+    {% if top_risk %}<strong>{{ top_risk.label }}</strong><div class="metric">{{ top_risk.count }} seleção(ões) · {{ top_risk.share }}%</div>{% else %}<strong>Sem dados</strong>{% endif %}
+  </div>
+  <div class="highlight-card">
+    <div class="eyebrow">Perigo mais selecionado</div>
+    {% if top_hazard %}<strong>{{ top_hazard.label }}</strong><div class="metric">{{ top_hazard.count }} seleção(ões) · {{ top_hazard.share }}%</div>{% else %}<strong>Sem dados</strong>{% endif %}
+  </div>
+  <div class="highlight-card">
+    <div class="eyebrow">Combinação mais recorrente</div>
+    {% if top_pair %}<strong>{{ top_pair.hazard }} → {{ top_pair.risk }}</strong><div class="metric">{{ top_pair.count }} ocorrência(s)</div>{% else %}<strong>Sem dados</strong>{% endif %}
+  </div>
+</div>
+
+<div class="charts-grid">
+  <section class="card chart-card">
+    <h3>Riscos mais selecionados</h3>
+    <div class="chart-sub">Ranking em gráfico, do risco mais recorrente para o menos recorrente.</div>
+    {% if risk_chart %}
+    <div class="bar-list">
+      {% for item in risk_chart[:15] %}
+      <div class="bar-item" title="{{ item.label }}: {{ item.count }} seleção(ões)">
+        <div class="bar-label">{{ loop.index }}. {{ item.label }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:{{ item.pct }}%"></div></div>
+        <div class="bar-count">{{ item.count }}<small>{{ item.share }}%</small></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-chart">Nenhum risco selecionado nas APRs deste filtro.</div>{% endif %}
+  </section>
+
+  <section class="card chart-card">
+    <h3>Perigos mais selecionados</h3>
+    <div class="chart-sub">Ranking em gráfico dos perigos realmente utilizados nas APRs.</div>
+    {% if hazard_chart %}
+    <div class="bar-list">
+      {% for item in hazard_chart[:15] %}
+      <div class="bar-item" title="{{ item.label }}: {{ item.count }} seleção(ões)">
+        <div class="bar-label">{{ loop.index }}. {{ item.label }}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:{{ item.pct }}%"></div></div>
+        <div class="bar-count">{{ item.count }}<small>{{ item.share }}%</small></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-chart">Nenhum perigo selecionado nas APRs deste filtro.</div>{% endif %}
+  </section>
+</div>
+
+<div class="secondary-grid">
+  <section class="card chart-card">
+    <h3>Gráfico por severidade</h3>
+    <div class="chart-sub">Distribuição das seleções entre severidades A, B e C.</div>
+    <div class="severity-chart">
+      {% for item in severity_chart[:3] %}
+      <div class="severity-col">
+        <div class="severity-bar-wrap">
+          <div class="severity-bar sev-{{ item.label if item.label in ['A','B','C'] else 'other' }}" style="height:{{ item.pct if item.pct > 8 else 8 }}%">{{ item.count }}</div>
+        </div>
+        <strong>Severidade {{ item.label }}</strong>
+        <small>{{ item.share }}% das seleções</small>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card chart-card">
+    <h3>Perigo × Risco mais recorrentes</h3>
+    <div class="chart-sub">Combinações que mais aparecem juntas nas etapas das APRs.</div>
+    {% if pair_chart %}
+    <div class="pair-list">
+      {% for item in pair_chart[:12] %}
+      <div class="pair-item">
+        <div class="pair-text"><b>{{ item.hazard }}</b>{{ item.risk }}</div>
+        <div class="pair-count">{{ item.count }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty-chart">Nenhuma combinação registrada neste filtro.</div>{% endif %}
+  </section>
+</div>
+
+<section class="card chart-card" style="margin-bottom:var(--espaco-4);">
+  <h3>Seleções por Cluster / Site</h3>
+  <div class="chart-sub">Onde os perigos e riscos selecionados estão mais concentrados.</div>
+  {% if location_chart %}
+  <div class="bar-list" style="max-height:330px;">
+    {% for item in location_chart %}
+    <div class="bar-item">
+      <div class="bar-label">{{ item.label }}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:{{ item.pct }}%"></div></div>
+      <div class="bar-count">{{ item.count }}<small>{{ item.share }}%</small></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<div class="empty-chart">Nenhum Cluster/Site com seleção registrada.</div>{% endif %}
+</section>
+
+<section class="card chart-card ranking-card">
+  <h3>Ranking completo dos riscos</h3>
+  <div class="chart-sub">Lista completa dos riscos selecionados, com posição, quantidade e participação.</div>
+  {% if risk_chart %}
+  <div class="ranking-table-wrap">
+    <table class="ranking-table">
+      <thead><tr><th>#</th><th>Risco</th><th>Quantidade</th><th>Participação</th><th>Gráfico</th></tr></thead>
+      <tbody>
+      {% for item in risk_chart %}
+        <tr>
+          <td class="rank-number">{{ loop.index }}</td>
+          <td><b>{{ item.label }}</b></td>
+          <td>{{ item.count }}</td>
+          <td>{{ item.share }}%</td>
+          <td><div class="mini-track"><div class="mini-fill" style="width:{{ item.pct }}%"></div></div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="empty-chart">Nenhum risco disponível para montar o ranking.</div>{% endif %}
+</section>
+
+<section class="card chart-card">
+  <h3>Detalhamento das seleções</h3>
+  <div class="chart-sub">Registros que alimentam os gráficos. Somente seleções efetivamente feitas nas APRs.</div>
+  {% if selection_rows %}
+  <div class="detail-wrap">
+    <table class="detail-table">
+      <thead><tr><th>APR</th><th>Cluster / Site</th><th>Etapa</th><th>Perigo</th><th>Risco</th><th>Severidade</th></tr></thead>
+      <tbody>
+      {% for row in selection_rows %}
+        <tr>
+          <td class="doc-code">{{ row.code }}</td>
+          <td>{{ row.doc.cluster }}{% if row.doc.site %}<br><span style="color:var(--cor-texto-secundario);">{{ row.doc.site }}</span>{% endif %}</td>
+          <td>{{ row.stage }}</td>
+          <td>{{ row.hazard or '—' }}</td>
+          <td>{{ row.risk or '—' }}</td>
+          <td>{% if row.severity %}<span class="pill pill-{{ row.severity if row.severity in ['A','B','C'] else 'C' }}">{{ row.severity }}</span>{% else %}—{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<div class="empty-chart">Nenhuma seleção encontrada com os filtros escolhidos.</div>{% endif %}
+</section>
+{% endblock %}

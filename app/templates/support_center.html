@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% block title %}Central de Ajuda · Safety Plus{% endblock %}
+{% block page_title %}Central de Ajuda{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/css/serena-admin.css?v=361895">{% endblock %}
+{% block content %}
+<style>
+.sd-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 16px; align-items: start; }
+.sd-list { overflow: hidden; }
+.sd-list-head { padding: 14px 18px; border-bottom: 1px solid #F0ECE7; display: flex; justify-content: space-between; align-items: center; font-size: .8rem; color: var(--serena-grafite-medio); }
+.sd-items { max-height: calc(100vh - 330px); min-height: 320px; overflow-y: auto; }
+.sd-item { display: grid; grid-template-columns: 4px minmax(0,1fr); gap: 14px; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #F3F0EC; background: #fff; padding: 14px 18px 14px 0; cursor: pointer; font: inherit; color: inherit; }
+.sd-item:hover { background: #FBFAF8; }
+.sd-item.is-active { background: #F7F5F2; }
+.sd-item .bar { border-radius: 0 4px 4px 0; background: transparent; }
+.sd-item.is-active .bar { background: var(--serena-coral); }
+.sd-item .line1 { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.sd-item .num { font-size: .72rem; font-weight: 600; color: var(--serena-grafite-claro); letter-spacing: .04em; }
+.sd-item h4 { margin: 4px 0 6px; font-size: .93rem; font-weight: 600; line-height: 1.35; color: var(--serena-grafite); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sd-item .meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: .75rem; color: var(--serena-grafite-claro); }
+.sd-item .mine { color: var(--serena-coral); font-weight: 600; }
+.sd-detail { position: sticky; top: 88px; }
+.sd-detail-empty { padding: 60px 24px; text-align: center; color: var(--serena-grafite-claro); }
+.sd-detail-empty svg { width: 46px; height: 46px; fill: none; stroke: var(--serena-coral); stroke-width: 1.6; margin-bottom: 10px; }
+.sd-ticket[hidden] { display: none; }
+.sd-ticket-head { padding: 20px 24px 16px; border-bottom: 1px solid #F0ECE7; }
+.sd-ticket-head .top { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.sd-ticket-head h3 { font-family: var(--fonte-display); font-size: 1.3rem; margin: 10px 0 8px; line-height: 1.25; }
+.sd-meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px 18px; padding: 16px 24px; border-bottom: 1px solid #F0ECE7; }
+.sd-meta-grid div span { display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--serena-grafite-claro); font-weight: 600; }
+.sd-meta-grid div b { font-weight: 500; font-size: .86rem; }
+.sd-body { padding: 18px 24px; }
+.sd-body h5 { margin: 0 0 8px; font-size: .74rem; letter-spacing: .08em; text-transform: uppercase; color: var(--serena-grafite-claro); }
+.sd-desc { white-space: pre-wrap; line-height: 1.6; font-size: .9rem; color: var(--serena-grafite); background: #FBFAF8; border-radius: 12px; padding: 14px 16px; margin: 0 0 16px; }
+.sd-attach { display: block; border-radius: 12px; overflow: hidden; border: 1px solid #ECE8E3; margin-bottom: 18px; max-height: 260px; background: #F7F5F2; }
+.sd-attach img { display: block; width: 100%; max-height: 260px; object-fit: contain; }
+.sd-form { border-top: 1px solid #F0ECE7; padding: 18px 24px 22px; display: flex; flex-direction: column; gap: 14px; background: #FDFCFB; border-radius: 0 0 18px 18px; }
+.sd-status-pick { display: flex; gap: 6px; flex-wrap: wrap; }
+.sd-status-pick label { cursor: pointer; position: relative; }
+.sd-status-pick input { position: absolute; opacity: 0; pointer-events: none; left: 0; top: 0; width: 1px; height: 1px; }
+.sd-status-pick span { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px; border: 1px solid #DCD7D1; font-size: .8rem; font-weight: 500; background: #fff; }
+.sd-status-pick span::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--serena-grafite-claro)); }
+.sd-status-pick input:checked + span { background: var(--serena-grafite); color: #fff; border-color: var(--serena-grafite); }
+.sd-status-pick input:focus-visible + span { outline: 2px solid var(--serena-coral); outline-offset: 2px; }
+.sd-readonly { font-size: .82rem; }
+.sd-back { display: none; }
+@media (max-width: 980px) {
+  .sd-layout { grid-template-columns: 1fr; }
+  .sd-detail { position: fixed; inset: 0; z-index: 150; top: 0; border-radius: 0; overflow-y: auto; transform: translateX(100%); transition: transform .22s ease; }
+  .sd-detail.open { transform: none; }
+  .sd-detail-empty { display: none; }
+  .sd-back { display: inline-flex; }
+  .sd-items { max-height: none; }
+}
+</style>
+<style>
+.ha-hero { background: var(--serena-grafite); color: #fff; border-radius: 22px; padding: 24px 26px; border-top: 5px solid var(--serena-coral); display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.ha-hero h2 { font-family: var(--fonte-display); font-size: 1.7rem; margin: 0 0 6px; color: #fff; }
+.ha-hero p { margin: 0; color: #CFCBC6; font-size: .9rem; max-width: 600px; line-height: 1.5; }
+.ha-hero-stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.ha-hero-stats div { border: 1px solid #3A3A3A; border-radius: 14px; padding: 10px 14px; min-width: 110px; }
+.ha-hero-stats b { display: block; font-family: var(--fonte-display); font-size: 1.4rem; line-height: 1.1; }
+.ha-hero-stats span { font-size: .74rem; color: #CFCBC6; }
+.ha-new { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ha-type { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ha-type label { cursor: pointer; position: relative; }
+.ha-type input { position: absolute; opacity: 0; left: 0; top: 0; width: 1px; height: 1px; }
+.ha-type .card { display: flex; gap: 12px; align-items: flex-start; border: 1px solid #DCD7D1; border-radius: 16px; padding: 14px 16px; background: #fff; height: 100%; transition: border-color .15s, box-shadow .15s; }
+.ha-type .card i { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--serena-areia); flex: 0 0 38px; }
+.ha-type .card svg { width: 20px; height: 20px; fill: none; stroke: var(--serena-grafite); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ha-type .card b { display: block; font-size: .92rem; } .ha-type .card small { font-size: .78rem; color: var(--serena-grafite-medio); line-height: 1.4; }
+.ha-type input:checked + .card { border-color: var(--serena-grafite); box-shadow: inset 0 0 0 1px var(--serena-grafite); }
+.ha-type input:checked + .card i { background: var(--serena-coral); } .ha-type input:checked + .card svg { stroke: #fff; }
+.ha-type input:focus-visible + .card { outline: 2px solid var(--serena-coral); outline-offset: 2px; }
+.ha-drop { border: 1.5px dashed #CFC9C2; border-radius: 14px; padding: 16px; text-align: center; font-size: .84rem; color: var(--serena-grafite-medio); background: #FBFAF8; cursor: pointer; transition: border-color .15s, background .15s; }
+.ha-drop.over { border-color: var(--serena-coral); background: #FFF3F2; }
+.ha-drop b { color: var(--serena-grafite); }
+.ha-drop img { max-height: 160px; max-width: 100%; border-radius: 10px; display: block; margin: 0 auto 8px; }
+.ha-tips h4 { margin: 0 0 10px; font-size: .95rem; font-family: var(--fonte-display); }
+.ha-tips ol { margin: 0; padding-left: 18px; font-size: .84rem; color: var(--serena-grafite-medio); line-height: 1.6; }
+.ha-tips ol li { margin-bottom: 6px; } .ha-tips ol b { color: var(--serena-grafite); }
+.ha-result { font-size: .86rem; } .ha-result.err { color: var(--serena-coral-escuro); }
+.ha-ticket { background: #fff; border: 1px solid #ECE8E3; border-radius: 18px; padding: 18px 20px; }
+.ha-ticket.highlight { border-color: var(--serena-coral); box-shadow: 0 0 0 3px rgba(255,82,70,.12); }
+.ha-ticket .top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.ha-ticket h4 { margin: 4px 0 6px; font-size: 1rem; }
+.ha-ticket .meta { font-size: .76rem; color: var(--serena-grafite-claro); }
+.ha-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 14px 0 6px; }
+.ha-steps div { font-size: .72rem; color: var(--serena-grafite-claro); display: flex; flex-direction: column; gap: 6px; }
+.ha-steps div::before { content: ''; height: 5px; border-radius: 999px; background: #EFEBE6; }
+.ha-steps div.on { color: var(--serena-grafite); font-weight: 600; } .ha-steps div.on::before { background: var(--serena-grafite); }
+.ha-steps div.done::before { background: var(--serena-verde); }
+.ha-desc { white-space: pre-wrap; font-size: .86rem; color: var(--serena-grafite-medio); line-height: 1.55; margin: 10px 0 0; max-height: 4.8em; overflow: hidden; position: relative; }
+.ha-desc.open { max-height: none; }
+.ha-more { border: 0; background: none; color: var(--serena-coral-escuro); font: 600 .78rem var(--fonte-base); cursor: pointer; padding: 4px 0; }
+.ha-answer { margin-top: 12px; border-radius: 12px; background: color-mix(in srgb, var(--serena-verde) 12%, white); border-left: 4px solid var(--serena-verde); padding: 12px 14px; font-size: .86rem; line-height: 1.5; white-space: pre-wrap; }
+.ha-answer b { display: block; font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: #157357; margin-bottom: 4px; }
+.ha-list { display: flex; flex-direction: column; gap: 12px; }
+@media (max-width: 900px) { .ha-new { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .ha-type { grid-template-columns: 1fr; } .ha-hero { padding: 20px; } .ha-hero-stats div { min-width: 0; flex: 1; } }
+</style>
+
+<div class="sx-page">
+  <section class="ha-hero">
+    <div><h2>Como podemos ajudar?</h2><p>Aprenda a usar cada parte do Safety Plus, reporte um erro, sugira uma melhoria e acompanhe as respostas{% if is_support_admin %} — e, como administrador, atenda as solicitações recebidas{% endif %}, tudo aqui.</p></div>
+    <div class="ha-hero-stats">
+      <div><b>{{ my_stats.open }}</b><span>minhas em aberto</span></div>
+      <div><b>{{ my_stats.answered }}</b><span>com resposta</span></div>
+      {% if is_support_admin %}<div><b>{{ stats.mine }}</b><span>aguardando você</span></div>{% endif %}
+    </div>
+  </section>
+
+  <nav class="sx-tabs" role="tablist" aria-label="Central de Ajuda">
+    <button type="button" data-tab="como-usar" class="{{ 'is-active' if support_tab == 'como-usar' }}">Como usar o sistema <em>{{ help_articles|length }}</em></button>
+    <button type="button" data-tab="nova" class="{{ 'is-active' if support_tab == 'nova' }}">Nova solicitação</button>
+    <button type="button" data-tab="minhas" class="{{ 'is-active' if support_tab == 'minhas' }}">Minhas solicitações <em>{{ my_stats.total }}</em></button>
+    {% if is_support_admin %}<button type="button" data-tab="recebidas" class="{{ 'is-active' if support_tab == 'recebidas' }}">Recebidas <em>{{ stats.open }}</em></button>{% endif %}
+  </nav>
+
+  <!-- ============ COMO USAR ============ -->
+  <section class="sx-tabpanel sx-page" data-panel="como-usar" {% if support_tab != 'como-usar' %}hidden{% endif %}>
+    <style>
+    .kb-search { background:#fff; border:1px solid #ECE8E3; border-radius:20px; padding:20px 22px; }
+    .kb-search h3 { font-family:var(--fonte-display); margin:0 0 4px; font-size:1.2rem; }
+    .kb-search p { margin:0 0 14px; color:var(--serena-grafite-medio); font-size:.86rem; }
+    .kb-input { position:relative; }
+    .kb-input svg { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:20px; height:20px; fill:none; stroke:var(--serena-grafite-medio); stroke-width:2; }
+    .kb-input input { width:100%; border:1.5px solid #DCD7D1; border-radius:16px; padding:15px 16px 15px 48px; font:500 1rem var(--fonte-base); color:var(--serena-grafite); }
+    .kb-input input:focus { outline:none; border-color:var(--serena-grafite); box-shadow:0 0 0 3px rgba(24,24,24,.08); }
+    .kb-pop { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .kb-pop button { border:1px solid #E3DED8; background:#FBFAF8; border-radius:999px; padding:6px 12px; font:500 .78rem var(--fonte-base); color:var(--serena-grafite-medio); cursor:pointer; }
+    .kb-pop button:hover { border-color:var(--serena-grafite); color:var(--serena-grafite); }
+    .kb-layout { display:grid; grid-template-columns:240px minmax(0,1fr); gap:16px; align-items:start; }
+    .kb-cats { background:#fff; border:1px solid #ECE8E3; border-radius:18px; padding:10px; position:sticky; top:88px; }
+    .kb-cats button { display:flex; justify-content:space-between; width:100%; border:0; background:none; text-align:left; padding:10px 12px; border-radius:12px; font:500 .86rem var(--fonte-base); color:var(--serena-grafite-medio); cursor:pointer; }
+    .kb-cats button em { font-style:normal; font-size:.74rem; color:var(--serena-grafite-claro); }
+    .kb-cats button:hover { background:#FBFAF8; } .kb-cats button.is-active { background:var(--serena-grafite); color:#fff; } .kb-cats button.is-active em { color:#CFCBC6; }
+    .kb-list { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+    .kb-item { text-align:left; background:#fff; border:1px solid #ECE8E3; border-radius:16px; padding:14px 16px; cursor:pointer; font:inherit; color:inherit; display:flex; flex-direction:column; gap:6px; transition:border-color .15s, box-shadow .15s; }
+    .kb-item:hover { border-color:var(--serena-grafite); box-shadow:0 6px 18px rgba(24,24,24,.06); }
+    .kb-item b { font-size:.94rem; line-height:1.3; } .kb-item span { font-size:.8rem; color:var(--serena-grafite-medio); line-height:1.45; }
+    .kb-item .tags { display:flex; gap:6px; flex-wrap:wrap; }
+    .kb-head-row { display:flex; justify-content:space-between; align-items:center; margin:0 0 10px; font-size:.82rem; color:var(--serena-grafite-medio); }
+    .kb-article { background:#fff; border:1px solid #ECE8E3; border-radius:20px; padding:22px 24px; }
+    .kb-article .crumb { border:0; background:none; color:var(--serena-coral-escuro); font:600 .82rem var(--fonte-base); cursor:pointer; padding:0; margin-bottom:10px; }
+    .kb-article h3 { font-family:var(--fonte-display); font-size:1.45rem; margin:6px 0 6px; }
+    .kb-article .sum { color:var(--serena-grafite-medio); margin:0 0 18px; }
+    .kb-steps { list-style:none; margin:0 0 16px; padding:0; counter-reset:kb; display:flex; flex-direction:column; gap:10px; }
+    .kb-steps li { counter-increment:kb; display:grid; grid-template-columns:34px minmax(0,1fr); gap:12px; align-items:flex-start; font-size:.92rem; line-height:1.5; }
+    .kb-steps li::before { content:counter(kb); width:30px; height:30px; border-radius:50%; background:var(--serena-coral); color:#fff; display:grid; place-items:center; font-weight:600; font-size:.82rem; }
+    .kb-warn { border-radius:12px; padding:12px 14px; background:color-mix(in srgb, var(--serena-coral-escuro) 9%, white); color:var(--serena-coral-escuro); font-size:.86rem; margin-bottom:12px; }
+    .kb-fig { margin:10px 0 4px; }
+    .kb-fig .kb-zoom { display:block; border:1px solid #E3DED8; border-radius:14px; padding:0; background:#F7F5F2; cursor:zoom-in; overflow:hidden; max-width:100%; }
+    .kb-fig img { display:block; max-width:100%; height:auto; max-height:520px; }
+    .kb-fig figcaption { font-size:.76rem; color:var(--serena-grafite-claro); margin-top:6px; }
+    .kb-lightbox { position:fixed; inset:0; z-index:100005; background:rgba(24,24,24,.86); display:flex; align-items:center; justify-content:center; padding:18px; cursor:zoom-out; }
+    .kb-lightbox img { max-width:100%; max-height:100%; border-radius:12px; background:#fff; }
+    .kb-lightbox button { position:absolute; top:14px; right:14px; width:42px; height:42px; border-radius:50%; border:0; background:#fff; font-size:22px; cursor:pointer; }
+    .kb-item .ph { font-size:.72rem; color:var(--serena-grafite-claro); }
+    .kb-tip { border-radius:12px; padding:12px 14px; background:var(--serena-areia); color:var(--serena-grafite-medio); font-size:.84rem; margin-bottom:8px; }
+    .kb-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; padding-top:16px; border-top:1px solid #F0ECE7; }
+    .kb-related { margin-top:18px; } .kb-related h5 { margin:0 0 8px; font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--serena-grafite-claro); }
+    .kb-related button { display:block; border:0; background:none; padding:6px 0; font:500 .86rem var(--fonte-base); color:var(--serena-grafite); cursor:pointer; text-align:left; }
+    .kb-related button:hover { color:var(--serena-coral-escuro); }
+    .kb-empty { background:#fff; border:1px dashed #DCD7D1; border-radius:16px; padding:28px; text-align:center; color:var(--serena-grafite-medio); }
+    @media (max-width:900px){ .kb-layout{grid-template-columns:1fr} .kb-cats{position:static; display:flex; overflow-x:auto; gap:4px} .kb-cats button{white-space:nowrap; width:auto; gap:8px} }
+    </style>
+    <div class="kb-search">
+      <h3>Como usar o Safety Plus</h3>
+      <p>Pesquise ou faça uma pergunta. Há passo a passo com imagens de todas as telas: APR, cada PT, RAC, inspeções, LOTO, assinaturas, modo offline{% if is_support_admin %} e administração{% endif %}.</p>
+      <label class="kb-input"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="kb-q" type="search" placeholder="Ex.: como anexar PT? como incluir integrante?" autocomplete="off" aria-label="Pesquisar no manual"></label>
+      <div class="kb-pop" id="kb-pop">
+        {% for q in ['Criar APR','Assinar pelo QR Code','Sem internet','Anexar PT na APR','Incluir integrante','Encerrar PT','Espaço confinado'] + (['Verificar pessoa','Cadastrar colaborador'] if is_support_admin else []) %}<button type="button" data-q="{{ q }}">{{ q }}</button>{% endfor %}
+      </div>
+    </div>
+    <div class="kb-layout">
+      <nav class="kb-cats" id="kb-cats" aria-label="Categorias">
+        <button type="button" data-cat="" class="is-active">Todos os assuntos <em>{{ help_articles|length }}</em></button>
+        {% for c, label, n in help_cats %}<button type="button" data-cat="{{ c }}">{{ label }} <em>{{ n }}</em></button>{% endfor %}
+      </nav>
+      <div id="kb-main"></div>
+    </div>
+    <script type="application/json" id="kb-data">{{ {'articles': help_articles, 'cats': help_cats, 'syn': help_synonyms}|tojson }}</script>
+  </section>
+
+  <!-- ============ NOVA ============ -->
+  <section class="sx-tabpanel" data-panel="nova" {% if support_tab != 'nova' %}hidden{% endif %}>
+    <div class="ha-new">
+      <form class="sx-card sx-card-pad sx-page" id="ha-form" enctype="multipart/form-data" novalidate>
+        <div class="ha-type" role="radiogroup" aria-label="Tipo de solicitação">
+          <label><input type="radio" name="category" value="Erro no sistema" {% if support_kind != 'melhoria' %}checked{% endif %}><span class="card"><i><svg viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></i><span><b>Reportar erro</b><small>Algo não funciona como deveria.</small></span></span></label>
+          <label><input type="radio" name="category" value="Solicitar melhoria" {% if support_kind == 'melhoria' %}checked{% endif %}><span class="card"><i><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3Z"/></svg></i><span><b>Sugerir melhoria</b><small>Uma ideia para facilitar o trabalho.</small></span></span></label>
+        </div>
+        <div class="sx-form-grid">
+          <label class="sx-field"><span>Módulo <i>*</i></span>
+            <select name="module" required><option value="">Selecione</option>
+              {% for m in ['Painel / Dashboard','APR','Permissões de Trabalho (PT)','Assinaturas / QR Code','Inspeções / Checklists','LOTO','RAC','Colaboradores / Cadastros','Consulta de colaborador','PDF / Documentos','Modo Offline','Notificações','Central de Ajuda','Outro'] %}<option>{{ m }}</option>{% endfor %}
+            </select></label>
+          <label class="sx-field"><span>Tela ou local</span><input name="location" maxlength="160" placeholder="Ex.: APR → Coletar assinaturas"></label>
+          <label class="sx-field full"><span>Assunto <i>*</i></span><input name="subject" maxlength="160" required placeholder="Resumo em uma frase"></label>
+          <label class="sx-field full"><span id="ha-desc-label">O que aconteceu? <i>*</i></span><textarea name="description" maxlength="4000" rows="6" required id="ha-desc"></textarea><small><span id="ha-count">0</span>/4000</small></label>
+          <label class="sx-field full"><span>Quem vai atender <i>*</i></span>
+            <select name="assigned_to" required>{% for o in routing_options %}<option value="{{ o.id }}" {% if loop.first %}selected{% endif %}>{{ o.name }}</option>{% else %}<option value="">Nenhum responsável disponível</option>{% endfor %}</select></label>
+          <div class="sx-field full"><span>Imagem (opcional)</span>
+            <div class="ha-drop" id="ha-drop" tabindex="0" role="button" aria-label="Anexar imagem"><div id="ha-drop-body"><b>Clique, arraste ou cole (Ctrl+V)</b> um print da tela<br><small>PNG, JPG ou WebP · até 5 MB</small></div></div>
+            <input type="file" name="image" id="ha-file" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <span class="ha-result" id="ha-result" role="status" aria-live="polite"></span>
+          <button type="submit" class="sx-btn sx-btn-coral" id="ha-send">Enviar solicitação</button>
+        </div>
+      </form>
+      <aside class="sx-card sx-card-pad ha-tips">
+        <h4 id="ha-tips-title">Para resolvermos mais rápido</h4>
+        <ol id="ha-tips-error">
+          <li><b>Onde:</b> o módulo e a tela em que o erro apareceu.</li>
+          <li><b>Passo a passo:</b> o que você fez antes do erro.</li>
+          <li><b>Mensagem:</b> copie o texto do aviso ou anexe um print.</li>
+          <li><b>Documento:</b> informe o código (ex.: APR-2026-0012), se houver.</li>
+        </ol>
+        <ol id="ha-tips-improve" hidden>
+          <li><b>Hoje:</b> como a tarefa é feita atualmente.</li>
+          <li><b>Proposta:</b> o que você gostaria que mudasse.</li>
+          <li><b>Ganho:</b> tempo, segurança ou menos retrabalho.</li>
+          <li><b>Exemplo:</b> um print ou rascunho ajuda muito.</li>
+        </ol>
+        <div class="sx-note" style="margin-top:14px">Você acompanha o andamento e a resposta em <b>Minhas solicitações</b>.</div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ MINHAS ============ -->
+  <section class="sx-tabpanel" data-panel="minhas" {% if support_tab != 'minhas' %}hidden{% endif %}>
+    <div class="ha-list">
+      {% for t in mine %}
+      <article class="ha-ticket" id="minha-{{ t.id }}">
+        <div class="top">
+          <div><span class="meta">#{{ '%04d'|format(t.id) }} · aberto em {{ t.created_at }}</span><h4>{{ t.subject }}</h4>
+            <span class="sx-tag {{ 'sx-tag-error' if t.category == 'Erro no sistema' else 'sx-tag-dark' }}">{{ 'Erro' if t.category == 'Erro no sistema' else 'Melhoria' }}</span>
+            {% if t.module %}<span class="sx-tag">{{ t.module }}</span>{% endif %}
+            {% if t.has_image %}<a class="sx-tag" href="/api/support/tickets/{{ t.id }}/image" target="_blank" rel="noopener">Ver imagem</a>{% endif %}</div>
+          <span class="sx-tag dot sx-tag-{{ t.status_key }}">{{ t.status }}</span>
+        </div>
+        <div class="ha-steps" aria-label="Andamento">
+          <div class="{{ 'done' if t.step > 1 else 'on' }}">Recebida</div>
+          <div class="{{ 'done' if t.step > 2 else ('on' if t.step == 2 else '') }}">Em verificação</div>
+          <div class="{{ 'done on' if t.step == 3 else '' }}">Concluída</div>
+        </div>
+        <span class="meta">Responsável: {{ t.assigned_name or 'a definir' }}{% if t.updated_at %} · atualizado em {{ t.updated_at }}{% endif %}</span>
+        <p class="ha-desc">{{ t.body }}</p>{% if t.body|length > 180 or t.body.count('\n') > 2 %}<button type="button" class="ha-more" data-more>Ver descrição completa</button>{% endif %}
+        {% if t.response %}<div class="ha-answer"><b>Resposta da equipe</b>{{ t.response }}</div>{% endif %}
+      </article>
+      {% else %}
+      <div class="sx-card sx-empty">Você ainda não abriu solicitações. Use <b>Nova solicitação</b> para reportar um erro ou sugerir uma melhoria.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if is_support_admin %}
+  <!-- ============ RECEBIDAS ============ -->
+  <section class="sx-tabpanel sx-page" data-panel="recebidas" {% if support_tab != 'recebidas' %}hidden{% endif %}>
+  <div class="sx-kpis">
+    <button type="button" class="sx-kpi sx-accent-gray" data-kpi=""><b>{{ stats.open }}</b><span>Em aberto</span><small>{{ stats.total }} no total</small></button>
+    <button type="button" class="sx-kpi sx-accent-yellow" data-kpi="Em análise"><b>{{ stats.new }}</b><span>Em análise</span><small>aguardando triagem</small></button>
+    <button type="button" class="sx-kpi sx-accent-coral" data-kpi="progress"><b>{{ stats.progress }}</b><span>Em tratamento</span><small>sendo verificado / andamento</small></button>
+    <button type="button" class="sx-kpi sx-accent-green" data-kpi="Atualização concluída"><b>{{ stats.done }}</b><span>Concluídas</span><small>respondidas</small></button>
+    <button type="button" class="sx-kpi sx-accent-red" data-kpi="mine"><b>{{ stats.mine }}</b><span>Atribuídas a você</span><small>{{ stats.errors }} erro(s) em aberto</small></button>
+  </div>
+
+  <div class="sx-card sx-card-pad" style="padding:14px 16px">
+    <div class="sx-toolbar">
+      <label class="sx-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sd-q" type="search" placeholder="Buscar por número, assunto, solicitante ou descrição" autocomplete="off"></label>
+      <div class="sx-segment" id="sd-status" role="tablist" aria-label="Filtrar por situação">
+        <button type="button" class="is-active" data-v="">Todas</button>
+        <button type="button" data-v="Em análise">Em análise</button>
+        <button type="button" data-v="progress">Em tratamento</button>
+        <button type="button" data-v="Atualização concluída">Concluídas</button>
+      </div>
+      <select class="sx-select" id="sd-cat" aria-label="Categoria"><option value="">Todas as categorias</option><option>Erro no sistema</option><option>Solicitar melhoria</option></select>
+      {% if modules %}<select class="sx-select" id="sd-mod" aria-label="Módulo"><option value="">Todos os módulos</option>{% for m in modules %}<option>{{ m }}</option>{% endfor %}</select>{% endif %}
+      <label class="sx-check"><input type="checkbox" id="sd-mine"> Somente atribuídas a mim</label>
+    </div>
+  </div>
+
+  <div class="sd-layout">
+    <section class="sx-card sd-list" aria-label="Lista de solicitações">
+      <div class="sd-list-head"><span id="sd-count">{{ tickets|length }} solicitação(ões)</span><span>Mais recentes primeiro</span></div>
+      <div class="sd-items" id="sd-items">
+        {% for t in tickets %}
+        <button type="button" class="sd-item" data-id="{{ t.id }}" data-status="{{ t.status }}" data-key="{{ t.status_key }}" data-cat="{{ t.category }}" data-mod="{{ t.module }}" data-mine="{{ '1' if t.mine else '0' }}"
+          data-search="{{ ('#' ~ t.id ~ ' ' ~ t.subject ~ ' ' ~ t.requester ~ ' ' ~ t.body ~ ' ' ~ t.module ~ ' ' ~ t.location)|lower }}">
+          <span class="bar"></span>
+          <span>
+            <span class="line1"><span class="num">#{{ '%04d'|format(t.id) }} · {{ t.created_at }}</span><span class="sx-tag dot sx-tag-{{ t.status_key }}">{{ t.status }}</span></span>
+            <h4>{{ t.subject }}</h4>
+            <span class="meta">
+              <span class="sx-tag {{ 'sx-tag-error' if t.category == 'Erro no sistema' else 'sx-tag-dark' }}">{{ 'Erro' if t.category == 'Erro no sistema' else 'Melhoria' }}</span>
+              {% if t.module %}<span>{{ t.module }}</span> ·{% endif %}
+              <span>{{ t.requester }}</span>
+              {% if t.has_image %}· <span title="Possui imagem anexada">com imagem</span>{% endif %}
+              {% if t.mine %}· <span class="mine">Com você</span>{% endif %}
+            </span>
+          </span>
+        </button>
+        {% else %}
+        <div class="sx-empty">Nenhuma solicitação recebida até o momento.</div>
+        {% endfor %}
+        <div class="sx-empty" id="sd-none" hidden>Nenhuma solicitação encontrada com esses filtros.</div>
+      </div>
+    </section>
+
+    <section class="sx-card sd-detail" id="sd-detail" aria-live="polite">
+      <div class="sd-detail-empty" id="sd-detail-empty">
+        <svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        <p><strong>Selecione uma solicitação</strong><br>Os detalhes, o anexo e o formulário de resposta aparecem aqui.</p>
+      </div>
+      {% for t in tickets %}
+      <article class="sd-ticket" data-ticket="{{ t.id }}" hidden>
+        <div class="sd-ticket-head">
+          <div class="top">
+            <button type="button" class="sx-btn sx-btn-ghost sx-btn-sm sd-back" data-close>← Voltar</button>
+            <span class="num" style="font-size:.74rem;font-weight:600;color:var(--serena-coral);letter-spacing:.06em">CHAMADO #{{ '%04d'|format(t.id) }}</span>
+            <span class="sx-tag dot sx-tag-{{ t.status_key }}">{{ t.status }}</span>
+          </div>
+          <h3>{{ t.subject }}</h3>
+          <span class="sx-tag {{ 'sx-tag-error' if t.category == 'Erro no sistema' else 'sx-tag-dark' }}">{{ t.category }}</span>
+        </div>
+        <div class="sd-meta-grid">
+          <div><span>Solicitante</span><b>{{ t.requester }}</b></div>
+          <div><span>Aberto em</span><b>{{ t.created_at }}</b></div>
+          <div><span>Módulo</span><b>{{ t.module or '—' }}</b></div>
+          <div><span>Tela / local</span><b>{{ t.location or '—' }}</b></div>
+          <div><span>Responsável</span><b>{{ t.assigned_name or 'Não atribuído' }}</b></div>
+          <div><span>Última atualização</span><b>{{ t.updated_at or '—' }}</b></div>
+        </div>
+        <div class="sd-body">
+          <h5>Descrição</h5>
+          <p class="sd-desc">{{ t.body or 'Sem descrição.' }}</p>
+          {% if t.has_image %}
+          <h5>Imagem anexada</h5>
+          <a class="sd-attach" href="/api/support/tickets/{{ t.id }}/image" target="_blank" rel="noopener" title="Abrir imagem em nova aba"><img loading="lazy" data-src="/api/support/tickets/{{ t.id }}/image" alt="Imagem anexada ao chamado {{ t.id }}"></a>
+          {% endif %}
+        </div>
+        {% if t.can_edit %}
+        <form class="sd-form" method="post" action="/admin/support/{{ t.id }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="sx-field"><span>Situação</span>
+            <div class="sd-status-pick">
+              {% for st in statuses %}
+              <label><input type="radio" name="status" value="{{ st }}" {% if st == t.status %}checked{% endif %}><span style="--c: {{ 'var(--serena-amarelo)' if st == 'Em análise' else 'var(--serena-verde)' if st == 'Atualização concluída' else 'var(--serena-coral)' }}">{{ st }}</span></label>
+              {% endfor %}
+            </div>
+          </div>
+          {% if is_super %}
+          <label class="sx-field"><span>Encaminhar para</span>
+            <select name="assigned_to">
+              {% for o in routing_options %}<option value="{{ o.id }}" {% if o.id == t.assigned_to %}selected{% endif %}>{{ o.name }} ({{ o.role }})</option>{% endfor %}
+            </select>
+          </label>
+          {% endif %}
+          <label class="sx-field"><span>Resposta ao solicitante</span>
+            <textarea name="response" maxlength="4000" rows="4" placeholder="Descreva o andamento, a causa identificada ou a solução aplicada.">{{ t.response }}</textarea>
+            <small>O solicitante vê esta resposta em Central de Ajuda → Minhas solicitações.</small>
+          </label>
+          <div style="display:flex;justify-content:flex-end;gap:8px"><button type="submit" class="sx-btn sx-btn-dark">Salvar resposta e situação</button></div>
+        </form>
+        {% else %}
+        <div class="sd-form sd-readonly">
+          {% if t.response %}<div class="sx-field"><span>Resposta registrada</span><p class="sd-desc" style="margin:0">{{ t.response }}</p></div>{% endif %}
+          <div class="sx-note">Somente o responsável designado ou o Super Administrador pode responder a esta solicitação.</div>
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </section>
+  </div>
+
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  // ---------- Abas ----------
+  const tabs=[...document.querySelectorAll('[data-tab]')], panels=[...document.querySelectorAll('[data-panel]')];
+  function show(name){ tabs.forEach(t=>t.classList.toggle('is-active',t.dataset.tab===name)); panels.forEach(p=>p.hidden=p.dataset.panel!==name);
+    try{ const u=new URL(location.href); u.searchParams.set('aba',name); if(name!=='recebidas') u.searchParams.delete('ticket'); history.replaceState(null,'',u); }catch(e){}
+    document.dispatchEvent(new CustomEvent('ha-tab',{detail:name})); }
+  tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.tab)));
+
+  // ---------- Minhas ----------
+  document.querySelectorAll('[data-more]').forEach(b=>b.addEventListener('click',()=>{ const d=b.previousElementSibling; d.classList.toggle('open'); b.textContent=d.classList.contains('open')?'Recolher':'Ver descrição completa'; }));
+  const nova=new URLSearchParams(location.search).get('nova');
+  if(nova){ const el=document.getElementById('minha-'+nova); if(el){ el.classList.add('highlight'); setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'center'}),200); } }
+
+  // ---------- Nova solicitação ----------
+  const form=document.getElementById('ha-form'); if(!form) return;
+  const desc=document.getElementById('ha-desc'), count=document.getElementById('ha-count');
+  function syncType(){
+    const improve=form.querySelector('input[name=category]:checked').value==='Solicitar melhoria';
+    document.getElementById('ha-desc-label').innerHTML=(improve?'Qual melhoria você sugere?':'O que aconteceu?')+' <i>*</i>';
+    desc.placeholder=improve?'Como funciona hoje, o que deveria mudar e qual o ganho esperado.':'Passos até o erro, a mensagem exibida e o resultado que você esperava.';
+    document.getElementById('ha-tips-error').hidden=improve; document.getElementById('ha-tips-improve').hidden=!improve;
+    document.getElementById('ha-tips-title').textContent=improve?'Uma boa sugestão tem':'Para resolvermos mais rápido';
+  }
+  form.querySelectorAll('input[name=category]').forEach(r=>r.addEventListener('change',syncType)); syncType();
+  desc.addEventListener('input',()=>count.textContent=desc.value.length);
+  // Imagem: clique, arrastar ou colar
+  const drop=document.getElementById('ha-drop'), file=document.getElementById('ha-file'), body=document.getElementById('ha-drop-body'); let picked=null;
+  function setFile(f){
+    if(!f) return; if(!/^image\/(png|jpeg|webp)$/.test(f.type)){ alert('Envie uma imagem PNG, JPG ou WebP.'); return; }
+    if(f.size>5*1024*1024){ alert('A imagem passa de 5 MB.'); return; }
+    picked=f; const url=URL.createObjectURL(f);
+    body.innerHTML='<img alt="Prévia da imagem"><b></b> · <a href="#" data-rm>remover</a>'; body.querySelector('img').src=url; body.querySelector('b').textContent=f.name||'imagem colada';
+    body.querySelector('[data-rm]').onclick=e=>{e.preventDefault();e.stopPropagation();picked=null;file.value='';body.innerHTML='<b>Clique, arraste ou cole (Ctrl+V)</b> um print da tela<br><small>PNG, JPG ou WebP · até 5 MB</small>';};
+  }
+  drop.addEventListener('click',()=>file.click()); drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click();}});
+  file.addEventListener('change',()=>setFile(file.files[0]));
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+  drop.addEventListener('drop',e=>setFile(e.dataTransfer.files[0]));
+  document.addEventListener('paste',e=>{ if(document.querySelector('[data-panel=nova]').hidden) return; const it=[...(e.clipboardData||{}).items||[]].find(i=>i.type.startsWith('image/')); if(it){ const f=it.getAsFile(); setFile(new File([f],'print-colado.png',{type:f.type})); } });
+  // Envio
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const res=document.getElementById('ha-result'), btn=document.getElementById('ha-send');
+    const missing=[...form.querySelectorAll('[required]')].filter(el=>!el.value.trim());
+    if(missing.length){ res.className='ha-result err'; res.textContent='Preencha os campos obrigatórios.'; missing[0].focus(); return; }
+    const fd=new FormData(form); fd.delete('image'); if(picked) fd.append('image',picked,picked.name||'imagem.png');
+    fd.set('csrf_token',document.querySelector('meta[name="csrf-token"]').content);
+    btn.disabled=true; res.className='ha-result'; res.textContent='Enviando…';
+    try{ const r=await fetch('/api/support/tickets',{method:'POST',body:fd,credentials:'same-origin'}); const d=await r.json().catch(()=>({}));
+      if(!r.ok) throw Error(d.detail||'Não foi possível registrar a solicitação.');
+      location.href='/central-ajuda?aba=minhas&nova='+(d.id||'');
+    }catch(err){ res.className='ha-result err'; res.textContent=err.message; btn.disabled=false; }
+  });
+})();
+</script>
+
+<script>
+(function(){
+  const raw=document.getElementById('kb-data'); if(!raw) return;
+  const D=JSON.parse(raw.textContent), A=D.articles, CAT=Object.fromEntries(D.cats.map(c=>[c[0],c[1]])), SYN=D.syn||{};
+  const main=document.getElementById('kb-main'), q=document.getElementById('kb-q'); let cat='';
+  const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const STOP=new Set(['como','faco','fazer','que','qual','quais','para','uma','um','de','da','do','das','dos','no','na','nos','nas','o','a','os','as','e','eu','meu','minha','se','em','por','com','posso','onde','ver','sistema','safety','plus','?']);
+  A.forEach(a=>{ a._t=norm(a.title); a._k=norm(a.keys); a._b=norm(a.summary+' '+(a.steps||[]).join(' ')+' '+(a.tips||[]).join(' ')+' '+(a.warn||'')); });
+  function terms(text){ let t=norm(text).replace(/[^a-z0-9/ -]/g,' ').split(/\s+/).filter(w=>w.length>1&&!STOP.has(w)); const extra=[]; t.forEach(w=>{ if(SYN[w]) extra.push(...SYN[w].split(' ')); }); return {base:t,all:[...new Set([...t,...extra])]}; }
+  function score(a,tq){ let s=0; const phrase=tq.base.join(' '); if(phrase.length>3&&a._t.includes(phrase)) s+=10; tq.all.forEach(w=>{ const stem=w.length>5?w.slice(0,w.length-1):w; if(a._t.includes(stem)) s+=5; if(a._k.includes(stem)) s+=3; if(a._b.includes(stem)) s+=1; }); tq.base.forEach(w=>{ if(!a._t.includes(w)&&!a._k.includes(w)&&!a._b.includes(w)) s-=1; }); return s; }
+  function figs(a,i){
+    const n=(a.steps||[]).length;
+    const list=(a.shots||[]).filter(f=> i===-1 ? f.step>=n : f.step===i);
+    return list.map(f=>`<figure class="kb-fig"><button type="button" class="kb-zoom" data-zoom="${esc(f.src)}" aria-label="Ampliar imagem"><img loading="lazy" src="${esc(f.src)}" alt="${esc(f.caption)}"></button><figcaption>${esc(f.caption)}</figcaption></figure>`).join('');
+  }
+    function card(a){ return `<button type="button" class="kb-item" data-id="${esc(a.id)}"><div class="tags"><span class="sx-tag">${esc(CAT[a.cat]||'')}</span>${a.admin?'<span class="sx-tag sx-tag-dark">Administrador</span>':''}</div><b>${esc(a.title)}</b><span>${esc(a.summary)}</span>${(a.shots||[]).length?`<span class="ph">${a.shots.length} imagem(ns) · ${(a.steps||[]).length} passos</span>`:''}</button>`; }
+  function list(){
+    const text=q.value.trim(); let items=A.filter(a=>!cat||a.cat===cat), label;
+    if(text){ const tq=terms(text); items=items.map(a=>[score(a,tq),a]).filter(x=>x[0]>0).sort((x,y)=>y[0]-x[0]).map(x=>x[1]); label=items.length+' resultado(s) para “'+esc(text)+'”'; }
+    else label=(cat?esc(CAT[cat]):'Todos os assuntos')+' · '+items.length+' artigo(s)';
+    main.innerHTML=`<div class="kb-head-row"><span>${label}</span></div>`+(items.length?`<div class="kb-list">${items.map(card).join('')}</div>`:`<div class="kb-empty"><b>Não encontramos um passo a passo para isso.</b><br>Tente outras palavras ou <a href="#" data-ask>abra uma solicitação</a> que a equipe responde.</div>`);
+  }
+  function open(id,push){
+    const a=A.find(x=>x.id===id); if(!a) return list();
+    const rel=A.filter(x=>x.cat===a.cat&&x.id!==a.id).slice(0,5);
+    main.innerHTML=`<article class="kb-article"><button type="button" class="crumb" data-back>← Voltar aos artigos</button>
+      <div class="tags" style="display:flex;gap:6px"><span class="sx-tag">${esc(CAT[a.cat]||'')}</span>${a.admin?'<span class="sx-tag sx-tag-dark">Administrador</span>':''}</div>
+      <h3>${esc(a.title)}</h3><p class="sum">${esc(a.summary)}</p>
+      ${a.warn?`<div class="kb-warn"><b>Importante:</b> ${esc(a.warn)}</div>`:''}
+      <ol class="kb-steps">${(a.steps||[]).map((s,i)=>`<li><div><span>${esc(s)}</span>${figs(a,i)}</div></li>`).join('')}</ol>
+      ${figs(a,-1)}
+      ${(a.tips||[]).map(t=>`<div class="kb-tip"><b>Dica:</b> ${esc(t)}</div>`).join('')}
+      <div class="kb-actions">${a.link?`<a class="sx-btn sx-btn-dark" href="${esc(a.link[0])}">${esc(a.link[1])}</a>`:''}<button type="button" class="sx-btn sx-btn-ghost" data-ask>Ainda com dúvida? Abrir solicitação</button></div>
+      ${rel.length?`<div class="kb-related"><h5>Veja também</h5>${rel.map(r=>`<button type="button" data-id="${esc(r.id)}">${esc(r.title)} ›</button>`).join('')}</div>`:''}</article>`;
+    main.dataset.article=a.id;
+    if(push!==false){ try{ const u=new URL(location.href); u.searchParams.set('aba','como-usar'); u.searchParams.set('artigo',a.id); history.replaceState(null,'',u);}catch(e){} }
+    main.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+  function back(){ delete main.dataset.article; try{ const u=new URL(location.href); u.searchParams.delete('artigo'); history.replaceState(null,'',u);}catch(e){} list(); }
+  main.addEventListener('click',e=>{
+    const it=e.target.closest('[data-id]'); if(it){ open(it.dataset.id); return; }
+    if(e.target.closest('[data-back]')){ back(); return; }
+    const z=e.target.closest('[data-zoom]'); if(z){ const box=document.createElement('div'); box.className='kb-lightbox'; box.innerHTML='<img alt=""><button type="button" aria-label="Fechar">×</button>'; box.querySelector('img').src=z.dataset.zoom; box.onclick=()=>box.remove(); document.body.appendChild(box); return; }
+    if(e.target.closest('[data-ask]')){ e.preventDefault(); const t=main.querySelector('.kb-article h3'); document.querySelector('[data-tab=nova]').click(); const subj=document.querySelector('#ha-form [name=subject]'); if(subj&&!subj.value) subj.value=t?('Dúvida: '+t.textContent):(q.value?('Dúvida: '+q.value):''); }
+  });
+  document.getElementById('kb-cats').addEventListener('click',e=>{ const b=e.target.closest('[data-cat]'); if(!b) return; cat=b.dataset.cat; document.querySelectorAll('#kb-cats [data-cat]').forEach(x=>x.classList.toggle('is-active',x===b)); back(); });
+  let t=null; q.addEventListener('input',()=>{ clearTimeout(t); t=setTimeout(()=>{ if(main.dataset.article) delete main.dataset.article; list(); },150); });
+  q.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); const first=main.querySelector('.kb-item'); if(first) open(first.dataset.id); } });
+  document.getElementById('kb-pop').addEventListener('click',e=>{ const b=e.target.closest('[data-q]'); if(!b) return; q.value=b.dataset.q; list(); const first=main.querySelector('.kb-item'); if(first) open(first.dataset.id); });
+  const start=new URLSearchParams(location.search).get('artigo'); if(start) open(start,false); else list();
+})();
+</script>
+{% if is_support_admin %}
+<script>
+(function(){
+  const items=[...document.querySelectorAll('.sd-item')];
+  const q=document.getElementById('sd-q'), cat=document.getElementById('sd-cat'), mod=document.getElementById('sd-mod'), mine=document.getElementById('sd-mine');
+  const seg=document.getElementById('sd-status'); let status='';
+  const detail=document.getElementById('sd-detail'), empty=document.getElementById('sd-detail-empty');
+  function apply(){
+    const term=(q.value||'').trim().toLowerCase(); let shown=0;
+    items.forEach(el=>{
+      const okStatus=!status||(status==='progress'?el.dataset.key==='progress':el.dataset.status===status);
+      const ok=okStatus&&(!term||el.dataset.search.includes(term))&&(!cat.value||el.dataset.cat===cat.value)&&(!mod||!mod.value||el.dataset.mod===mod.value)&&(!mine.checked||el.dataset.mine==='1');
+      el.hidden=!ok; if(ok) shown++;
+    });
+    document.getElementById('sd-count').textContent=shown+' solicitação(ões)';
+    const none=document.getElementById('sd-none'); if(none) none.hidden=shown>0||!items.length;
+  }
+  function setStatus(v){ status=v; seg.querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b.dataset.v===v)); }
+  seg.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; setStatus(b.dataset.v); mine.checked=false; apply();});
+  document.querySelectorAll('[data-kpi]').forEach(k=>k.addEventListener('click',()=>{
+    const v=k.dataset.kpi; if(v==='mine'){ setStatus(''); mine.checked=true; } else { mine.checked=false; setStatus(v); }
+    document.querySelectorAll('[data-kpi]').forEach(x=>x.classList.toggle('is-active',x===k)); apply();
+  }));
+  [q,cat,mod,mine].forEach(el=>el&&el.addEventListener(el===q?'input':'change',apply));
+  function open(id){
+    items.forEach(el=>el.classList.toggle('is-active',el.dataset.id===String(id)));
+    let found=false;
+    document.querySelectorAll('.sd-ticket').forEach(t=>{const on=t.dataset.ticket===String(id); t.hidden=!on; if(on){found=true; const img=t.querySelector('img[data-src]'); if(img&&!img.src) img.src=img.dataset.src;}});
+    empty.hidden=found; detail.classList.toggle('open',found);
+    try{ history.replaceState(null,'','?aba=recebidas&ticket='+id); }catch(e){}
+  }
+  items.forEach(el=>el.addEventListener('click',()=>open(el.dataset.id)));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>detail.classList.remove('open')));
+  const start=new URLSearchParams(location.search).get('ticket');
+  if(start&&items.some(el=>el.dataset.id===start)) open(start);
+  function openFirst(){ if(!document.querySelector('.sd-item.is-active')&&items.length&&window.matchMedia('(min-width: 981px)').matches) open(items[0].dataset.id); }
+  if(!start||!items.some(el=>el.dataset.id===start)){ if(!document.querySelector('[data-panel=recebidas]').hidden) openFirst(); }
+  document.addEventListener('ha-tab',e=>{ if(e.detail==='recebidas') openFirst(); });
+})();
+</script>
+{% endif %}
+{% endblock %}

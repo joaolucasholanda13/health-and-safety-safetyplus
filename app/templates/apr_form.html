@@ -1,0 +1,1831 @@
+{% extends "base.html" %}
+{% block page_title %}{{ data.code }} · Análise Preliminar de Risco{% endblock %}
+{% block content %}
+<style>
+  .secao { margin-bottom: var(--espaco-5); }
+  .secao > h2 { font-size: 1rem; margin-bottom: var(--espaco-3); }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--espaco-3); }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--espaco-3); }
+  .campo-grupo { margin: 0; }
+  .campo-grupo label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  .campo-somente-leitura { background: var(--serena-areia); border: 1px solid #E3DFD9; border-radius: var(--raio-input); padding: 10px 14px; font-size: 0.9rem; color: var(--cor-texto-secundario); }
+
+  /* V36.18.27 — aprovadores com busca/autocomplete visível */
+  .approver-combobox { position: relative; }
+  .approver-combobox .campo { width: 100%; }
+  .approver-suggestions {
+    display: none; position: absolute; z-index: 160; left: 0; right: 0; top: calc(100% + 6px);
+    max-height: 280px; overflow-y: auto; padding: 6px; background: #fff; border: 1px solid #DED9D2;
+    border-radius: 12px; box-shadow: 0 14px 34px rgba(38,33,28,.18);
+  }
+  .approver-suggestions.show { display: block; }
+  .approver-option {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 9px 11px;
+    border-radius: 9px; cursor: pointer; font-size: .88rem; font-weight: 650; color: var(--cor-texto-principal);
+    user-select: none;
+  }
+  .approver-option:hover, .approver-option.active { background: var(--serena-areia); }
+  .approver-option::before {
+    content: '✓'; display: grid; place-items: center; flex: 0 0 27px; width: 27px; height: 27px;
+    border-radius: 50%; background: color-mix(in srgb, var(--cor-primaria) 11%, white); color: var(--cor-primaria);
+    font-size: .76rem; font-weight: 900;
+  }
+  .approver-empty { padding: 12px; color: var(--cor-texto-secundario); font-size: .82rem; text-align: center; }
+  .approver-selected .campo { border-color: #1C7A5E; box-shadow: 0 0 0 2px rgba(28,122,94,.08); }
+  .approver-selected-mark { display:none; margin-top:5px; color:#1C7A5E; font-size:.74rem; font-weight:700; }
+  .approver-selected .approver-selected-mark { display:block; }
+  @media (max-width:700px) {
+    .approver-suggestions { max-height: 230px; }
+    .approver-option { min-height: 48px; font-size: .9rem; }
+  }
+
+  .banner { border-radius: var(--raio-input); padding: 14px 18px; margin-bottom: var(--espaco-4); font-size: 0.9rem; }
+  .banner-info { background: var(--serena-areia); color: var(--cor-texto-secundario); }
+  .banner-atencao { background: color-mix(in srgb, var(--cor-atencao) 20%, white); color: #8A6A00; }
+
+  .simnao { display: inline-flex; border-radius: 999px; background: var(--serena-areia); padding: 3px; gap: 2px; }
+  .simnao button { border: none; background: transparent; padding: 8px 20px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--cor-texto-secundario); }
+  .simnao button.ativo.v-sim { background: var(--serena-verde); color: white; }
+  .simnao button.ativo.v-nao { background: var(--serena-coral-escuro); color: white; }
+  .apr-block-alert { display:flex; gap:14px; align-items:flex-start; margin-top:18px; padding:18px 20px; border-radius:14px; background:#FFF8F5; border:1px solid #F3C9C2; border-left:6px solid var(--serena-coral-escuro); color:var(--serena-grafite); box-shadow:var(--sombra-card); }
+  .apr-block-alert[hidden] { display:none; }
+  .apr-block-alert > svg { width:34px; height:34px; flex:0 0 34px; padding:7px; border-radius:50%; background:var(--serena-coral-escuro); fill:none; stroke:#fff; stroke-width:2; }
+  .apr-block-alert strong { display:block; font-size:1rem; color:var(--serena-coral-escuro); margin-bottom:4px; }
+  .apr-block-alert .nao-lead { font-size:.88rem; line-height:1.5; display:block; }
+  .apr-block-alert .nao-lista { list-style:none; margin:10px 0; padding:0; display:grid; gap:6px; }
+  .apr-block-alert .nao-lista li { background:#fff; border:1px solid #EFD9D4; border-radius:10px; padding:8px 10px; font-size:.84rem; line-height:1.4; }
+  .apr-block-alert .nao-lista li b { color:var(--serena-coral-escuro); margin-right:6px; }
+  .apr-block-alert .nao-passos { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
+  .apr-block-alert .nao-passos span { font-size:.76rem; font-weight:600; background:#fff; border:1px solid #EFD9D4; border-radius:999px; padding:4px 10px; }
+  .apr-block-alert label.nao-label { display:flex; justify-content:space-between; gap:8px; font-weight:700; font-size:.88rem; margin-bottom:6px; }
+  .apr-block-alert textarea { width:100%; min-height:92px; background:#fff; border:1.5px solid #E3B8B0; }
+  .apr-block-alert textarea:focus { outline:none; border-color:var(--serena-coral-escuro); box-shadow:0 0 0 3px rgba(210,53,50,.15); }
+  .apr-block-alert textarea.ok { border-color:#2E7D32; }
+  .apr-block-alert .nao-meta { display:flex; justify-content:space-between; gap:8px; font-size:.74rem; color:var(--cor-texto-secundario); margin-top:4px; }
+  .checklist-item:has(.ativo.v-nao) { box-shadow: inset 4px 0 0 var(--serena-coral-escuro); }
+  .simnao button.ativo.v-na { background: var(--serena-grafite-claro); color: white; }
+  .simnao button.ativo.v-sim-crit { background: var(--cor-primaria); color: white; }
+  fieldset[disabled] .simnao button { cursor: default; }
+
+  /* Permissões críticas (toggle cards) */
+  .permit-card { border: 1px solid #E3DFD9; border-radius: 18px; padding: 16px 18px; background: #fff; }
+  .permit-card.locked { background: color-mix(in srgb, var(--serena-areia) 65%, white); }
+  .permit-hint { color: var(--cor-texto-secundario); font-size: 0.85rem; margin-top: -8px; margin-bottom: 14px; }
+  .permit-lock-note { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; margin-bottom: 14px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--serena-areia) 80%, white); color: var(--cor-texto-secundario); }
+  .permit-lock-note strong { color: var(--cor-texto-principal); }
+  .permit-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .permit-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #E3DFD9; border-radius: 14px; padding: 12px 14px; transition: border-color .15s, background .15s, opacity .15s; min-height: 74px; }
+  .permit-row.selecionada { border-color: var(--cor-primaria); background: color-mix(in srgb, var(--cor-primaria) 5%, white); }
+  .permit-row.bloqueada { opacity: .72; }
+  .permit-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .permit-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--serena-areia); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--cor-primaria); }
+  .permit-row.selecionada .permit-icon { background: var(--cor-primaria); color: white; }
+  .permit-texto { min-width: 0; }
+  .permit-nome { font-weight: 700; font-size: 0.95rem; line-height: 1.15; }
+  .permit-status { font-size: 0.78rem; color: var(--cor-texto-secundario); margin-top: 2px; }
+  .permit-status.ok { color: #1C7A5E; font-weight: 600; }
+  .permit-link { font-size: 0.78rem; color: var(--cor-primaria); font-weight: 600; text-decoration: none; margin-top: 3px; display: inline-block; }
+  .toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; position: absolute; z-index: 2; }
+  .toggle input:disabled { cursor: not-allowed; }
+  .toggle .track { position: absolute; inset: 0; background: #D8D3CC; border-radius: 999px; transition: background .15s; }
+  .toggle .thumb { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform .15s; }
+  .toggle input:checked ~ .track { background: var(--cor-primaria); }
+  .toggle input:checked ~ .thumb { transform: translateX(20px); }
+  .toggle input:disabled ~ .track { background: #D9D3CD; }
+  .toggle input:disabled ~ .thumb { opacity: .95; }
+
+  /* Perigo / Risco: lista cadastrada ou digitação livre */
+  .dual-label-row { display:flex; align-items:center; justify-content:flex-start; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .dual-label-row > label { margin-bottom:0; }
+  .dual-mode { display:inline-flex; padding:2px; border-radius:999px; background:var(--serena-areia); gap:2px; flex-shrink:0; }
+  .dual-mode button { border:0; background:transparent; color:var(--cor-texto-secundario); border-radius:999px; padding:5px 10px; font-size:.72rem; font-weight:700; cursor:pointer; }
+  .dual-mode button.ativo { background:var(--cor-primaria); color:white; }
+  .voice-mode button[data-voice-mode="voice"].ativo { background:#17634E; color:white; }
+  .voice-field.ouvindo textarea { border-color:#17634E; box-shadow:0 0 0 3px rgba(23,99,78,.12); }
+  .voice-status { display:none; margin-top:6px; font-size:.75rem; font-weight:700; color:#17634E; }
+  .voice-field.ouvindo .voice-status { display:block; }
+  .voice-dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#17634E; margin-right:6px; vertical-align:1px; animation:voicePulse 1s ease-in-out infinite; }
+  @keyframes voicePulse { 0%,100%{opacity:.35;transform:scale(.9)} 50%{opacity:1;transform:scale(1.18)} }
+  .dual-pane[hidden] { display:none !important; }
+  .dual-help { margin-top:5px; color:var(--cor-texto-secundario); font-size:.72rem; }
+  /* Perigos e riscos: multisseleção compacta com busca e etiquetas */
+  .multi-select-title { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:7px; }
+  .multi-select-title label { margin:0; }
+  .multi-select-hint { font-size:.72rem; color:var(--cor-texto-secundario); }
+  .multi-picker { position:relative; }
+  .multi-picker-trigger {
+    width:100%; min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+    border:1px solid #DED9D2; border-radius:12px; background:#fff; padding:10px 12px; cursor:pointer;
+    text-align:left; color:var(--cor-texto-principal); transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .multi-picker-trigger:hover { border-color:color-mix(in srgb, var(--cor-primaria) 45%, #DED9D2); background:#FFFEFC; }
+  .multi-picker.open .multi-picker-trigger { border-color:var(--cor-primaria); box-shadow:0 0 0 3px color-mix(in srgb, var(--cor-primaria) 10%, transparent); }
+  .multi-picker-trigger-main { display:flex; align-items:center; gap:9px; min-width:0; }
+  .multi-picker-trigger-icon { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; flex:0 0 auto; background:var(--serena-areia); color:var(--cor-primaria); font-weight:800; }
+  .multi-picker-trigger-text { font-size:.84rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .multi-picker-trigger-side { display:flex; align-items:center; gap:8px; flex:0 0 auto; color:var(--cor-texto-secundario); }
+  .multi-picker-count { display:none; min-width:24px; height:24px; padding:0 7px; border-radius:999px; align-items:center; justify-content:center; background:var(--cor-primaria); color:#fff; font-size:.7rem; font-weight:800; }
+  .multi-picker.has-selection .multi-picker-count { display:inline-flex; }
+  .multi-picker-chevron { font-size:.9rem; transition:transform .15s ease; }
+  .multi-picker.open .multi-picker-chevron { transform:rotate(180deg); }
+  .multi-picker-panel {
+    display:none; position:absolute; z-index:80; left:0; right:0; top:calc(100% + 7px); background:#fff;
+    border:1px solid #DED9D2; border-radius:14px; box-shadow:0 16px 36px rgba(38,33,28,.16); padding:10px;
+  }
+  .multi-picker.open .multi-picker-panel { display:block; }
+  .multi-picker-search-wrap { position:relative; margin-bottom:8px; }
+  .multi-picker-search { width:100%; height:40px; border:1px solid #E3DFD9; border-radius:10px; padding:8px 12px 8px 35px; font:inherit; font-size:.8rem; outline:none; background:#FCFBF9; }
+  .multi-picker-search:focus { border-color:var(--cor-primaria); box-shadow:0 0 0 2px color-mix(in srgb, var(--cor-primaria) 9%, transparent); }
+  .multi-picker-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:.82rem; color:var(--cor-texto-secundario); pointer-events:none; }
+  .multi-choice-box { max-height:250px; overflow:auto; display:grid; grid-template-columns:1fr; gap:2px; padding-right:3px; }
+  .multi-choice { display:flex; align-items:flex-start; gap:9px; border:0; border-radius:9px; padding:8px 9px; font-size:.77rem; line-height:1.25; cursor:pointer; background:#fff; margin:0; }
+  .multi-choice:hover { background:var(--serena-areia); }
+  .multi-choice:has(input:checked) { background:color-mix(in srgb, var(--cor-primaria) 7%, white); color:var(--cor-texto-principal); font-weight:700; }
+  .multi-choice input { margin:1px 0 0; accent-color:var(--cor-primaria); flex-shrink:0; width:15px; height:15px; }
+  .multi-choice.is-filtered-out { display:none; }
+  .multi-picker-empty { display:none; padding:14px 10px; text-align:center; color:var(--cor-texto-secundario); font-size:.76rem; }
+  .multi-picker-empty.show { display:block; }
+  .multi-picker-footer { display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #F0ECE6; margin-top:8px; padding-top:8px; }
+  .multi-picker-footer button { border:0; border-radius:9px; padding:7px 11px; font-size:.74rem; font-weight:700; cursor:pointer; }
+  .multi-picker-clear { background:transparent; color:var(--cor-texto-secundario); }
+  .multi-picker-done { background:var(--cor-primaria); color:#fff; }
+  .multi-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; min-height:0; }
+  .multi-tags:empty { display:none; }
+  .multi-tag { display:inline-flex; align-items:center; gap:5px; max-width:100%; background:var(--serena-areia); border:1px solid #E8E2DB; color:var(--cor-texto-principal); border-radius:999px; padding:5px 8px 5px 10px; font-size:.7rem; font-weight:650; }
+  .multi-tag-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:270px; }
+  .multi-tag-remove { border:0; padding:0; width:17px; height:17px; border-radius:50%; cursor:pointer; display:grid; place-items:center; line-height:1; background:rgba(0,0,0,.06); color:var(--cor-texto-secundario); font-size:.75rem; }
+  .multi-tag-remove:hover { background:var(--cor-primaria); color:#fff; }
+  .multi-custom { margin-top:12px; }
+  .multi-custom textarea { min-height:58px; height:58px; }
+
+  /* V36.17.37 — layout clássico; Perigo/Risco permitem seleção múltipla + texto/voz ao mesmo tempo */
+  .linha-dinamica[data-etapa-row] {
+    border:1px solid #E3DFD9; border-radius:14px; padding:16px; margin-bottom:10px; background:#fff;
+  }
+  .linha-dinamica[data-etapa-row] .linha-cabecalho { margin-bottom:12px; }
+  .multi-picker-classico .multi-picker-trigger {
+    min-height:46px; height:46px; border-radius:10px; background:#fff; padding:8px 12px;
+  }
+  .multi-picker-classico .multi-picker-trigger-text { font-weight:500; color:var(--cor-texto-principal); }
+  .multi-picker-classico.has-selection .multi-picker-trigger-text { font-weight:650; }
+  .multi-picker-classico .multi-tags { margin-top:6px; }
+  .multi-picker-classico .multi-tag { font-size:.68rem; padding:4px 7px 4px 9px; }
+  .multi-picker-classico .multi-picker-panel { z-index:100; }
+  @media (max-width:820px) {
+    .linha-dinamica[data-etapa-row] { padding:14px; }
+    .grid-4 { grid-template-columns:1fr !important; }
+    .grid-4 > * { grid-column:1 / -1 !important; }
+    .grid-2 { grid-template-columns:1fr !important; }
+  }
+  .linha-dinamica.severity-missing { border-color:var(--cor-perigo); box-shadow:0 0 0 2px color-mix(in srgb, var(--cor-perigo) 12%, transparent); }
+  .linha-dinamica.severity-missing .sev-compacta-label { color:var(--cor-perigo); }
+  @media (max-width:700px){
+    .multi-picker-panel { position:absolute; left:0; right:0; top:calc(100% + 6px); transform:none; max-height:320px; }
+    .multi-choice-box { max-height:220px; }
+    .multi-tag-text { max-width:220px; }
+  }
+  /* Os quatro campos de digitação da etapa usam exatamente a mesma caixa. */
+  .campo-multilinha, .etapa-editor {
+    width: 100%;
+    min-height: 76px;
+    height: 76px;
+    line-height: 1.4;
+    resize: vertical;
+    overflow-y: auto;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    white-space: pre-wrap;
+    box-sizing: border-box;
+  }
+
+  /* Etapas / equipe: linhas dinâmicas */
+  .linha-dinamica { border: 1px solid #E3DFD9; border-radius: 14px; padding: 16px; margin-bottom: 10px; position: relative; }
+  .linha-cabecalho { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 12px; }
+  .linha-cabecalho-esquerda { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .linha-numero { font-family: var(--fonte-display); font-weight: 700; color: var(--cor-texto-secundario); font-size: 0.9rem; }
+  .sev-compacta { display:inline-flex; align-items:center; gap:6px; }
+  .sev-compacta-label { font-size:.75rem; font-weight:700; color:var(--cor-texto-secundario); }
+  .sev-opcoes { display:inline-flex; gap:4px; padding:2px; border-radius:999px; background:var(--serena-areia); }
+  .sev-btn { width:30px; height:28px; border:0; border-radius:999px; background:transparent; color:var(--cor-texto-secundario); font-size:.78rem; font-weight:800; cursor:pointer; padding:0; transition:transform .12s ease, box-shadow .12s ease, background .12s ease; }
+  .sev-btn:hover { transform:translateY(-1px); }
+  .sev-btn.ativo[data-sev='A'] { background:#D9493F; color:#fff; box-shadow:0 1px 4px rgba(217,73,63,.28); }
+  .sev-btn.ativo[data-sev='B'] { background:#F2C94C; color:#493A00; box-shadow:0 1px 4px rgba(242,201,76,.35); }
+  .sev-btn.ativo[data-sev='C'] { background:#78C98D; color:#124D28; box-shadow:0 1px 4px rgba(63,153,83,.30); }
+  .sev-geral-box { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:54px; padding:8px 10px; background:#fff; }
+  .sev-geral-hint { font-size:.72rem; font-weight:700; color:var(--cor-texto-secundario); }
+  .sev-geral-btn { display:inline-flex; align-items:center; justify-content:center; cursor:default; user-select:none; }
+  .btn-remover { background: none; border: none; color: var(--cor-perigo); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 8px; }
+  .btn-adicionar { margin-top: 4px; }
+
+  /* Checklist */
+  .checklist-item { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); padding: 12px 0; border-bottom: 1px dashed #EFEBE5; }
+  .checklist-item .txt { flex: 1; display: flex; gap: 10px; }
+  .checklist-item .num { color: var(--cor-texto-secundario); font-weight: 700; font-family: var(--fonte-display); flex-shrink: 0; }
+  .checklist-item.pendente { background: color-mix(in srgb, var(--cor-perigo) 6%, white); border-radius: 10px; padding-left: 8px; }
+
+  /* Equipe */
+  .worker-cpf-row { display: flex; gap: 8px; align-items: flex-end; }
+  .worker-cpf-row .campo-grupo { flex: 1; }
+  .worker-status { font-size: 0.78rem; margin-top: 6px; }
+  .worker-status.ok { color: #1C7A5E; }
+  .worker-status.erro { color: var(--cor-perigo); }
+  .worker-search-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:end; }
+  .worker-suggestions { display:none; margin-top:8px; padding:8px; border:1px solid #E3DFD9; border-radius:10px; background:#fff; }
+  .worker-suggestions.show { display:grid; gap:6px; }
+  .worker-suggestion { width:100%; text-align:left; border:1px solid #E3DFD9; background:var(--serena-areia); border-radius:8px; padding:8px 10px; cursor:pointer; font:inherit; }
+  .worker-suggestion:hover { border-color:var(--cor-primaria); }
+
+  .issues-box { border: 1px solid var(--cor-perigo); background: color-mix(in srgb, var(--cor-perigo) 6%, white); border-radius: var(--raio-input); padding: 16px 18px; margin-bottom: var(--espaco-4); }
+  .issues-box h3 { margin: 0 0 8px; font-size: 0.9rem; color: var(--cor-perigo); }
+  .issues-box ul { margin: 0; padding-left: 20px; font-size: 0.85rem; }
+
+  .form-footer { display: flex; justify-content: flex-end; gap: var(--espaco-2); margin-top: var(--espaco-4); }
+
+  @media (max-width: 980px) {
+    .permit-list { grid-template-columns: 1fr; }
+  }
+</style>
+
+{% if data.get('model_review_required') %}
+  <div class="banner banner-atencao" style="margin-bottom:var(--espaco-3);">
+    <strong>APR criada a partir de {{ data.get('model_source_label') or 'um modelo anterior' }}.</strong><br>
+    Revise todas as etapas, perigos, riscos e medidas de controle. O checklist de 24 itens foi zerado e deve ser respondido novamente antes das assinaturas.
+  </div>
+{% endif %}
+
+{% if apr_readonly %}
+  <div class="banner banner-atencao">
+    {% if signature_phase %}
+      Esta APR está em fase de coleta de assinaturas dos integrantes. Os campos abaixo são somente leitura até que todos assinem.
+    {% elif approval_mode %}
+      Esta APR está aguardando aprovação{% if assigned_admin %} de {{ assigned_admin.full_name or assigned_admin.username }}{% endif %}. Os campos abaixo são somente leitura.
+    {% endif %}
+  </div>
+{% endif %}
+
+{% if completion_issues %}
+<div class="issues-box">
+  <h3>Falta finalizar {{ completion_issues|length }} ite{{ 'm' if completion_issues|length == 1 else 'ns' }} antes de solicitar assinaturas:</h3>
+  <ul>
+    {% for issue in completion_issues %}
+    <li>{{ issue.message }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form method="post" action="{{ '/apr/' + doc.id|string + '/save' if doc else '/apr/save' }}" id="apr-form">
+<script type="application/json" id="validation-fields">{{ (data.get('_validation_fields', []) or []) | tojson }}</script>
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="action" id="form-action" value="draft">
+<input type="hidden" name="step_count" id="step-count" value="{{ data.step_count }}">
+<input type="hidden" name="worker_count" id="worker-count" value="{{ data.worker_count }}">
+
+<fieldset {% if apr_readonly %}disabled{% endif %} style="border:none; padding:0; margin:0;">
+
+  <div class="card secao">
+    <h2>Dados gerais</h2>
+    <div class="grid-4" style="margin-bottom:12px;">
+      <div class="campo-grupo">
+        <label for="cluster">Cluster / Site</label>
+        <select class="campo" id="cluster" name="cluster">
+          <option value="">Selecione</option>
+          {% for c in clusters %}
+          <option value="{{ c }}" {% if data.cluster == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="campo-grupo">
+        <label for="severity">Severidade geral</label>
+        <input type="hidden" id="severity" name="severity" value="{{ data.severity }}">
+        <div class="campo sev-geral-box" id="severity-general-display" aria-label="Severidade geral calculada automaticamente" title="Atualizada automaticamente pela maior severidade selecionada nas etapas">
+          <span class="sev-geral-hint">Automática</span>
+          <div class="sev-opcoes" aria-hidden="true">
+            <span class="sev-btn sev-geral-btn {{ 'ativo' if data.severity == 'A' else '' }}" data-general-sev="A" data-sev="A">A</span>
+            <span class="sev-btn sev-geral-btn {{ 'ativo' if data.severity == 'B' else '' }}" data-general-sev="B" data-sev="B">B</span>
+            <span class="sev-btn sev-geral-btn {{ 'ativo' if data.severity == 'C' else '' }}" data-general-sev="C" data-sev="C">C</span>
+          </div>
+        </div>
+      </div>
+      <div class="campo-grupo" style="grid-column: span 2;">
+        <label for="activity">Atividade</label>
+        <input class="campo" type="text" id="activity" name="activity" value="{{ data.activity }}" required>
+      </div>
+    </div>
+    <div class="grid-4">
+      <div class="campo-grupo">
+        <label>Data da APR</label>
+        <div class="campo-somente-leitura">{{ data.apr_date }}</div>
+      </div>
+      <div class="campo-grupo">
+        <label>Validade (7 dias corridos)</label>
+        <div class="campo-somente-leitura">até {{ data.apr_valid_until }}</div>
+      </div>
+      <div class="campo-grupo">
+        <label for="apr_time">Hora</label>
+        <input class="campo" type="time" id="apr_time" name="apr_time" value="{{ data.apr_time }}">
+      </div>
+      <div class="campo-grupo">
+        <label for="radio_channel">Canal de rádio</label>
+        <input class="campo" type="text" id="radio_channel" name="radio_channel" value="{{ data.radio_channel }}">
+      </div>
+    </div>
+    <div class="grid-4" style="margin-top:12px;">
+      <div class="campo-grupo">
+        <label for="leader_phone">Telefone líder</label>
+        <input class="campo" type="text" id="leader_phone" name="leader_phone" value="{{ data.leader_phone }}">
+      </div>
+      <div class="campo-grupo">
+        <label for="sst_phone">Telefone SST</label>
+        <input class="campo" type="text" id="sst_phone" name="sst_phone" value="{{ data.sst_phone }}">
+      </div>
+      <div class="campo-grupo" style="grid-column: span 2;">
+        <label>A atividade contempla alguma permissão de trabalho crítica?</label>
+        <input type="hidden" name="critical_activity" id="critical_activity" value="{{ data.critical_activity }}">
+        <div class="simnao">
+          <button type="button" class="{{ 'ativo v-sim-crit' if data.critical_activity == 'SIM' }}" onclick="setCriticalActivity('SIM')">Sim</button>
+          <button type="button" class="{{ 'ativo v-nao' if data.critical_activity == 'NÃO' }}" onclick="setCriticalActivity('NÃO')">Não</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card secao permit-card {% if data.critical_activity != 'SIM' %}locked{% endif %}" id="bloco-permissoes">
+    <h2>Permissões aplicáveis à atividade crítica</h2>
+    <p class="permit-hint">As permissões ficam visíveis o tempo todo. Marque <strong>Sim</strong> acima para liberar a seleção.</p>
+    <div class="permit-lock-note" id="permit-lock-note" {% if data.critical_activity == 'SIM' %}style="display:none;"{% endif %}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 1 1 8 0v3"/></svg>
+      <span><strong>Bloqueado no momento.</strong> Escolha <strong>Sim</strong> em atividade crítica para liberar estas permissões.</span>
+    </div>
+    <div class="permit-list">
+      {% for name in critical_permits %}
+      {% set st = linked_permit_states[name] %}
+      {% set marcada = name in data.critical_permits %}
+      <div class="permit-row {{ 'selecionada' if marcada }} {% if data.critical_activity != 'SIM' %}bloqueada{% endif %}" data-permit-row>
+        <div class="permit-info">
+          <div class="permit-icon">
+            {% if name == 'Trabalho em Altura' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 20h12"/><path d="M12 4v16"/><path d="M8 8l4-4 4 4"/></svg>
+            {% elif name == 'Espaço Confinado' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2 2"/></svg>
+            {% elif name == 'Intervenção Elétrica' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>
+            {% elif name == 'Linha Viva' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M7 18l2-8h6l2 8"/><path d="M12 3v4"/></svg>
+            {% elif name == 'Supressão de Vegetação' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 18 7c0 7-3 11-7 13Z"/><path d="M11 20A7 7 0 0 1 4 9c5 0 8 2 10 6"/></svg>
+            {% elif name == 'Içamento de Carga' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h10"/><path d="M14 20V6h5"/><path d="M9 20v-6h5"/><path d="M19 6v4"/><path d="M19 10c0 2-2 3-2 5a2 2 0 0 0 4 0c0-2-2-3-2-5Z"/></svg>
+            {% elif name == 'PT — TME' or name == 'PT - TME' %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M8 20V9l4-4 4 4v11"/><path d="M12 5V3"/></svg>
+            {% else %}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+            {% endif %}
+          </div>
+          <div class="permit-texto">
+            <div class="permit-nome">{{ name }}</div>
+            {% if marcada and st.id %}
+              <div class="permit-status ok">Selecionada — {{ st.code }} · {{ st.status }}</div>
+              {% if doc and doc.status in ['Aguardando aprovação','Finalizada'] %}
+              <a class="permit-link" href="/apr/{{ doc.id }}/pts">Gerenciar PTs diárias →</a>
+              {% endif %}
+            {% elif marcada %}
+              <div class="permit-status ok">Selecionada — será preenchida na próxima etapa, antes das assinaturas.</div>
+            {% else %}
+              <div class="permit-status">Não selecionada</div>
+            {% endif %}
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" name="critical_permits" value="{{ name }}" {% if marcada %}checked{% endif %} {% if data.critical_activity != 'SIM' %}disabled{% endif %} onchange="this.closest('[data-permit-row]').classList.toggle('selecionada', this.checked); updateAprPrimaryAction();">
+          <span class="track"></span><span class="thumb"></span>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card secao" id="apr-ext-res" hidden>
+    <h2>Recursos externos de emergência · <span id="apr-ext-name"></span></h2>
+    <p style="font-size:.82rem;color:var(--cor-texto-secundario);margin:0 0 10px">Carregado automaticamente conforme o Cluster / Site selecionado. Também vai anexado ao PDF da APR.</p>
+    <div id="apr-ext-list" style="display:grid;gap:0"></div>
+  </div>
+
+  <div class="card secao">
+    <h2>Etapas · Perigos · Riscos</h2>
+    <div id="etapas-lista">
+      {% for step in data.steps %}
+      {% set step_idx = loop.index0 %}
+      <div class="linha-dinamica" data-etapa-row>
+        <div class="linha-cabecalho">
+          <div class="linha-cabecalho-esquerda">
+            <span class="linha-numero">Etapa {{ '%02d'|format(loop.index) }}</span>
+            <div class="sev-compacta" aria-label="Severidade da etapa">
+              <span class="sev-compacta-label">Severidade</span>
+              <input type="hidden" name="step_{{ loop.index0 }}_severity" value="{{ step.severity }}" data-severity-value>
+              <div class="sev-opcoes">
+                <button type="button" class="sev-btn {{ 'ativo' if step.severity == 'A' else '' }}" data-sev="A" onclick="setStepSeverity(this,'A')" aria-label="Severidade A">A</button>
+                <button type="button" class="sev-btn {{ 'ativo' if step.severity == 'B' else '' }}" data-sev="B" onclick="setStepSeverity(this,'B')" aria-label="Severidade B">B</button>
+                <button type="button" class="sev-btn {{ 'ativo' if step.severity == 'C' else '' }}" data-sev="C" onclick="setStepSeverity(this,'C')" aria-label="Severidade C">C</button>
+              </div>
+            </div>
+          </div>
+          <span class="etapa-ordem" style="display:inline-flex;gap:4px;"><button type="button" class="btn btn-fantasma" onclick="moverEtapa(this,-1)" aria-label="Subir etapa" title="Subir etapa">↑</button><button type="button" class="btn btn-fantasma" onclick="moverEtapa(this,1)" aria-label="Descer etapa" title="Descer etapa">↓</button></span>
+          {% if loop.index0 > 0 %}<button type="button" class="btn-remover" onclick="removerLinha(this)">Remover</button>{% endif %}
+        </div>
+        <div class="grid-4" style="margin-bottom:10px;">
+          <div class="campo-grupo voice-field" style="grid-column: span 2;" data-voice-field>
+            <div class="dual-label-row">
+              <label>Etapa da atividade</label>
+              <div class="dual-mode voice-mode" aria-label="Modo de preenchimento da etapa">
+                <button type="button" class="ativo" data-voice-mode="type" onclick="setVoiceMode(this,'type')">Digitar</button>
+                <button type="button" data-voice-mode="voice" onclick="setVoiceMode(this,'voice')">Voz</button>
+              </div>
+            </div>
+            <textarea class="campo campo-multilinha etapa-editor" name="step_{{ loop.index0 }}_stage" rows="2" placeholder="Digite a etapa" data-auto-grow data-multiline-enter data-voice-target>{{ step.stage }}</textarea>
+            <div class="voice-status" data-voice-status><span class="voice-dot"></span><span data-voice-status-text>Ouvindo...</span></div>
+          </div>
+
+          <div class="campo-grupo voice-field" style="grid-column: span 2;" data-multi-field="hazard" data-multi-entry data-voice-field>
+            {% set hazard_custom = step.get('hazard_custom','') %}
+            {% set hazard_has_list = (step.get('hazards', [])|length > 0) %}
+            <div class="dual-label-row">
+              <label>Perigo</label>
+              <div class="dual-mode" aria-label="Modo do campo Perigo">
+                <button type="button" class="{{ 'ativo' if not hazard_custom else '' }}" data-multi-entry-mode="select" onclick="setMultiEntryMode(this,'select')">Selecionar</button>
+                <button type="button" class="{{ 'ativo' if hazard_custom else '' }}" data-multi-entry-mode="text" data-voice-mode="type" onclick="setMultiEntryMode(this,'text')">Digitar</button>
+                <button type="button" data-multi-entry-mode="voice" data-voice-mode="voice" onclick="setMultiEntryMode(this,'voice')">Voz</button>
+              </div>
+            </div>
+            <div data-multi-entry-pane="select">
+              <div class="multi-picker multi-picker-classico" data-multi-picker data-picker-label="Perigos">
+                <button type="button" class="multi-picker-trigger" data-multi-trigger aria-expanded="false">
+                  <span class="multi-picker-trigger-main"><span class="multi-picker-trigger-text">Selecione</span></span>
+                  <span class="multi-picker-trigger-side"><span class="multi-picker-count" data-multi-count>0</span><span class="multi-picker-chevron">⌄</span></span>
+                </button>
+                <div class="multi-picker-panel" data-multi-panel>
+                  <div class="multi-picker-search-wrap"><span class="multi-picker-search-icon">⌕</span><input type="search" class="multi-picker-search" data-multi-search placeholder="Pesquisar perigo..." autocomplete="off"></div>
+                  <div class="multi-choice-box" data-multi-options>
+                    {% for h in hazard_options %}
+                    <label class="multi-choice" data-multi-option><input type="checkbox" name="step_{{ step_idx }}_hazards" value="{{ h }}" {% if h in step.get('hazards', []) %}checked{% endif %}> <span>{{ h }}</span></label>
+                    {% endfor %}
+                  </div>
+                  <div class="multi-picker-empty" data-multi-empty>Nenhum perigo encontrado.</div>
+                </div>
+                <div class="multi-tags" data-multi-tags></div>
+              </div>
+            </div>
+            <div data-multi-entry-pane="text" {% if not hazard_custom %}hidden{% endif %}>
+              <textarea class="campo campo-multilinha etapa-editor" name="step_{{ step_idx }}_hazard_custom" rows="2" placeholder="Digite o perigo" data-auto-grow data-multiline-enter data-voice-target>{{ hazard_custom }}</textarea>
+              <div class="voice-status" data-voice-status><span class="voice-dot"></span><span data-voice-status-text>Ouvindo...</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="campo-grupo voice-field" data-multi-field="risk" data-multi-entry data-voice-field>
+            {% set risk_custom = step.get('risk_custom','') %}
+            {% set risk_has_list = (step.get('risks', [])|length > 0) %}
+            <div class="dual-label-row">
+              <label>Risco</label>
+              <div class="dual-mode" aria-label="Modo do campo Risco">
+                <button type="button" class="{{ 'ativo' if not risk_custom else '' }}" data-multi-entry-mode="select" onclick="setMultiEntryMode(this,'select')">Selecionar</button>
+                <button type="button" class="{{ 'ativo' if risk_custom else '' }}" data-multi-entry-mode="text" data-voice-mode="type" onclick="setMultiEntryMode(this,'text')">Digitar</button>
+                <button type="button" data-multi-entry-mode="voice" data-voice-mode="voice" onclick="setMultiEntryMode(this,'voice')">Voz</button>
+              </div>
+            </div>
+            <div data-multi-entry-pane="select">
+              <div class="multi-picker multi-picker-classico" data-multi-picker data-picker-label="Riscos">
+                <button type="button" class="multi-picker-trigger" data-multi-trigger aria-expanded="false">
+                  <span class="multi-picker-trigger-main"><span class="multi-picker-trigger-text">Selecione</span></span>
+                  <span class="multi-picker-trigger-side"><span class="multi-picker-count" data-multi-count>0</span><span class="multi-picker-chevron">⌄</span></span>
+                </button>
+                <div class="multi-picker-panel" data-multi-panel>
+                  <div class="multi-picker-search-wrap"><span class="multi-picker-search-icon">⌕</span><input type="search" class="multi-picker-search" data-multi-search placeholder="Pesquisar risco..." autocomplete="off"></div>
+                  <div class="multi-choice-box" data-multi-options>
+                    {% for r in risk_catalog %}
+                    <label class="multi-choice" data-multi-option><input type="checkbox" name="step_{{ step_idx }}_risks" value="{{ r }}" {% if r in step.get('risks', []) %}checked{% endif %}> <span>{{ r }}</span></label>
+                    {% endfor %}
+                  </div>
+                  <div class="multi-picker-empty" data-multi-empty>Nenhum risco encontrado.</div>
+                </div>
+                <div class="multi-tags" data-multi-tags></div>
+              </div>
+            </div>
+            <div data-multi-entry-pane="text" {% if not risk_custom %}hidden{% endif %}>
+              <textarea class="campo campo-multilinha etapa-editor" name="step_{{ step_idx }}_risk_custom" rows="2" placeholder="Digite o risco" data-auto-grow data-multiline-enter data-voice-target>{{ risk_custom }}</textarea>
+              <div class="voice-status" data-voice-status><span class="voice-dot"></span><span data-voice-status-text>Ouvindo...</span></div>
+            </div>
+          </div>
+
+          <div class="campo-grupo voice-field" data-voice-field>
+            <div class="dual-label-row">
+              <label>Medida de controle</label>
+              <div class="dual-mode voice-mode" aria-label="Modo de preenchimento da medida de controle">
+                <button type="button" class="ativo" data-voice-mode="type" onclick="setVoiceMode(this,'type')">Digitar</button>
+                <button type="button" data-voice-mode="voice" onclick="setVoiceMode(this,'voice')">Voz</button>
+              </div>
+            </div>
+            <textarea class="campo campo-multilinha etapa-editor" name="step_{{ loop.index0 }}_control" rows="2" placeholder="Digite as medidas de controle" data-auto-grow data-multiline-enter data-voice-target>{{ step.control }}</textarea>
+            <div class="voice-status" data-voice-status><span class="voice-dot"></span><span data-voice-status-text>Ouvindo...</span></div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-fantasma btn-adicionar" onclick="adicionarEtapa()">+ Adicionar etapa</button>
+  </div>
+
+  <div class="card secao">
+    <h2>Checklist</h2>
+    {% for question in checklist_items %}
+    {% set resposta = data.checklist[loop.index0] %}
+    <div class="checklist-item {{ 'pendente' if not resposta }}">
+      <span class="txt"><span class="num">{{ '%02d'|format(loop.index) }}</span>{{ question }}</span>
+      <input type="hidden" name="check_{{ loop.index0 }}" id="check-{{ loop.index0 }}" value="{{ resposta }}">
+      <div class="simnao">
+        <button type="button" class="{{ 'ativo v-sim' if resposta == 'SIM' }}" onclick="setChecklist({{ loop.index0 }},'SIM')">Sim</button>
+        <button type="button" class="{{ 'ativo v-nao' if resposta == 'NÃO' }}" onclick="setChecklist({{ loop.index0 }},'NÃO')">Não</button>
+        <button type="button" class="{{ 'ativo v-na' if resposta == 'N/A' }}" onclick="setChecklist({{ loop.index0 }},'N/A')">N/A</button>
+      </div>
+    </div>
+    {% endfor %}
+    <div class="apr-block-alert" id="apr-block-alert" role="alert" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>
+      <div style="flex:1;min-width:0"><strong>Atenção: condição de segurança não atendida</strong>
+      <span class="nao-lead">Você respondeu <b>NÃO</b> em <span id="apr-block-count">1 item</span> do checklist. A APR pode seguir, mas é preciso explicar o motivo e como o risco será controlado.</span>
+      <ul class="nao-lista" id="apr-block-list"></ul>
+      <span hidden>Item(ns) <b id="apr-block-items"></b></span>
+      <div class="nao-passos"><span>1 · Avalie o risco</span><span>2 · Defina as medidas de controle</span><span>3 · Registre abaixo</span></div>
+      <label class="nao-label" for="checklist_no_justification"><span>Por que a resposta é NÃO e o que será feito? <span style="color:#B42318">*</span></span></label>
+      <textarea class="campo" id="checklist_no_justification" name="checklist_no_justification" rows="4" maxlength="1500" placeholder="Ex.: o item não se aplica por… / medidas adotadas: isolamento da área, EPI adicional, acompanhamento do líder…">{{ data.get('checklist_no_justification','') }}</textarea>
+      <div class="nao-meta"><span id="nao-status">Obrigatório para prosseguir</span><span id="nao-count">0/1500</span></div>
+      {% if data.get('checklist_no_by') %}<small style="display:block;margin-top:4px;color:var(--cor-texto-secundario)">Registrado por {{ data.checklist_no_by }} em {{ data.checklist_no_at }}</small>{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="card secao">
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><h2 style="margin:0">Equipe <small style="font-size:.72rem;color:var(--cor-texto-secundario);font-weight:500">(opcional antes da coleta)</small></h2><strong id="worker-counter" style="font-size:.82rem;color:var(--cor-texto-secundario)">Integrantes: {{ data.workers|length }}/24</strong></div>
+    <div id="equipe-lista">
+      {% for worker in data.workers %}
+      <div class="linha-dinamica" data-worker-row>
+        <div class="linha-cabecalho">
+          <span class="linha-numero">Integrante {{ '%02d'|format(loop.index) }}</span>
+          {% if loop.index0 > 0 %}<button type="button" class="btn-remover" onclick="removerLinha(this)">Remover</button>{% endif %}
+        </div>
+        <input type="hidden" name="worker_{{ loop.index0 }}_participant_id" class="w-participant-id" value="{{ worker.participant_id }}">
+        <input type="hidden" name="worker_{{ loop.index0 }}_user_id" class="w-user-id" value="{{ worker.participant_user_id }}">
+        <input class="w-cpf" type="hidden" name="worker_{{ loop.index0 }}_cpf" value="{{ worker.cpf }}">
+        <input class="w-nome" type="hidden" name="worker_{{ loop.index0 }}_worker" value="{{ worker.worker }}">
+        <div class="worker-search-row worker-search-panel" style="margin-bottom:10px;grid-template-columns:minmax(0,1fr) auto;">
+          <div class="campo-grupo"><label>Pesquisar integrante</label><input class="campo w-query" type="search" value="{{ worker.cpf or worker.worker }}" placeholder="Digite CPF ou nome" autocomplete="off"></div>
+          <button type="button" class="btn btn-secundario" onclick="buscarParticipanteUnico(this)">Pesquisar</button>
+        </div>
+        <div class="worker-status"></div>
+        <div class="worker-suggestions"></div>
+        <div class="grid-3 worker-selected-grid">
+          <div class="campo-grupo">
+            <label>Nome</label>
+            <input class="campo w-nome-display" type="text" value="{{ worker.worker }}" readonly>
+          </div>
+          <div class="campo-grupo">
+            <label>Empresa</label>
+            <input class="campo w-empresa" type="text" name="worker_{{ loop.index0 }}_company" value="{{ worker.company }}" readonly>
+          </div>
+          <div class="campo-grupo">
+            <label>Função</label>
+            <input class="campo w-role" type="text" name="worker_{{ loop.index0 }}_role" value="{{ worker.role }}" readonly>
+          </div>
+        </div>
+        {% if worker.signature_image %}<div class="worker-status ok">✓ Já assinou esta APR.</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-fantasma btn-adicionar" onclick="adicionarIntegrante()">+ Adicionar integrante manualmente</button><small style="display:block;margin-top:8px;color:var(--cor-texto-secundario)">Adicione os integrantes da equipe para que cada um receba a solicitação e assine pela própria conta. A coleta no mesmo aparelho fica disponível apenas no fluxo offline.</small>
+  </div>
+
+  <div class="card secao">
+    <h2>Aprovação</h2>
+    <div id="approvers-container">
+      <div class="campo-grupo approver-row" data-approver-row>
+        <label for="approver_search">Líder ou responsável pela atividade (Aprovador 1)</label>
+        <div class="approver-combobox">
+          <input class="campo" type="search" id="approver_search" placeholder="Digite o nome do aprovador..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="approver_suggestions_0">
+          <div class="approver-suggestions" id="approver_suggestions_0" role="listbox" aria-label="Aprovadores encontrados"></div>
+          <div class="approver-selected-mark">✓ Aprovador selecionado</div>
+        </div>
+        <select id="approver_user_id" name="approver_user_id" hidden style="display:none!important" aria-hidden="true" tabindex="-1">
+          <option value="">Selecione</option>
+          {% for admin in admins %}
+          <option value="{{ admin.id }}" data-admin-scopes="{{ admin.scope_keys|join(';;') }}" {% if data.approver_user_id == admin.id|string %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% for extra_id in (data.approver_extra_user_ids or []) %}
+      <div class="campo-grupo approver-row" data-approver-row style="margin-top:12px">
+        <label>Aprovador {{ loop.index + 1 }}</label>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center">
+          <div class="approver-combobox">
+            <input class="campo approver-extra-search" type="search" placeholder="Digite o nome do aprovador..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="approver_suggestions_{{ loop.index }}">
+            <div class="approver-suggestions" id="approver_suggestions_{{ loop.index }}" role="listbox" aria-label="Aprovadores encontrados"></div>
+            <div class="approver-selected-mark">✓ Aprovador selecionado</div>
+          </div>
+          <button type="button" class="btn btn-fantasma" onclick="removerAprovador(this)" aria-label="Remover aprovador">× Remover</button>
+        </div>
+        <select class="approver-extra-select" name="approver_extra_user_ids" hidden style="display:none!important" aria-hidden="true" tabindex="-1">
+          <option value="">Selecione</option>
+          {% for admin in admins %}<option value="{{ admin.id }}" data-admin-scopes="{{ admin.scope_keys|join(';;') }}" {% if admin.id|string == extra_id|string %}selected{% endif %}>{{ admin.full_name or admin.username }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-fantasma btn-adicionar" style="margin-top:14px" onclick="adicionarAprovador()">+ Adicionar aprovador</button>
+  </div>
+
+</fieldset>
+
+{% if not apr_readonly %}
+<div class="form-footer">
+  <button type="submit" class="btn btn-secundario" onclick="document.getElementById('form-action').value='draft'">Salvar rascunho</button>
+  {% set initial_primary_action = 'continue_permits' if data.critical_activity == 'SIM' and linked_permits_pending else 'request_signatures' %}
+  <button type="submit" id="apr-primary-action" class="btn btn-primario" data-action="{{ initial_primary_action }}" onclick="document.getElementById('form-action').value=this.dataset.action">{{ 'Próxima etapa — Preencher PTs' if initial_primary_action == 'continue_permits' else 'Coletar assinaturas' }}</button>
+</div>
+{% endif %}
+</form>
+
+{% if apr_readonly and signature_phase %}
+<div class="banner {{ 'banner-info' if signature_complete else 'banner-atencao' }}" style="margin-top:var(--espaco-4);">
+  {% if signature_complete %}
+    Todos os integrantes já assinaram. Envie para aprovação ou cancele a coleta para voltar a editar o rascunho.
+  {% else %}
+    Aguardando assinatura de {{ signature_pending_count }} integrante(s) ainda.
+  {% endif %}
+</div>
+<div class="form-footer">
+  <a class="btn btn-primario" href="/apr/{{ doc.id }}/assinar">▦ Gerar QR Code para assinatura</a>
+  <form method="post" action="/apr/{{ doc.id }}/save" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="cancel_signatures">
+    <button type="submit" class="btn btn-fantasma">Cancelar coleta de assinaturas</button>
+  </form>
+  {% if signature_complete %}
+  <form method="post" action="/apr/{{ doc.id }}/save" style="display:inline;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="submit_approval">
+    <button type="submit" class="btn btn-primario">Enviar para aprovação</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+  const CSRF = {{ csrf_token | tojson }};
+  const RISK_ORDER = {{ risk_options | tojson }}; // ordem do menor pro maior: define o que é "mais alto"
+  const INITIAL_SELECTED_PERMITS = new Set({{ (data.critical_permits or []) | tojson }});
+  const INITIAL_PENDING_PERMITS = new Set({{ (linked_permits_pending or []) | tojson }});
+
+  document.addEventListener('DOMContentLoaded', () => initAutoGrow(document));
+
+  // ---- Severidade compacta por etapa: A/B/C ----
+  // A = vermelho, B = amarelo, C = verde. O campo geral continua oculto e
+  // recebe automaticamente a maior severidade para manter PDF/banco compatíveis.
+  const SEVERITY_RANK = { C: 1, B: 2, A: 3 };
+
+  function atualizarSeveridadeGeral() {
+    let maior = '';
+    document.querySelectorAll('[data-severity-value]').forEach(function (input) {
+      const value = String(input.value || '').toUpperCase();
+      if ((SEVERITY_RANK[value] || 0) > (SEVERITY_RANK[maior] || 0)) maior = value;
+    });
+    const geral = document.getElementById('severity');
+    if (geral) geral.value = maior;
+    document.querySelectorAll('[data-general-sev]').forEach(function (el) {
+      el.classList.toggle('ativo', el.dataset.generalSev === maior);
+    });
+    const display = document.getElementById('severity-general-display');
+    if (display) display.setAttribute('data-severity', maior || '');
+  }
+
+  function setStepSeverity(btn, value) {
+    const row = btn.closest('[data-etapa-row]');
+    if (!row) return;
+    const input = row.querySelector('[data-severity-value]');
+    if (!input) return;
+    input.value = value;
+    row.classList.remove('severity-missing');
+    row.querySelectorAll('.sev-btn').forEach(function (b) { b.classList.toggle('ativo', b === btn); });
+    atualizarSeveridadeGeral();
+  }
+
+  function moverEtapa(btn, dir) {
+    const row = btn.closest('[data-etapa-row]');
+    const lista = document.getElementById('etapas-lista');
+    if (!row || !lista) return;
+    const outra = dir < 0 ? row.previousElementSibling : row.nextElementSibling;
+    if (!outra || !outra.hasAttribute('data-etapa-row')) return;
+    if (dir < 0) lista.insertBefore(row, outra); else lista.insertBefore(outra, row);
+    reindexar(lista, '[data-etapa-row]', 'step_', 'step-count');
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    atualizarSeveridadeGeral();
+    updatePermitBlockLockedState();
+    updateAprPrimaryAction();
+    initDualFields(document);
+    initMultiPickers(document);
+  });
+
+  // Atualização robusta da próxima etapa. Além do onchange do checkbox,
+  // escutamos mudanças no formulário para funcionar mesmo com cache antigo/PWA.
+  document.addEventListener('change', function (event) {
+    const target = event.target;
+    if (target && target.matches('input[type=\"checkbox\"][name=\"critical_permits\"]')) {
+      const row = target.closest('[data-permit-row]');
+      if (row) row.classList.toggle('selecionada', target.checked);
+      updateAprPrimaryAction();
+    }
+  });
+
+  function selectedCriticalPermits() {
+    return Array.from(document.querySelectorAll('input[type="checkbox"][name="critical_permits"]'))
+      .filter(input => input.checked)
+      .map(input => String(input.value || '').trim())
+      .filter(Boolean);
+  }
+
+  function updateAprPrimaryAction() {
+    const button = document.getElementById('apr-primary-action');
+    const critical = document.getElementById('critical_activity');
+    if (!button || !critical) return;
+
+    const isCritical = critical.value === 'SIM';
+    const selected = selectedCriticalPermits();
+
+    if (!isCritical) {
+      button.disabled = false;
+      button.dataset.action = 'request_signatures';
+      button.textContent = 'Coletar assinaturas';
+      return;
+    }
+
+    if (!selected.length) {
+      button.disabled = true;
+      button.dataset.action = 'continue_permits';
+      button.textContent = 'Selecione uma PT para continuar';
+      return;
+    }
+
+    // Se uma PT foi marcada agora, ou alguma das PTs já salvas ainda está pendente,
+    // a etapa obrigatória é preencher as permissões antes de coletar assinaturas.
+    const hasNewSelection = selected.some(name => !INITIAL_SELECTED_PERMITS.has(name));
+    const hasPendingSelection = selected.some(name => INITIAL_PENDING_PERMITS.has(name));
+    if (hasNewSelection || hasPendingSelection) {
+      button.disabled = false;
+      button.dataset.action = 'continue_permits';
+      button.textContent = 'Próxima etapa — Preencher PTs';
+      return;
+    }
+
+    button.disabled = false;
+    button.dataset.action = 'request_signatures';
+    button.textContent = 'Coletar assinaturas';
+  }
+
+  function updatePermitBlockLockedState() {
+    const isEnabled = document.getElementById('critical_activity').value === 'SIM';
+    const block = document.getElementById('bloco-permissoes');
+    const note = document.getElementById('permit-lock-note');
+    if (!block) return;
+    block.classList.toggle('locked', !isEnabled);
+    if (note) note.style.display = isEnabled ? 'none' : '';
+    block.querySelectorAll('[data-permit-row]').forEach(row => row.classList.toggle('bloqueada', !isEnabled));
+    block.querySelectorAll('input[type="checkbox"][name="critical_permits"]').forEach(input => {
+      input.disabled = !isEnabled;
+    });
+    updateAprPrimaryAction();
+  }
+
+  function normalizarBuscaAprovador(valor) {
+    return (valor || '').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  }
+
+  function selectsAprovadores() {
+    return Array.from(document.querySelectorAll('#approver_user_id, .approver-extra-select'));
+  }
+
+  function inputDoSelectAprovador(select) {
+    const row = select ? select.closest('[data-approver-row]') : null;
+    return row ? row.querySelector('#approver_search, .approver-extra-search') : null;
+  }
+
+  function idsAprovadoresSelecionados(excetoSelect) {
+    return new Set(selectsAprovadores().filter(s => s !== excetoSelect && s.value).map(s => s.value));
+  }
+
+  function fecharSugestoesAprovador(input) {
+    if (!input) return;
+    const box = input.closest('.approver-combobox');
+    const list = box ? box.querySelector('.approver-suggestions') : null;
+    if (list) { list.classList.remove('show'); list.innerHTML = ''; }
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
+    input.dataset.activeApproverIndex = '-1';
+  }
+
+  function marcarAprovadorSelecionado(input, selecionado) {
+    const box = input ? input.closest('.approver-combobox') : null;
+    if (box) box.classList.toggle('approver-selected', !!selecionado);
+  }
+
+  function selecionarAprovador(input, select, option) {
+    if (!input || !select || !option || !option.value || option.disabled) return;
+    select.value = option.value;
+    input.value = (option.textContent || '').trim();
+    marcarAprovadorSelecionado(input, true);
+    fecharSugestoesAprovador(input);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    // Ao escolher alguém, as outras caixas deixam de sugerir o mesmo aprovador.
+    document.querySelectorAll('#approver_search, .approver-extra-search').forEach(other => {
+      if (other !== input && document.activeElement === other) renderSugestoesAprovador(other, other._approverSelect, true);
+    });
+  }
+
+  function renderSugestoesAprovador(input, select, abrirMesmoVazio=false) {
+    if (!input || !select) return;
+    const box = input.closest('.approver-combobox');
+    const list = box ? box.querySelector('.approver-suggestions') : null;
+    if (!list) return;
+    const query = normalizarBuscaAprovador(input.value);
+    const usados = idsAprovadoresSelecionados(select);
+    const opcoes = Array.from(select.options).filter(opt => {
+      if (!opt.value || opt.disabled || usados.has(opt.value)) return false;
+      const nome = normalizarBuscaAprovador(opt.textContent || '');
+      return !query || nome.includes(query);
+    }).slice(0, 10);
+
+    list.innerHTML = '';
+    input.dataset.activeApproverIndex = '-1';
+    if (!opcoes.length) {
+      const empty = document.createElement('div');
+      empty.className = 'approver-empty';
+      empty.textContent = query ? 'Nenhum aprovador encontrado.' : 'Nenhum aprovador disponível para este Cluster/Site.';
+      list.appendChild(empty);
+    } else {
+      opcoes.forEach((opt, idx) => {
+        const item = document.createElement('div');
+        item.className = 'approver-option';
+        item.id = `${list.id}_option_${idx}`;
+        item.setAttribute('role', 'option');
+        item.setAttribute('aria-selected', 'false');
+        item.dataset.value = opt.value;
+        item.textContent = (opt.textContent || '').trim();
+        item.addEventListener('mousedown', event => event.preventDefault());
+        item.addEventListener('click', () => selecionarAprovador(input, select, opt));
+        list.appendChild(item);
+      });
+    }
+    if (query || abrirMesmoVazio) {
+      list.classList.add('show');
+      input.setAttribute('aria-expanded', 'true');
+    } else {
+      fecharSugestoesAprovador(input);
+    }
+  }
+
+  function moverDestaqueAprovador(input, direcao) {
+    const box = input.closest('.approver-combobox');
+    const list = box ? box.querySelector('.approver-suggestions') : null;
+    if (!list || !list.classList.contains('show')) {
+      renderSugestoesAprovador(input, input._approverSelect, true);
+    }
+    const items = Array.from(list ? list.querySelectorAll('.approver-option') : []);
+    if (!items.length) return;
+    let idx = Number(input.dataset.activeApproverIndex || -1);
+    idx = direcao > 0 ? (idx + 1) % items.length : (idx <= 0 ? items.length - 1 : idx - 1);
+    items.forEach((item, i) => {
+      item.classList.toggle('active', i === idx);
+      item.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+    });
+    input.dataset.activeApproverIndex = String(idx);
+    input.setAttribute('aria-activedescendant', items[idx].id);
+    items[idx].scrollIntoView({ block: 'nearest' });
+  }
+
+  function filterApproversByCluster() {
+    const cluster = document.getElementById('cluster');
+    if (!cluster) return;
+    const selectedCluster = (cluster.value || '').trim();
+    selectsAprovadores().forEach(select => {
+      let invalidSelected = false;
+      Array.from(select.options).forEach(opt => {
+        if (!opt.value) { opt.hidden = false; opt.disabled = false; return; }
+        const scopes = (opt.dataset.adminScopes || '').split(';;').filter(Boolean);
+        const allowed = !selectedCluster || scopes.includes('*') || scopes.includes(selectedCluster);
+        opt.hidden = !allowed;
+        opt.disabled = !allowed;
+        if (!allowed && opt.selected) invalidSelected = true;
+      });
+      const input = inputDoSelectAprovador(select);
+      if (invalidSelected) {
+        select.value = '';
+        if (input) input.value = '';
+        marcarAprovadorSelecionado(input, false);
+      }
+      if (input && document.activeElement === input) renderSugestoesAprovador(input, select, true);
+    });
+  }
+
+  function vincularPesquisaAprovador(input, select) {
+    if (!input || !select || input.dataset.approverReady === '1') return;
+    input.dataset.approverReady = '1';
+    input._approverSelect = select;
+    if (select.value && select.selectedOptions[0]) {
+      input.value = select.selectedOptions[0].textContent.trim();
+      marcarAprovadorSelecionado(input, true);
+    }
+    input.addEventListener('focus', function () { renderSugestoesAprovador(input, select, true); });
+    input.addEventListener('input', function () {
+      const atual = select.value && select.selectedOptions[0] ? select.selectedOptions[0].textContent.trim() : '';
+      if (normalizarBuscaAprovador(this.value) !== normalizarBuscaAprovador(atual)) {
+        select.value = '';
+        marcarAprovadorSelecionado(this, false);
+      }
+      renderSugestoesAprovador(this, select, true);
+    });
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'ArrowDown') { event.preventDefault(); moverDestaqueAprovador(this, 1); }
+      else if (event.key === 'ArrowUp') { event.preventDefault(); moverDestaqueAprovador(this, -1); }
+      else if (event.key === 'Enter') {
+        const box=this.closest('.approver-combobox');
+        const items=Array.from(box ? box.querySelectorAll('.approver-option') : []);
+        const idx=Number(this.dataset.activeApproverIndex || -1);
+        if (idx >= 0 && items[idx]) {
+          event.preventDefault();
+          const opt=Array.from(select.options).find(o => o.value === items[idx].dataset.value);
+          selecionarAprovador(this, select, opt);
+        }
+      } else if (event.key === 'Escape') { fecharSugestoesAprovador(this); }
+    });
+    input.addEventListener('blur', function () { window.setTimeout(() => fecharSugestoesAprovador(this), 120); });
+  }
+
+  function renumerarAprovadores() {
+    document.querySelectorAll('[data-approver-row]').forEach(function(row, idx){
+      const label=row.querySelector('label');
+      if (!label) return;
+      label.textContent = idx === 0 ? 'Líder ou responsável pela atividade (Aprovador 1)' : 'Aprovador ' + (idx + 1);
+    });
+  }
+
+  let approverDynamicId = 100;
+  function adicionarAprovador() {
+    const container=document.getElementById('approvers-container');
+    if (!container) return;
+    const suggestionId=`approver_suggestions_dynamic_${approverDynamicId++}`;
+    const row=document.createElement('div');
+    row.className='campo-grupo approver-row'; row.dataset.approverRow=''; row.style.marginTop='12px';
+    row.innerHTML=`<label>Aprovador</label><div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start"><div class="approver-combobox"><input class="campo approver-extra-search" type="search" placeholder="Digite o nome do aprovador..." autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${suggestionId}"><div class="approver-suggestions" id="${suggestionId}" role="listbox" aria-label="Aprovadores encontrados"></div><div class="approver-selected-mark">✓ Aprovador selecionado</div></div><button type="button" class="btn btn-fantasma" onclick="removerAprovador(this)" aria-label="Remover aprovador">× Remover</button></div><select class="approver-extra-select" name="approver_extra_user_ids" hidden style="display:none!important" aria-hidden="true" tabindex="-1"><option value="">Selecione</option></select>`;
+    container.appendChild(row);
+    const input=row.querySelector('.approver-extra-search');
+    const select=row.querySelector('.approver-extra-select');
+    const primarySelect=document.getElementById('approver_user_id');
+    if (primarySelect) Array.from(primarySelect.options).filter(o=>o.value).forEach(source => {
+      const clone=source.cloneNode(true); clone.selected=false; select.appendChild(clone);
+    });
+    vincularPesquisaAprovador(input, select);
+    filterApproversByCluster();
+    renumerarAprovadores();
+    input.focus();
+  }
+
+  function removerAprovador(btn) {
+    const row=btn.closest('[data-approver-row]');
+    if(row) row.remove();
+    renumerarAprovadores();
+    document.querySelectorAll('#approver_search, .approver-extra-search').forEach(input => {
+      if (document.activeElement === input) renderSugestoesAprovador(input, input._approverSelect, true);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const leaderSearch=document.getElementById('approver_search');
+    vincularPesquisaAprovador(leaderSearch, document.getElementById('approver_user_id'));
+    document.querySelectorAll('[data-approver-row]').forEach(function(row,idx){ if(idx>0) vincularPesquisaAprovador(row.querySelector('.approver-extra-search'), row.querySelector('.approver-extra-select')); });
+    filterApproversByCluster();
+    renumerarAprovadores();
+  });
+
+  function setCriticalActivity(v) {
+    document.getElementById('critical_activity').value = v;
+    const wrap = document.getElementById('critical_activity').nextElementSibling;
+    wrap.querySelectorAll('button').forEach(b => b.classList.remove('ativo','v-sim-crit','v-nao'));
+    if (v === 'SIM') { wrap.children[0].classList.add('ativo','v-sim-crit'); }
+    else { wrap.children[1].classList.add('ativo','v-nao'); }
+    updatePermitBlockLockedState();
+  }
+
+  function setChecklist(i, v) {
+    document.getElementById('check-' + i).value = v;
+    const item = document.getElementById('check-' + i).closest('.checklist-item');
+    item.classList.remove('pendente');
+    const btns = item.querySelectorAll('.simnao button');
+    btns.forEach(b => b.classList.remove('ativo','v-sim','v-nao','v-na'));
+    if (v === 'SIM') btns[0].classList.add('ativo','v-sim');
+    else if (v === 'NÃO') btns[1].classList.add('ativo','v-nao');
+    else btns[2].classList.add('ativo','v-na');
+    updateAprPrimaryAction();
+  }
+
+  // V36.18.94 — NÃO no checklist da APR = aviso de segurança + justificativa (não bloqueia).
+  function itensNaoApr() {
+    return Array.from(document.querySelectorAll('input[id^="check-"]'))
+      .map((el, i) => el.value === 'NÃO' ? String(i + 1).padStart(2, '0') : null).filter(Boolean);
+  }
+  function aplicarBloqueioNaoApr() {
+    const itens = itensNaoApr();
+    const alerta = document.getElementById('apr-block-alert');
+    if (!alerta) return;
+    alerta.hidden = !itens.length;
+    document.getElementById('apr-block-items').textContent = itens.join(', ');
+    document.getElementById('apr-block-count').textContent = itens.length === 1 ? '1 item' : itens.length + ' itens';
+    const lista = document.getElementById('apr-block-list');
+    lista.innerHTML = '';
+    itens.forEach(n => {
+      const txt = document.querySelector('#check-' + (parseInt(n, 10) - 1))?.closest('.checklist-item')?.querySelector('.txt');
+      const li = document.createElement('li');
+      const b = document.createElement('b'); b.textContent = n;
+      li.appendChild(b); li.appendChild(document.createTextNode(txt ? txt.textContent.replace(/^\s*\d+\s*/, '') : ''));
+      lista.appendChild(li);
+    });
+    const j = document.getElementById('checklist_no_justification');
+    if (j) {
+      const t = j.value.trim().length;
+      document.getElementById('nao-count').textContent = j.value.length + '/1500';
+      document.getElementById('nao-status').textContent = t ? '✓ Justificativa registrada' : 'Obrigatório para prosseguir';
+      j.classList.toggle('ok', t > 0);
+    }
+  }
+  document.addEventListener('input', function (e) { if (e.target && e.target.id === 'checklist_no_justification') aplicarBloqueioNaoApr(); });
+  const _updateAprPrimaryActionOriginal = updateAprPrimaryAction;
+  updateAprPrimaryAction = function () { _updateAprPrimaryActionOriginal(); aplicarBloqueioNaoApr(); };
+  document.addEventListener('click', function (event) {
+    const btn = event.target.closest('#apr-primary-action');
+    const j = document.getElementById('checklist_no_justification');
+    if (btn && itensNaoApr().length && j && !j.value.trim()) {
+      event.preventDefault(); event.stopPropagation();
+      aplicarBloqueioNaoApr(); j.focus(); j.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
+  }, true);
+  document.addEventListener('DOMContentLoaded', aplicarBloqueioNaoApr);
+  setTimeout(aplicarBloqueioNaoApr, 0);
+
+  function autoGrowTextarea(el) {
+    if (!el) return;
+    const minHeight = el.classList.contains('campo-opcional-compacto') ? 58 : 76;
+    // Mantém a altura que o usuário puxou manualmente e só aumenta se o texto precisar.
+    const currentHeight = Math.max(minHeight, el.offsetHeight || minHeight);
+    el.style.height = 'auto';
+    const neededHeight = Math.max(minHeight, el.scrollHeight || minHeight);
+    el.style.height = Math.max(currentHeight, neededHeight) + 'px';
+  }
+
+  function initAutoGrow(root) {
+    (root || document).querySelectorAll('textarea[data-auto-grow]').forEach(el => {
+      if (!el.dataset.autoGrowReady) {
+        el.dataset.autoGrowReady = '1';
+        el.addEventListener('input', () => autoGrowTextarea(el));
+      }
+      if (el.matches('[data-multiline-enter]') && !el.dataset.multilineEnterReady) {
+        el.dataset.multilineEnterReady = '1';
+        el.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && !event.isComposing) {
+            // Enter nestes quatro campos NUNCA envia a APR: ele sempre cria nova linha.
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            const start = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length;
+            const end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+            el.setRangeText('\n', start, end, 'end');
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            requestAnimationFrame(() => autoGrowTextarea(el));
+          }
+        }, true);
+      }
+      autoGrowTextarea(el);
+    });
+  }
+
+  let activeVoiceRecognition = null;
+  let activeVoiceField = null;
+  function resetVoiceField(field) {
+    if (!field) return;
+    field.classList.remove('ouvindo');
+    field.querySelectorAll('[data-voice-mode]').forEach(b => {
+      if (b.dataset.voiceMode === 'voice') b.textContent = 'Voz';
+    });
+    const statusText = field.querySelector('[data-voice-status-text]');
+    if (statusText) statusText.textContent = 'Ouvindo...';
+  }
+
+  function stopVoiceRecognition(field) {
+    if (activeVoiceRecognition && (!field || activeVoiceField === field)) {
+      try { activeVoiceRecognition.stop(); } catch (_) {}
+      resetVoiceField(activeVoiceField);
+      activeVoiceRecognition = null;
+      activeVoiceField = null;
+    }
+  }
+
+  function setVoiceMode(btn, mode) {
+    const field = btn.closest('[data-voice-field]');
+    if (!field) return;
+    const target = field.querySelector('[data-voice-target]');
+    field.querySelectorAll('[data-voice-mode]').forEach(b => b.classList.toggle('ativo', b.dataset.voiceMode === mode));
+
+    if (mode === 'type') {
+      stopVoiceRecognition(field);
+      if (target) setTimeout(() => target.focus(), 0);
+      return;
+    }
+
+    if (activeVoiceRecognition && activeVoiceField === field) {
+      stopVoiceRecognition(field);
+      return;
+    }
+    startVoiceRecognition(field, btn);
+  }
+
+  function fallbackVoiceToTyping(field) {
+    const dualTextBtn = field ? field.querySelector('[data-dual-mode="text"]') : null;
+    if (dualTextBtn) {
+      field.querySelectorAll('[data-dual-mode]').forEach(b => b.classList.toggle('ativo', b.dataset.dualMode === 'text'));
+      field.querySelectorAll('[data-dual-pane]').forEach(p => p.hidden = p.dataset.dualPane !== 'text');
+      const target = field.querySelector('[data-voice-target]');
+      if (target) setTimeout(() => target.focus(), 0);
+      return;
+    }
+    if (field) field.querySelectorAll('[data-voice-mode]').forEach(b => b.classList.toggle('ativo', b.dataset.voiceMode === 'type'));
+  }
+
+  function startVoiceRecognition(field, btn) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const target = field.querySelector('[data-voice-target]');
+    if (!target) return;
+
+    if (!SpeechRecognition) {
+      fallbackVoiceToTyping(field);
+      alert('A escrita por voz não está disponível neste navegador. Use um navegador com reconhecimento de voz, como Chrome ou Edge.');
+      return;
+    }
+
+    // Apenas um microfone ativo por vez.
+    stopVoiceRecognition();
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.maxAlternatives = 1;
+
+    const baseText = target.value || '';
+    let finalTranscript = '';
+    let lastError = '';
+
+    activeVoiceRecognition = recognition;
+    activeVoiceField = field;
+
+    recognition.onstart = function () {
+      field.classList.add('ouvindo');
+      if (btn) btn.textContent = 'Ouvindo...';
+      const statusText = field.querySelector('[data-voice-status-text]');
+      if (statusText) statusText.textContent = 'Ouvindo...';
+    };
+
+    recognition.onresult = function (event) {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = (event.results[i][0] && event.results[i][0].transcript) ? event.results[i][0].transcript.trim() : '';
+        if (!transcript) continue;
+        if (event.results[i].isFinal) finalTranscript += (finalTranscript ? ' ' : '') + transcript;
+        else interim += (interim ? ' ' : '') + transcript;
+      }
+      const spoken = [finalTranscript, interim].filter(Boolean).join(' ').trim();
+      if (spoken) {
+        const separator = baseText && !/\s$/.test(baseText) ? ' ' : '';
+        target.value = baseText + separator + spoken;
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    };
+
+    recognition.onerror = function (event) {
+      lastError = event.error || '';
+      if (lastError === 'not-allowed' || lastError === 'service-not-allowed') {
+        alert('Permita o acesso ao microfone para usar a escrita por voz.');
+      } else if (lastError === 'audio-capture') {
+        alert('Não foi possível acessar o microfone deste dispositivo.');
+      }
+    };
+
+    recognition.onend = function () {
+      resetVoiceField(field);
+      if (activeVoiceRecognition === recognition) {
+        activeVoiceRecognition = null;
+        activeVoiceField = null;
+      }
+      // Mantém "Voz" selecionado para o usuário poder clicar novamente e continuar ditando.
+      if (lastError === 'not-allowed' || lastError === 'service-not-allowed' || lastError === 'audio-capture') {
+        fallbackVoiceToTyping(field);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (_) {
+      resetVoiceField(field);
+      activeVoiceRecognition = null;
+      activeVoiceField = null;
+    }
+  }
+
+  function syncDualField(field) {
+    if (!field) return;
+    const hidden = field.querySelector('[data-dual-value]');
+    const active = field.querySelector('[data-dual-mode].ativo');
+    const mode = active ? active.dataset.dualMode : 'list';
+    const select = field.querySelector('[data-dual-select]');
+    const text = field.querySelector('[data-dual-text]');
+    if (!hidden) return;
+    hidden.value = (mode === 'text' || mode === 'voice') ? (text ? text.value.trim() : '') : (select ? select.value : '');
+  }
+
+  function setDualMode(btn, mode) {
+    const field = btn.closest('[data-dual-field]');
+    if (!field) return;
+    const hidden = field.querySelector('[data-dual-value]');
+    const select = field.querySelector('[data-dual-select]');
+    const text = field.querySelector('[data-dual-text]');
+    const paneMode = mode === 'voice' ? 'text' : mode;
+
+    if (mode !== 'voice') stopVoiceRecognition(field);
+    field.querySelectorAll('[data-dual-mode]').forEach(b => b.classList.toggle('ativo', b.dataset.dualMode === mode));
+    field.querySelectorAll('[data-dual-pane]').forEach(p => p.hidden = p.dataset.dualPane !== paneMode);
+
+    if ((mode === 'text' || mode === 'voice') && text) {
+      if (!text.value && hidden && hidden.value) text.value = hidden.value;
+      if (hidden) hidden.value = text.value.trim();
+      if (mode === 'voice') {
+        if (activeVoiceRecognition && activeVoiceField === field) {
+          stopVoiceRecognition(field);
+          return;
+        }
+        startVoiceRecognition(field, btn);
+      } else {
+        setTimeout(() => { autoGrowTextarea(text); text.focus(); }, 0);
+      }
+    } else if (mode === 'list' && select) {
+      const current = hidden ? hidden.value : '';
+      const hasOption = Array.from(select.options).some(o => o.value === current);
+      select.value = hasOption ? current : '';
+      if (hidden) hidden.value = select.value;
+    }
+  }
+
+  function initDualFields(root) {
+    (root || document).querySelectorAll('[data-dual-field]').forEach(field => {
+      if (field.dataset.dualReady) return;
+      field.dataset.dualReady = '1';
+      const select = field.querySelector('[data-dual-select]');
+      const text = field.querySelector('[data-dual-text]');
+      if (select) select.addEventListener('change', () => syncDualField(field));
+      if (text) text.addEventListener('input', () => syncDualField(field));
+      syncDualField(field);
+    });
+  }
+
+  function setMultiEntryMode(btn, mode) {
+    const field = btn.closest('[data-multi-entry]');
+    if (!field) return;
+    const selectPane = field.querySelector('[data-multi-entry-pane="select"]');
+    const textPane = field.querySelector('[data-multi-entry-pane="text"]');
+    const target = field.querySelector('[data-voice-target]');
+
+    // Seleção e texto NÃO são excludentes: o usuário pode marcar vários itens
+    // da lista e também acrescentar um perigo/risco digitado ou por voz.
+    if (selectPane) selectPane.hidden = false;
+    if (mode !== 'voice') stopVoiceRecognition(field);
+    field.querySelectorAll('[data-multi-entry-mode]').forEach(function(b) {
+      b.classList.toggle('ativo', b.dataset.multiEntryMode === mode);
+    });
+
+    if (mode === 'select') {
+      // Mantém o texto manual visível quando já existe conteúdo.
+      if (textPane && target && !target.value.trim()) textPane.hidden = true;
+      const picker = field.querySelector('[data-multi-picker]');
+      if (picker) closeMultiPicker(picker);
+      const trigger = field.querySelector('[data-multi-trigger]');
+      if (trigger) setTimeout(() => trigger.focus(), 0);
+      return;
+    }
+
+    if (textPane) textPane.hidden = false;
+    if (target) {
+      autoGrowTextarea(target);
+      if (mode === 'text') setTimeout(() => target.focus(), 0);
+    }
+    if (mode === 'voice') {
+      if (activeVoiceRecognition && activeVoiceField === field) {
+        stopVoiceRecognition(field);
+        return;
+      }
+      startVoiceRecognition(field, btn);
+    }
+  }
+
+  function normalizePickerText(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  function updateMultiPicker(picker) {
+    if (!picker) return;
+    const checks = Array.from(picker.querySelectorAll('input[type="checkbox"]'));
+    const selected = checks.filter(c => c.checked);
+    const count = picker.querySelector('[data-multi-count]');
+    const tags = picker.querySelector('[data-multi-tags]');
+    const triggerText = picker.querySelector('.multi-picker-trigger-text');
+    const label = String(picker.dataset.pickerLabel || '').toLowerCase();
+    const isHazard = label === 'perigos';
+
+    picker.classList.toggle('has-selection', selected.length > 0);
+    if (count) count.textContent = String(selected.length);
+    if (triggerText) {
+      if (!selected.length) triggerText.textContent = isHazard ? 'Selecionar perigos' : 'Selecionar riscos';
+      else if (selected.length === 1) triggerText.textContent = `1 ${isHazard ? 'perigo selecionado' : 'risco selecionado'}`;
+      else triggerText.textContent = `${selected.length} ${isHazard ? 'perigos selecionados' : 'riscos selecionados'}`;
+    }
+
+    if (tags) {
+      tags.innerHTML = '';
+      selected.forEach(function(check) {
+        const tag = document.createElement('span');
+        tag.className = 'multi-tag';
+        const text = document.createElement('span');
+        text.className = 'multi-tag-text';
+        text.textContent = check.value;
+        text.title = check.value;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'multi-tag-remove';
+        remove.setAttribute('aria-label', `Remover ${check.value}`);
+        remove.textContent = '×';
+        remove.addEventListener('click', function(event) {
+          event.stopPropagation();
+          check.checked = false;
+          check.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        tag.appendChild(text);
+        tag.appendChild(remove);
+        tags.appendChild(tag);
+      });
+    }
+  }
+
+  function closeMultiPicker(picker) {
+    if (!picker) return;
+    picker.classList.remove('open');
+    const trigger = picker.querySelector('[data-multi-trigger]');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  function closeOtherMultiPickers(except) {
+    document.querySelectorAll('[data-multi-picker].open').forEach(function(picker) {
+      if (picker !== except) closeMultiPicker(picker);
+    });
+  }
+
+  function filterMultiPicker(picker) {
+    const search = picker.querySelector('[data-multi-search]');
+    const query = normalizePickerText(search ? search.value : '');
+    let visible = 0;
+    picker.querySelectorAll('[data-multi-option]').forEach(function(option) {
+      const match = !query || normalizePickerText(option.textContent).includes(query);
+      option.classList.toggle('is-filtered-out', !match);
+      if (match) visible += 1;
+    });
+    const empty = picker.querySelector('[data-multi-empty]');
+    if (empty) empty.classList.toggle('show', visible === 0);
+  }
+
+  function initMultiPickers(root) {
+    (root || document).querySelectorAll('[data-multi-picker]').forEach(function(picker) {
+      if (picker.dataset.multiReady === '1') {
+        updateMultiPicker(picker);
+        return;
+      }
+      picker.dataset.multiReady = '1';
+      const trigger = picker.querySelector('[data-multi-trigger]');
+      const search = picker.querySelector('[data-multi-search]');
+      const clear = picker.querySelector('[data-multi-clear]');
+      const done = picker.querySelector('[data-multi-done]');
+
+      if (trigger) trigger.addEventListener('click', function(event) {
+        event.stopPropagation();
+        const willOpen = !picker.classList.contains('open');
+        closeOtherMultiPickers(picker);
+        picker.classList.toggle('open', willOpen);
+        trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        if (willOpen && search) {
+          search.value = '';
+          filterMultiPicker(picker);
+          setTimeout(() => search.focus(), 0);
+        }
+      });
+
+      if (search) {
+        search.addEventListener('click', event => event.stopPropagation());
+        search.addEventListener('input', () => filterMultiPicker(picker));
+        search.addEventListener('keydown', function(event) {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            closeMultiPicker(picker);
+            if (trigger) trigger.focus();
+          }
+        });
+      }
+
+      picker.querySelectorAll('input[type="checkbox"]').forEach(function(check) {
+        check.addEventListener('change', function() {
+          // Multisseleção contínua: a lista permanece aberta enquanto o usuário
+          // marca/desmarca várias opções. Ela fecha somente ao clicar fora,
+          // pressionar Esc ou clicar novamente no campo de seleção.
+          updateMultiPicker(picker);
+          if (search) filterMultiPicker(picker);
+        });
+      });
+
+      if (clear) clear.addEventListener('click', function(event) {
+        event.stopPropagation();
+        picker.querySelectorAll('input[type="checkbox"]:checked').forEach(check => { check.checked = false; });
+        updateMultiPicker(picker);
+      });
+      if (done) done.addEventListener('click', function(event) {
+        event.stopPropagation();
+        closeMultiPicker(picker);
+        if (trigger) trigger.focus();
+      });
+
+      const panel = picker.querySelector('[data-multi-panel]');
+      if (panel) panel.addEventListener('click', event => event.stopPropagation());
+      updateMultiPicker(picker);
+      filterMultiPicker(picker);
+    });
+  }
+
+  document.addEventListener('click', function(event) {
+    if (!event.target.closest('[data-multi-picker]')) closeOtherMultiPickers(null);
+  });
+
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') closeOtherMultiPickers(null);
+  });
+
+  function reindexar(container, seletor, prefixo, hiddenCountId) {
+    const linhas = container.querySelectorAll(seletor);
+    linhas.forEach((linha, i) => {
+      linha.querySelectorAll('[name]').forEach(el => {
+        el.name = el.name.replace(/(_)(\d+)(_)/, `$1${i}$3`);
+      });
+      const numEl = linha.querySelector('.linha-numero');
+      if (numEl) numEl.textContent = numEl.textContent.replace(/\d+/, String(i+1).padStart(2,'0'));
+    });
+    document.getElementById(hiddenCountId).value = linhas.length;
+  }
+
+  // Desfaz o dropdown customizado dentro de um trecho clonado, deixando
+  // o <select> original de volta — necessário porque cloneNode copia o
+  // HTML (aparência) mas NUNCA os event listeners de JS, então uma
+  // cópia de um dropdown já "montado" fica com clique morto.
+  function desfazerEnhance(root) {
+    root.querySelectorAll('.uiselect').forEach(function (wrap) {
+      const sel = wrap.querySelector('select');
+      if (!sel) return;
+      sel.classList.remove('uiselect-native');
+      delete sel.dataset.enhanced;
+      sel.style.display = '';
+      wrap.parentNode.insertBefore(sel, wrap);
+      wrap.remove();
+    });
+  }
+
+  function adicionarEtapa() {
+    const lista = document.getElementById('etapas-lista');
+    const linhas = lista.querySelectorAll('[data-etapa-row]');
+    if (linhas.length >= 20) { alert('Limite de 20 etapas.'); return; }
+    const nova = linhas[0].cloneNode(true);
+    desfazerEnhance(nova);
+    nova.querySelectorAll('input[type=text], textarea, select').forEach(el => el.value = '');
+    nova.querySelectorAll('input[type=checkbox]').forEach(el => { el.checked = false; });
+    nova.querySelectorAll('[data-multi-picker]').forEach(function(picker) {
+      delete picker.dataset.multiReady;
+      picker.classList.remove('open', 'has-selection');
+      const search = picker.querySelector('[data-multi-search]'); if (search) search.value = '';
+      const tags = picker.querySelector('[data-multi-tags]'); if (tags) tags.innerHTML = '';
+      const count = picker.querySelector('[data-multi-count]'); if (count) count.textContent = '0';
+      picker.querySelectorAll('[data-multi-option]').forEach(option => option.classList.remove('is-filtered-out'));
+      const empty = picker.querySelector('[data-multi-empty]'); if (empty) empty.classList.remove('show');
+    });
+    nova.querySelectorAll('textarea[data-auto-grow]').forEach(el => {
+      delete el.dataset.autoGrowReady;
+      delete el.dataset.multilineEnterReady;
+      el.style.height = '';
+    });
+    nova.querySelectorAll('[data-voice-field]').forEach(field => {
+      field.classList.remove('ouvindo');
+      field.querySelectorAll('[data-voice-mode]').forEach(b => b.classList.toggle('ativo', b.dataset.voiceMode === 'type'));
+      const voiceBtn = field.querySelector('[data-voice-mode="voice"]'); if (voiceBtn) voiceBtn.textContent = 'Voz';
+      const typeBtn = field.querySelector('[data-voice-mode="type"]'); if (typeBtn) typeBtn.textContent = 'Digitar';
+    });
+    nova.querySelectorAll('[data-multi-entry]').forEach(function(field) {
+      field.querySelectorAll('[data-multi-entry-mode]').forEach(function(b) {
+        b.classList.toggle('ativo', b.dataset.multiEntryMode === 'select');
+      });
+      field.querySelectorAll('[data-multi-entry-pane]').forEach(function(pane) {
+        pane.hidden = pane.dataset.multiEntryPane === 'text';
+      });
+      const custom = field.querySelector('textarea[name$="_hazard_custom"], textarea[name$="_risk_custom"]');
+      if (custom) custom.value = '';
+    });
+    nova.querySelectorAll('[data-dual-value]').forEach(el => el.value = '');
+    nova.querySelectorAll('[data-severity-value]').forEach(el => el.value = '');
+    nova.querySelectorAll('.sev-btn').forEach(el => el.classList.remove('ativo'));
+    nova.querySelectorAll('[data-dual-field]').forEach(field => {
+      delete field.dataset.dualReady;
+      field.querySelectorAll('[data-dual-mode]').forEach(b => b.classList.toggle('ativo', b.dataset.dualMode === 'list'));
+      field.querySelectorAll('[data-dual-pane]').forEach(p => p.hidden = p.dataset.dualPane !== 'list');
+    });
+    if (!nova.querySelector('.btn-remover')) {
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn-remover'; btn.textContent = 'Remover';
+      btn.onclick = function () { removerLinha(this); };
+      nova.querySelector('.linha-cabecalho').appendChild(btn);
+    }
+    lista.appendChild(nova);
+    reindexar(lista, '[data-etapa-row]', 'step_', 'step-count');
+    enhanceSelects(nova);
+    initDualFields(nova);
+    initMultiPickers(nova);
+    initAutoGrow(nova);
+    atualizarSeveridadeGeral();
+  }
+
+  function validarSeveridadesAntesDeAvancar() {
+    let primeira = null;
+    document.querySelectorAll('[data-etapa-row]').forEach(function(row){
+      const stage = row.querySelector('textarea[name$="_stage"]');
+      const control = row.querySelector('textarea[name$="_control"]');
+      const hasHazard = !!row.querySelector('input[name$="_hazards"]:checked') || !!(row.querySelector('textarea[name$="_hazard_custom"]')?.value.trim());
+      const hasRisk = !!row.querySelector('input[name$="_risks"]:checked') || !!(row.querySelector('textarea[name$="_risk_custom"]')?.value.trim());
+      const filled = !!(stage?.value.trim() || control?.value.trim() || hasHazard || hasRisk);
+      const sev = row.querySelector('[data-severity-value]');
+      const missing = filled && !(sev && sev.value);
+      row.classList.toggle('severity-missing', missing);
+      if (missing && !primeira) primeira = row;
+    });
+    if (primeira) {
+      primeira.scrollIntoView({behavior:'smooth', block:'center'});
+      alert('Selecione a severidade A, B ou C em todas as etapas preenchidas antes de continuar.');
+      return false;
+    }
+    return true;
+  }
+
+  document.addEventListener('click', function(event){
+    const btn = event.target.closest('#apr-primary-action');
+    if (btn && !validarSeveridadesAntesDeAvancar()) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
+
+  function adicionarIntegrante() {
+    const lista = document.getElementById('equipe-lista');
+    const linhas = lista.querySelectorAll('[data-worker-row]');
+    if (linhas.length >= 24) { alert('Limite de 24 integrantes por APR (capacidade da folha oficial do PDF).'); return; }
+    const nova = linhas[0].cloneNode(true);
+    nova.querySelectorAll('input').forEach(el => el.value = '');
+    nova.querySelectorAll('.worker-status').forEach(el => { el.textContent=''; el.className='worker-status'; });
+    nova.querySelectorAll('.worker-suggestions').forEach(el => { el.innerHTML=''; el.classList.remove('show'); });
+    if (!nova.querySelector('.btn-remover')) {
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn-remover'; btn.textContent = 'Remover';
+      btn.onclick = function () { removerLinha(this); };
+      nova.querySelector('.linha-cabecalho').appendChild(btn);
+    }
+    lista.appendChild(nova);
+    reindexar(lista, '[data-worker-row]', 'worker_', 'worker-count');
+    atualizarContadorIntegrantes();
+    ativarBuscaParticipanteAoDigitar(nova);
+    const q=nova.querySelector('.w-query'); if(q) q.focus();
+  }
+
+  function removerLinha(btn) {
+    const linha = btn.closest('[data-etapa-row], [data-worker-row]');
+    const container = linha.parentElement;
+    const isEtapa = linha.hasAttribute('data-etapa-row');
+    linha.remove();
+    if (isEtapa) { reindexar(container, '[data-etapa-row]', 'step_', 'step-count'); atualizarSeveridadeGeral(); }
+    else { reindexar(container, '[data-worker-row]', 'worker_', 'worker-count'); atualizarContadorIntegrantes(); }
+  }
+
+
+  function atualizarContadorIntegrantes(){
+    const el=document.getElementById('worker-counter');
+    if(el) el.textContent='Integrantes: '+document.querySelectorAll('[data-worker-row]').length+'/24';
+  }
+  function alternarModoIntegrante(btn, modo){
+    const linha=btn.closest('[data-worker-row]');
+    const busca=linha.querySelector('.worker-search-panel'), qr=linha.querySelector('.worker-qr-panel');
+    busca.style.display=modo==='search'?'grid':'none'; qr.style.display=modo==='qr'?'block':'none';
+    linha.querySelector('.worker-mode-search').className='btn '+(modo==='search'?'btn-secundario':'btn-fantasma')+' worker-mode-search';
+    linha.querySelector('.worker-mode-qr').className='btn '+(modo==='qr'?'btn-secundario':'btn-fantasma')+' worker-mode-qr';
+  }
+  async function mostrarQrCapturaIntegrante(btn){
+    const linha=btn.closest('[data-worker-row]');
+    const form=new FormData(); form.append('csrf_token',CSRF);
+    let data; try{ const r=await fetch('/api/apr/team-qr/start',{method:'POST',body:form}); data=await r.json(); }catch(e){alert('Não foi possível gerar o QR agora.');return;}
+    if(!data.ok){alert('Não foi possível gerar o QR agora.');return;}
+    const overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:#000b;display:flex;align-items:center;justify-content:center;padding:18px';
+    overlay.innerHTML='<div style="background:#fff;border-radius:22px;padding:22px;max-width:390px;width:100%;text-align:center"><h3 style="margin-top:0">QR do integrante</h3><p style="color:#666">Peça ao integrante para ler este QR com o celular.</p><img src="'+data.qr_url+'" style="width:min(72vw,280px);height:auto"><p class="qr-status" style="font-weight:700">Aguardando integrante...</p><button type="button" class="btn btn-fantasma qr-close">Cancelar</button></div>';
+    document.body.appendChild(overlay); let active=true; overlay.querySelector('.qr-close').onclick=()=>{active=false;overlay.remove()};
+    for(let i=0;i<120&&active;i++){
+      await new Promise(r=>setTimeout(r,1500)); let st=null; try{st=await (await fetch('/api/apr/team-qr/'+encodeURIComponent(data.token)+'/status',{cache:'no-store'})).json()}catch(e){}
+      if(st&&st.status==='done'&&st.participant){ active=false; aplicarParticipante(linha,st.participant,' · recebido pelo QR Code'); overlay.querySelector('.qr-status').textContent='✓ Integrante identificado'; setTimeout(()=>overlay.remove(),900); return; }
+      if(st&&st.status==='expired'){active=false;overlay.querySelector('.qr-status').textContent='QR expirado. Gere outro.';return;}
+    }
+  }
+  async function buscarParticipanteUnico(btn){
+    const linha=btn.closest('[data-worker-row]');
+    const q=(linha.querySelector('.w-query')?.value||'').trim();
+    if(!q){ alert('Digite o CPF ou o nome do integrante.'); return; }
+    const digits=q.replace(/\D/g,'');
+    const modo=digits.length>=11?'cpf':'name';
+    linha.querySelector('.w-cpf').value=modo==='cpf'?q:'';
+    linha.querySelector('.w-nome').value=modo==='name'?q:'';
+    await buscarParticipante(btn,modo);
+  }
+  async function lerQrIntegrante(btn){
+    if(!('BarcodeDetector' in window)){
+      alert('A leitura direta de QR Code não é suportada neste navegador. Use Chrome/Edge atualizado no celular ou pesquise por CPF/nome.'); return;
+    }
+    let stream=null, overlay=null;
+    try{
+      const detector=new BarcodeDetector({formats:['qr_code']});
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});
+      overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:#000d;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;color:#fff';
+      overlay.innerHTML='<video autoplay playsinline style="width:min(94vw,520px);border-radius:14px;background:#111"></video><p>Aponte a câmera para o QR Code do integrante.</p><button type="button" class="btn btn-secundario">Cancelar</button>';
+      document.body.appendChild(overlay); const video=overlay.querySelector('video'); video.srcObject=stream; await video.play();
+      let active=true; overlay.querySelector('button').onclick=()=>{active=false; cleanup();};
+      const cleanup=()=>{if(stream)stream.getTracks().forEach(t=>t.stop()); if(overlay)overlay.remove();};
+      while(active){
+        const codes=await detector.detect(video).catch(()=>[]);
+        if(codes.length){
+          active=false; const raw=String(codes[0].rawValue||''); cleanup();
+          const cpf=(raw.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/)||[])[0] || (raw.replace(/\D/g,'').match(/\d{11}/)||[])[0];
+          if(!cpf){alert('QR Code lido, mas não encontrei um CPF válido nele.'); return;}
+          const linha=btn.closest('[data-worker-row]'); linha.querySelector('.w-query').value=cpf; await buscarParticipanteUnico(btn); return;
+        }
+        await new Promise(r=>setTimeout(r,250));
+      }
+    }catch(e){ if(stream)stream.getTracks().forEach(t=>t.stop()); if(overlay)overlay.remove(); alert('Não foi possível abrir a câmera para ler o QR Code. Verifique a permissão da câmera e tente novamente.'); }
+  }
+
+  function aplicarParticipante(linha, data, sufixo='') {
+    const status = linha.querySelector('.worker-status');
+    linha.querySelector('.w-participant-id').value = data.participant_id || '';
+    linha.querySelector('.w-user-id').value = data.user_id || '';
+    linha.querySelector('.w-cpf').value = data.cpf || '';
+    linha.querySelector('.w-nome').value = data.full_name || '';
+    const nomeVisivel = linha.querySelector('.w-nome-display'); if (nomeVisivel) nomeVisivel.value = data.full_name || '';
+    linha.querySelector('.w-empresa').value = data.company || '';
+    linha.querySelector('.w-role').value = data.job_title || '';
+    const query=linha.querySelector('.w-query'); if(query) query.value=data.cpf || data.full_name || '';
+    const box = linha.querySelector('.worker-suggestions');
+    if (box) { box.innerHTML=''; box.classList.remove('show'); }
+    const detalhesPart = [data.company, data.job_title].filter(Boolean).join(' · ');
+    status.textContent = (data.full_name ? data.full_name + (detalhesPart ? ' — ' + detalhesPart : '') + ' · ' : '') + (data.message || 'Participante localizado.') + sufixo;
+    status.style.fontWeight = data.full_name ? '700' : '';
+    status.className = 'worker-status ' + (data.can_sign ? 'ok' : 'erro');
+  }
+
+  function mostrarSugestoesParticipante(linha, matches) {
+    const box = linha.querySelector('.worker-suggestions');
+    box.innerHTML = '';
+    (matches || []).forEach(data => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'worker-suggestion';
+      const detalhes = [data.company, data.job_title].filter(Boolean).join(' · ');
+      option.textContent = data.full_name + (detalhes ? ' — ' + detalhes : '');
+      option.addEventListener('click', () => aplicarParticipante(linha, data));
+      box.appendChild(option);
+    });
+    box.classList.toggle('show', box.children.length > 0);
+  }
+
+  async function buscarParticipante(btn, modo) {
+    const linha = btn.closest('[data-worker-row]');
+    const cpfInput = linha.querySelector('.w-cpf');
+    const nomeInput = linha.querySelector('.w-nome');
+    const status = linha.querySelector('.worker-status');
+    const suggestions = linha.querySelector('.worker-suggestions');
+    suggestions.innerHTML=''; suggestions.classList.remove('show');
+    status.textContent = 'Buscando...'; status.className = 'worker-status';
+    const form = new FormData();
+    form.append('csrf_token', CSRF);
+    if (modo === 'name') form.append('name', nomeInput.value);
+    else form.append('cpf', cpfInput.value);
+    try {
+      const resp = await fetch('/api/participants/lookup', { method: 'POST', body: form });
+      const data = await resp.json();
+      if (data.found) {
+        aplicarParticipante(linha, data);
+      } else if (data.multiple && Array.isArray(data.matches)) {
+        status.textContent = data.message; status.className = 'worker-status';
+        mostrarSugestoesParticipante(linha, data.matches);
+      } else {
+        status.textContent = data.message; status.className = 'worker-status erro';
+      }
+    } catch (e) {
+      status.textContent = 'Não foi possível buscar agora. Verifique sua conexão com a internet.'; status.className = 'worker-status erro';
+    }
+  }
+
+  function ativarBuscaParticipanteAoDigitar(root=document) {
+    root.querySelectorAll('.w-query').forEach(input => {
+      if (input.dataset.liveSearch === '1') return;
+      input.dataset.liveSearch = '1';
+      let timer = null;
+      input.addEventListener('input', () => {
+        const linha = input.closest('[data-worker-row]');
+        const q = (input.value || '').trim();
+        clearTimeout(timer);
+        if (!linha) return;
+        const box = linha.querySelector('.worker-suggestions');
+        const status = linha.querySelector('.worker-status');
+        // Alterou o texto depois de uma seleção: limpa o vínculo anterior.
+        linha.querySelector('.w-participant-id').value = '';
+        linha.querySelector('.w-user-id').value = '';
+        const digits = q.replace(/\D/g, '');
+        const hasLetters = /[A-Za-zÀ-ÿ]/.test(q);
+        if ((!hasLetters && digits.length < 11) || (hasLetters && q.length < 3)) {
+          if (box) { box.innerHTML=''; box.classList.remove('show'); }
+          if (status) { status.textContent=''; status.className='worker-status'; }
+          return;
+        }
+        timer = setTimeout(async () => {
+          const form = new FormData(); form.append('csrf_token', CSRF);
+          if (!hasLetters && digits.length >= 11) form.append('cpf', q); else form.append('name', q);
+          try {
+            const resp = await fetch('/api/participants/lookup', {method:'POST', body:form});
+            const data = await resp.json();
+            if (data.found) aplicarParticipante(linha, data);
+            else if (data.multiple && Array.isArray(data.matches)) {
+              if (status) { status.textContent = data.message || 'Selecione o participante correto.'; status.className='worker-status'; }
+              mostrarSugestoesParticipante(linha, data.matches);
+            } else {
+              if (box) { box.innerHTML=''; box.classList.remove('show'); }
+            }
+          } catch (e) {}
+        }, 280);
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); const btn=input.closest('[data-worker-row]')?.querySelector('.btn-secundario'); if(btn) buscarParticipanteUnico(btn); }
+        if (e.key === 'Escape') { const box=input.closest('[data-worker-row]')?.querySelector('.worker-suggestions'); if(box){box.innerHTML='';box.classList.remove('show');} }
+      });
+    });
+  }
+
+  ativarBuscaParticipanteAoDigitar();
+
+  (function(){
+    const MAP = {{ ext_res_json()|safe }};
+    const box=document.getElementById('apr-ext-res'), sel=document.getElementById('cluster');
+    if(!box||!sel) return;
+    const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    function render(){
+      const u=MAP[(sel.value||'').trim()];
+      if(!u){ box.hidden=true; return; }
+      document.getElementById('apr-ext-name').textContent=u.name+' ('+u.state+')';
+      document.getElementById('apr-ext-list').innerHTML=u.resources.map((r,i)=>
+        '<div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:9px 0;border-bottom:1px dashed #EFEAE4"><div><b style="font-size:.88rem">'+esc(r[0])+'</b>'+(r[2]?'<small style="display:block;color:var(--cor-texto-secundario)">'+esc(r[2])+'</small>':'')+'</div><div style="text-align:right;font-weight:700;font-size:.88rem">'+(r[1]?esc(r[1]).replace(' / ','<br>'):'—')+'</div></div>').join('');
+      box.hidden=false;
+    }
+    sel.addEventListener('change',render); render();
+  })();
+  const aprClusterSelect = document.getElementById('cluster');
+  if (aprClusterSelect) aprClusterSelect.addEventListener('change', filterApproversByCluster);
+  filterApproversByCluster();
+</script>
+{% endblock %}

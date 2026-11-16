@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block page_title %}Novidades{% endblock %}
+{% block content %}
+<style>
+  .rel { margin-bottom: var(--espaco-4); border-left: 5px solid var(--serena-coral-escuro); }
+  .rel .meta { font-size: .78rem; color: var(--cor-texto-secundario); }
+  .rel h2 { font-size: 1.05rem; margin: 2px 0 10px; }
+  .rel ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: .9rem; line-height: 1.5; }
+</style>
+<p style="color:var(--cor-texto-secundario);font-size:.9rem;margin-top:0">Versão atual: <b>{{ app_version }}</b>. Aqui ficam as mudanças de cada atualização do Safety Plus.</p>
+{% for r in releases %}
+<div class="card rel">
+  <div class="meta">Versão {{ r.version }} · {{ r.date }}{% if loop.first %} · <b>atual</b>{% endif %}</div>
+  <h2>{{ r.title }}</h2>
+  <ul>{% for i in r['items'] %}<li>{{ i }}</li>{% endfor %}</ul>
+</div>
+{% endfor %}
+{% endblock %}

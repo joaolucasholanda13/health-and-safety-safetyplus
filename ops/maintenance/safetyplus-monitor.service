@@ -1,0 +1,10 @@
+[Unit]
+Description=Monitor externo do Safety Plus
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/safetyplus-maintenance.conf
+ExecStart=/usr/bin/python3 /opt/safety-plus/tools/maintenance.py monitor
+TimeoutStartSec=180
+UMask=0077

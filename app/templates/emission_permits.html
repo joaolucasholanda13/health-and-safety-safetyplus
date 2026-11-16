@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block page_title %}{{ page_title|default("Permissões") }}{% endblock %}
+{% block content %}
+<style>
+  .permit-page-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:20px; }
+  .permit-page-head h2 { margin:0 0 5px; font-size:1.3rem; }
+  .permit-page-head p { margin:0; color:var(--cor-texto-secundario); }
+  .permit-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  .permit-option { display:flex; align-items:center; gap:13px; padding:17px; background:#fff; border:1px solid #E3DFD9; border-radius:16px; color:inherit; text-decoration:none; min-height:86px; transition:.15s ease; }
+  .permit-option:hover { border-color:var(--cor-primaria); box-shadow:0 8px 24px rgba(28,25,23,.07); }
+  .permit-dot { width:44px; height:44px; border-radius:12px; flex:0 0 44px; display:flex; align-items:center; justify-content:center; color:white; background:var(--cor-primaria); }
+  .permit-dot svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .permit-option strong { display:block; font-size:.93rem; line-height:1.25; }
+  .permit-option span.note { display:block; color:var(--cor-texto-secundario); font-size:.77rem; margin-top:4px; }
+  .permit-option { position:relative; overflow:hidden; animation:permIn .5s cubic-bezier(.22,1,.36,1) both; transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .2s,box-shadow .25s; }
+  .permit-option::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--cor-primaria); transform:scaleY(0); transform-origin:center; transition:transform .25s ease; }
+  .permit-option::after { content:''; position:absolute; top:0; left:-60%; width:40%; height:100%; background:linear-gradient(100deg,transparent,rgba(255,82,70,.10),transparent); transform:skewX(-18deg); transition:left .6s ease; pointer-events:none; }
+  .permit-option:hover { transform:translateY(-4px); border-color:var(--cor-primaria); box-shadow:0 14px 30px rgba(255,82,70,.16); }
+  .permit-option:hover::before { transform:scaleY(1); }
+  .permit-option:hover::after { left:120%; }
+  .permit-option:active { transform:translateY(-1px) scale(.99); }
+  .permit-option:hover .permit-dot { transform:rotate(-8deg) scale(1.12); box-shadow:0 8px 18px rgba(255,82,70,.4); }
+  .permit-dot { transition:transform .3s cubic-bezier(.34,1.56,.64,1),box-shadow .3s; box-shadow:0 4px 10px rgba(255,82,70,.22); }
+  .permit-go { margin-left:auto; flex:0 0 18px; width:18px; height:18px; fill:none; stroke:var(--cor-primaria); stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round; opacity:0; transform:translateX(-8px); transition:.25s ease; }
+  .permit-option:hover .permit-go { opacity:1; transform:none; }
+  .permit-option span.note { transition:color .2s; }
+  .permit-option:hover span.note { color:var(--cor-primaria); }
+  .permit-page-head h2 { animation:permIn .45s ease both; }
+  @keyframes permIn { from { opacity:0; transform:translateY(14px) } to { opacity:1; transform:none } }
+  .permit-grid .permit-option:nth-child(1){animation-delay:.04s}.permit-grid .permit-option:nth-child(2){animation-delay:.09s}.permit-grid .permit-option:nth-child(3){animation-delay:.14s}.permit-grid .permit-option:nth-child(4){animation-delay:.19s}.permit-grid .permit-option:nth-child(5){animation-delay:.24s}.permit-grid .permit-option:nth-child(6){animation-delay:.29s}.permit-grid .permit-option:nth-child(7){animation-delay:.34s}.permit-grid .permit-option:nth-child(8){animation-delay:.39s}
+  @media (prefers-reduced-motion:reduce){.permit-option,.permit-page-head h2{animation:none!important}.permit-option:hover{transform:none}.permit-option::after{display:none}}
+  @media(max-width:900px){.permit-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){.permit-grid{grid-template-columns:1fr}.permit-page-head{align-items:flex-start;flex-direction:column}.permit-option{min-height:0}}
+</style>
+<div class="permit-page-head">
+  <div><h2>{{ page_title|default("Permissões de Trabalho") }}</h2><p>{{ page_sub|default("Selecione a permissão que deseja emitir.") }}</p></div>
+  <a class="btn btn-secundario" href="/">Voltar</a>
+</div>
+<div class="permit-grid">
+  {% for title, kind, icon in permit_options %}
+  <a class="permit-option" href="{{ kind if kind.startswith('/') else '/permit/' ~ kind ~ '/new' }}"><span class="permit-dot"><svg aria-hidden="true"><use href="#{{ icon }}"/></svg></span><div><strong>{{ title }}</strong><span class="note">{{ option_note|default("Abrir nova permissão") }}</span></div><svg class="permit-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  {% endfor %}
+</div>
+{% if history is defined %}{% include "doc_history.html" %}{% endif %}
+{% endblock %}

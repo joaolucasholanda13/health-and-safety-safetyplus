@@ -1,0 +1,3 @@
+# Somente observação por padrão. 1 permite reiniciar apenas o web.
+MAINTENANCE_AUTO_RESTART=0
+MAINTENANCE_HEALTH_URL=https://safetyplus.tech/health

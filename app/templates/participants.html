@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block page_title %}Participantes<script>
+(function(){
+ const q=document.getElementById('busca-empresa');
+ if(!q)return;
+ q.addEventListener('input',function(){
+   const term=(q.value||'').trim().toLowerCase();
+   document.querySelectorAll('.company-row[data-company]').forEach(function(row){
+     row.hidden=!!term && !(row.dataset.company||'').includes(term);
+   });
+ });
+})();
+</script>
+{% endblock %}
+{% block content %}
+<style>
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); margin-bottom: var(--espaco-4); }
+  .stats-grid .valor { font-family: var(--fonte-display); font-size: 1.8rem; font-weight: 700; }
+  .stats-grid .rotulo { color: var(--cor-texto-secundario); font-size: 0.82rem; }
+  .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: var(--espaco-3); align-items: end; }
+  .company-row { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px dashed #EFEBE5; }
+  .company-row .info { min-width: 0; flex: 1; }
+  .company-row .info strong { display: block; }
+  .company-row .info span { color: var(--cor-texto-secundario); font-size: 0.82rem; }
+  .company-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .btn-remover { border: 1px solid #D92D20; color: #B42318; background: #FFF; }
+  .btn-remover:hover { background: #FEF3F2; }
+  @media (max-width: 760px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .company-row { align-items: flex-start; flex-direction: column; }
+    .company-actions { width: 100%; justify-content: flex-start; }
+  }
+  .company-row[hidden]{display:none!important}
+</style>
+
+<div class="stats-grid">
+  <div class="card"><span class="valor">{{ stats.companies }}</span><br><span class="rotulo">Empresas cadastradas</span></div>
+  <div class="card"><span class="valor">{{ stats.active_companies }}</span><br><span class="rotulo">Empresas ativas</span></div>
+  <div class="card"><span class="valor">{{ stats.participants }}</span><br><span class="rotulo">Participantes cadastrados</span></div>
+  <div class="card"><span class="valor">{{ stats.active_participants }}</span><br><span class="rotulo">Participantes ativos</span></div>
+</div>
+
+<div class="card" style="margin-bottom: var(--espaco-4);">
+  <h2 style="font-size:1rem; margin-bottom:12px;">Cadastrar empresa</h2>
+  <form method="post" action="/admin/companies/create" class="grid-2">
+    <div><label style="display:block; font-size:0.8125rem; font-weight:600; margin-bottom:6px;">Nome da empresa</label>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input class="campo" type="text" name="name" required>
+    </div>
+    <button type="submit" class="btn btn-primario">Cadastrar</button>
+  </form>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:12px">
+    <div><h2 style="font-size:1rem;margin:0 0 4px;">Empresas e participantes</h2>
+    <span style="font-size:.82rem;color:var(--cor-texto-secundario)">Participantes separados por empresa.</span></div>
+    <input id="busca-empresa" class="campo" type="search" placeholder="Pesquisar empresa..." style="max-width:360px">
+  </div>
+  {% for row in company_rows %}
+  <div class="company-row" data-company="{{ row.company.name|lower }}">
+    <div class="info">
+      <strong>{{ row.company.name }}</strong>
+      <span>{{ row.active_participant_count }} ativo(s) de {{ row.participant_count }} participante(s) {% if not row.company.active %}· <span style="color:var(--cor-perigo);">Empresa inativa</span>{% endif %}</span>
+    </div>
+    <div class="company-actions">
+      <a class="btn btn-secundario" href="/admin/companies/{{ row.company.id }}/participants">Ver participantes</a>
+      <form method="post" action="/admin/companies/{{ row.company.id }}/delete" style="margin:0;" onsubmit="return confirm('Remover esta empresa?{% if row.participant_count %} Os {{ row.participant_count }} participante(s) vinculados também serão removidos do cadastro.{% endif %} Documentos antigos não serão apagados.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" class="btn btn-remover">Remover empresa</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+(function(){
+ const q=document.getElementById('busca-empresa');
+ if(!q)return;
+ q.addEventListener('input',function(){
+   const term=(q.value||'').trim().toLowerCase();
+   document.querySelectorAll('.company-row[data-company]').forEach(function(row){
+     row.hidden=!!term && !(row.dataset.company||'').includes(term);
+   });
+ });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,766 @@
+{% extends "base.html" %}
+{% block page_title %}{{ data.code }} · {{ cfg.short }}<script>
+// V36.18.77: manter fotos já selecionadas ao adicionar novas imagens.
+const fotosPendentes = new WeakMap();
+function limitarFotos(input){
+  const anteriores = fotosPendentes.get(input) || [];
+  const todas = Array.from(input.files || []);
+  const grandes = todas.filter(f => f.size > 10000000);
+  if (grandes.length) alert(grandes.map(f => f.name).join(', ') + ': a foto deve ter no máximo 10 MB.');
+  const naoSuportadas = todas.filter(f => f.size <= 10000000 && !/^image\/(jpeg|png|webp)$/.test(f.type));
+  if (naoSuportadas.length) alert('Formato não suportado (use JPG, PNG ou WEBP): ' + naoSuportadas.map(f => f.name).join(', '));
+  const novas = todas.filter(f => f.size <= 10000000 && /^image\/(jpeg|png|webp)$/.test(f.type));
+  const unicas = anteriores.slice();
+  for (const f of novas) {
+    if (!unicas.some(a => a.name === f.name && a.size === f.size && a.lastModified === f.lastModified)) unicas.push(f);
+  }
+  if (unicas.length > 3) alert('Cada item aceita no máximo 3 fotos. As fotos anteriores foram mantidas.');
+  const mantidas = unicas.slice(0, 3);
+  fotosPendentes.set(input, mantidas);
+  const dt = new DataTransfer();
+  mantidas.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+}
+function removerFotoSelecionada(input, indice){
+  const mantidas = (fotosPendentes.get(input) || Array.from(input.files || [])).filter((_,i) => i !== indice);
+  fotosPendentes.set(input, mantidas);
+  const dt = new DataTransfer();
+  mantidas.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+  mostrarFotosSelecionadas(input);
+}
+</script>
+{% endblock %}
+{% block content %}
+<div id="foto-inspecao-modal" role="dialog" aria-modal="true" aria-label="Visualização de foto" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);align-items:center;justify-content:center;flex-direction:column;padding:16px">
+  <button type="button" onclick="fecharFotoInspecao()" style="align-self:flex-end;color:white;background:#333;border:1px solid #aaa;border-radius:8px;padding:10px 16px;margin-bottom:12px">Fechar ✕</button>
+  <img id="foto-inspecao-imagem" alt="Foto anexada ao checklist" style="max-width:100%;max-height:78vh;object-fit:contain;background:transparent">
+  <p id="foto-inspecao-erro" style="display:none;color:white">Não foi possível carregar a foto. Verifique a conexão ou o arquivo armazenado.</p>
+</div>
+<script>
+function mostrarFotosSelecionadas(input){
+  const area=input.closest('.foto-upload-wrap')?.querySelector('.fotos-selecionadas');
+  if(!area)return;
+  area.querySelectorAll('button').forEach(b=>{if(b.dataset.localPhotoUrl)URL.revokeObjectURL(b.dataset.localPhotoUrl);});
+  area.replaceChildren();
+  Array.from(input.files||[]).slice(0,3).forEach((file,i)=>{
+    if(!file.type.startsWith('image/'))return;
+    const url=URL.createObjectURL(file);
+    const b=document.createElement('button'); b.type='button';
+    b.className='btn btn-fantasma'; b.textContent='Ver foto '+(i+1);
+    b.dataset.localPhotoUrl=url;
+    b.onclick=()=>abrirFotoInspecao(b);
+    area.appendChild(b);
+    const remover=document.createElement('button');
+    remover.type='button'; remover.className='btn btn-fantasma';
+    remover.textContent='✕ Foto '+(i+1);
+    remover.setAttribute('aria-label','Remover foto '+(i+1));
+    remover.onclick=()=>removerFotoSelecionada(input,i);
+    area.appendChild(remover);
+  });
+}
+function abrirFotoInspecao(btn){
+  const modal=document.getElementById('foto-inspecao-modal'), img=document.getElementById('foto-inspecao-imagem'), err=document.getElementById('foto-inspecao-erro');
+  img.removeAttribute('src'); err.style.display='none'; img.style.display='block';
+  modal.style.display='flex';
+  img.onerror=function(){img.style.display='none';err.style.display='block';};
+  img.src=btn.dataset.localPhotoUrl||btn.dataset.photoUrl;
+}
+function fecharFotoInspecao(){
+  document.getElementById('foto-inspecao-modal').style.display='none';
+  document.getElementById('foto-inspecao-imagem').removeAttribute('src');
+}
+</script>
+<style>
+  .foto-upload-wrap { display:flex; flex-direction:column; align-items:flex-start; gap:8px; max-width:100%; }
+  .foto-upload-btn { position:relative; display:inline-flex!important; align-items:center; gap:7px; cursor:pointer!important; border:1px solid #d2d6db; border-radius:999px; background:#fff; color:#262626; font-size:.82rem; font-weight:650; padding:10px 14px; min-height:42px; max-width:100%; transition:background .15s,border-color .15s; }
+  .foto-upload-btn:hover { background:#f3f5f7; border-color:#9099a5; }
+  .foto-upload-btn:focus-within { outline:3px solid #79bdf5; outline-offset:2px; }
+  .foto-upload-hint { font-size:.74rem; color:#686e77; font-weight:400; }
+  .foto-upload-btn input[type=file] { position:absolute!important; width:1px!important; height:1px!important; opacity:0!important; overflow:hidden!important; clip-path:inset(50%); }
+  .fotos-selecionadas { display:flex; flex-wrap:wrap; gap:6px; width:100%; }
+  .secao { margin-bottom: var(--espaco-5); }
+  .secao > h2 { font-size: 1rem; margin-bottom: var(--espaco-3); }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); }
+  .campo-grupo { margin: 0; min-width:0; }
+  /* LOTO: formulário compacto, com informações agrupadas e boa leitura no celular. */
+  .grid-4.loto-general-grid { gap: 16px 18px; align-items:start; }
+  .loto-general-grid .campo-grupo .campo { width:100%; min-width:0; box-sizing:border-box; }
+  .loto-general-grid .loto-work-description { grid-column: span 2; }
+  .loto-general-grid .loto-work-description input { min-height:48px; }
+  @media (max-width: 1100px) {
+    .grid-4.loto-general-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .loto-general-grid .loto-work-description { grid-column:span 2; }
+  }
+  @media (max-width: 640px) {
+    .grid-4.loto-general-grid { grid-template-columns:minmax(0,1fr); gap:14px; }
+    .loto-general-grid .loto-work-description { grid-column:auto; }
+  }
+  .campo-grupo label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+
+  .item-row { display: flex; flex-direction: column; gap: 10px; padding: 14px 0; border-bottom: 1px dashed #EFEBE5; }
+  .item-row .cabecalho { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); }
+  .item-row .txt { flex: 1; display: flex; gap: 10px; }
+  .item-row .num { color: var(--cor-texto-secundario); font-weight: 700; font-family: var(--fonte-display); flex-shrink: 0; }
+  .item-row.pendente .cabecalho { background: color-mix(in srgb, var(--cor-perigo) 6%, white); border-radius: 10px; padding-left: 8px; }
+
+  .simnao { display: inline-flex; border-radius: 999px; background: var(--serena-areia); padding: 3px; gap: 2px; flex-shrink: 0; }
+  .simnao button { border: none; background: transparent; padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--cor-texto-secundario); white-space: nowrap; }
+  .simnao button.ativo.v-sim { background: var(--serena-verde); color: white; }
+  .simnao button.ativo.v-nao { background: var(--serena-coral-escuro); color: white; }
+  .simnao button.ativo.v-na { background: var(--serena-grafite-claro); color: white; }
+
+  .acao-corretiva { display: none; }
+  .item-row.mostrar-acao .acao-corretiva { display: block; }
+  .acao-corretiva input { width: 100%; }
+
+  .sig-pad-wrap { margin-top: var(--espaco-2); }
+  .sig-pad-wrap label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  .sig-pad { border: 1px dashed #D8D3CC; border-radius: var(--raio-input); background: var(--serena-areia); touch-action: none; width: 100%; height: 120px; display: block; }
+  .sig-actions { display: flex; gap: var(--espaco-2); margin-top: 6px; align-items: center; }
+  .sig-status { font-size: 0.8rem; color: var(--cor-texto-secundario); }
+  .sig-status.assinado { color: #1C7A5E; font-weight: 600; }
+
+  /* V36.18.32 — Parte 2 do formulário LOTO */
+  .loto-worker-row { border:1px solid #E3DFD9; border-radius:14px; padding:16px; margin-bottom:12px; background:#fff; }
+  .loto-worker-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+  .loto-worker-number { font-family:var(--fonte-display); font-weight:700; color:var(--cor-texto-secundario); font-size:.88rem; }
+  .loto-worker-search { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:end; margin-bottom:10px; }
+  .loto-worker-status { font-size:.78rem; margin:5px 0 8px; color:var(--cor-texto-secundario); }
+  .loto-worker-status.ok { color:#1C7A5E; font-weight:650; }
+  .loto-worker-status.erro { color:var(--cor-perigo); font-weight:650; }
+  .loto-worker-suggestions { display:none; margin:6px 0 10px; padding:8px; border:1px solid #E3DFD9; border-radius:10px; background:#fff; }
+  .loto-worker-suggestions.show { display:grid; gap:6px; }
+  .loto-worker-suggestion { width:100%; text-align:left; border:1px solid #E3DFD9; background:var(--serena-areia); border-radius:8px; padding:8px 10px; cursor:pointer; font:inherit; }
+  .loto-worker-suggestion:hover { border-color:var(--cor-primaria); }
+  .loto-worker-grid { display:grid; grid-template-columns:1fr 1fr minmax(140px,.55fr); gap:var(--espaco-3); }
+  .loto-remove { border:0; background:transparent; color:var(--cor-perigo); font-weight:700; cursor:pointer; }
+  .loto-improvement-toggle { display:inline-flex; border-radius:999px; background:var(--serena-areia); padding:3px; gap:2px; }
+  .loto-improvement-toggle button { border:0; background:transparent; padding:8px 18px; border-radius:999px; cursor:pointer; font-weight:700; color:var(--cor-texto-secundario); }
+  .loto-improvement-toggle button.ativo.sim { background:var(--serena-verde); color:#fff; }
+  .loto-improvement-toggle button.ativo.nao { background:var(--serena-coral-escuro); color:#fff; }
+  @media(max-width:820px){ .loto-worker-search,.loto-worker-grid{grid-template-columns:1fr;} }
+
+  .form-footer { display: flex; justify-content: flex-end; gap: var(--espaco-2); margin-top: var(--espaco-4); }
+
+  /* Modo por período (Talha, Veículo Leve, Kit de Altura) */
+  .periodo-accordion { border-radius: var(--raio-card); background: var(--serena-branco); box-shadow: var(--sombra-card); margin-bottom: var(--espaco-2); overflow: hidden; }
+  .periodo-summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: var(--espaco-3) var(--espaco-4); }
+  .periodo-summary::-webkit-details-marker { display: none; }
+  .periodo-summary .titulo { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .periodo-body { padding: 0 var(--espaco-4) var(--espaco-4); border-top: 1px solid #EFEBE5; }
+  .periodo-accordion.periodo-bloqueado { background:#F6F3EF; border:1px solid #DDD7D0; box-shadow:none; }
+  .periodo-accordion.periodo-bloqueado .periodo-summary { cursor:pointer; opacity:.95; }
+  .periodo-accordion.periodo-bloqueado .titulo { color:#4A4743; }
+  .periodo-lock { display:inline-flex; align-items:center; gap:6px; color:#17634E; font-size:.78rem; font-weight:700; }
+  .periodo-lock svg { width:14px; height:14px; }
+  .periodo-readonly-note { margin:12px 0 2px; padding:10px 12px; border-radius:10px; background:#EEF7F3; color:#17634E; font-size:.8rem; font-weight:700; }
+  .periodo-accordion.periodo-bloqueado .periodo-body { background:#FBFAF8; }
+  .periodo-accordion.periodo-bloqueado .campo:disabled { opacity:1; color:#4A4743; background:#F2EFEB; -webkit-text-fill-color:#4A4743; cursor:default; }
+  .dados-gerais-bloqueados { background:#F8F6F3; }
+  .dados-gerais-bloqueados input.campo { background:#F0ECE7; color:#5E5A55; }
+  .dados-gerais-bloqueados select.campo, .dados-gerais-bloqueados .uiselect-btn { pointer-events:none; opacity:.72; }
+  .dados-gerais-bloqueados::after { content:'Dados gerais bloqueados após a primeira assinatura deste documento.'; display:block; margin-top:10px; color:#17634E; font-size:.76rem; font-weight:700; }
+</style>
+
+<form autocomplete="off" method="post" action="{{ '/inspection/' + kind + '/' + doc.id|string + '/save' if doc else '/inspection/' + kind + '/save' }}" id="inspection-form" data-submit-feedback="true" enctype="multipart/form-data">
+<script type="application/json" id="validation-fields">{{ (data.get('_validation_fields', []) or []) | tojson }}</script>
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="action" id="form-action" value="draft"><input type="hidden" name="fill_na" id="fill-na" value="0">
+{% if cfg.mode != 'single' %}<input type="hidden" name="active_period" id="form-active-period" value="{{ data.active_period_index if data.active_period_index is defined else 0 }}">{% endif %}
+
+<div class="card secao {{ 'dados-gerais-bloqueados' if data.header_locked else '' }}" id="inspection-general-card">
+  <h2>Dados gerais</h2>
+  <div class="grid-4 {{ 'loto-general-grid' if kind == 'loto' else '' }}" style="margin-bottom:12px;">
+    {% if kind == 'height_kit' %}
+    <div class="campo-grupo">
+      <label for="cluster">Cluster</label>
+      <select class="campo" id="cluster" name="cluster" onchange="atualizarSites()">
+        <option value="">Selecione</option>
+        {% for c in clusters %}
+        <option value="{{ c }}" {% if data.cluster == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campo-grupo">
+      <label for="site">Site</label>
+      <select class="campo" id="site" name="site"><option value="">Selecione</option></select>
+    </div>
+    {% endif %}
+    {% for key, label in cfg.fields %}
+      {% if not (kind == 'height_kit' and key in ['cluster','site']) %}
+      <div class="campo-grupo {{ 'loto-work-description' if kind == 'loto' and key == 'work_description' else '' }}">
+        <label for="f_{{ key }}">{{ label }}</label>
+        {% if key in ['cluster', 'cluster_site'] %}
+        <select class="campo" id="f_{{ key }}" name="{{ key }}">
+          <option value="">Selecione</option>
+          {% for c in clusters %}
+          <option value="{{ c }}" {% if data[key] == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        {% if kind == 'loto' and key == 'loto_devices' %}
+        <input type="hidden" id="f_loto_devices" name="loto_devices" value="{{ data[key] }}">
+        <details class="loto-devices-dropdown" style="position:relative;width:100%">
+          <summary class="campo" id="loto-devices-summary" style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:40px" aria-label="Selecionar dispositivos de LOTO">
+            <span id="loto-devices-label">Selecione os dispositivos</span><span aria-hidden="true">▾</span>
+          </summary>
+          <div class="loto-devices-options" role="group" aria-label="Dispositivos de LOTO utilizados" style="position:absolute;z-index:30;top:100%;left:0;right:0;max-height:260px;overflow-y:auto;background:white;box-shadow:0 6px 18px #0002;display:grid;gap:8px;padding:12px;border:1px solid #d4d4d4;border-radius:8px">
+            {% for dispositivo in ['Cadeado de bloqueio', 'Etiqueta de identificação', 'Garra de bloqueio (hasp)', 'Bloqueio de disjuntor', 'Bloqueio de chave seccionadora', 'Bloqueio de válvula', 'Bloqueio de plugue/tomada', 'Bloqueio do rotor', 'Caixa de bloqueio coletivo'] %}
+            <label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" class="loto-device-check" value="{{ dispositivo }}" onchange="atualizarDispositivosLoto()"> {{ dispositivo }}</label>
+            {% endfor %}
+          </div>
+        </details>
+        <script>
+        function atualizarDispositivosLoto(){
+          const campo=document.getElementById('f_loto_devices');
+          if(campo){
+            const selecionados=Array.from(document.querySelectorAll('.loto-device-check:checked')).map(el=>el.value);
+            campo.value=selecionados.join('; ');
+            const rotulo=document.getElementById('loto-devices-label');
+            if(rotulo)rotulo.textContent=selecionados.length ? `${selecionados.length} dispositivo(s) selecionado(s)` : 'Selecione os dispositivos';
+          }
+        }
+        document.addEventListener('DOMContentLoaded',()=>{
+          const campo=document.getElementById('f_loto_devices');
+          if(!campo)return;
+          const anteriores=(campo.value||'').split(/;\s*/).map(v=>v.trim()).filter(Boolean);
+          document.querySelectorAll('.loto-device-check').forEach(el=>{el.checked=anteriores.includes(el.value)});
+          atualizarDispositivosLoto();
+        });
+        </script>
+        {% else %}
+        {% if kind == 'loto' and key == 'manufacturer_model' %}
+        <input type="hidden" id="f_manufacturer_model" name="manufacturer_model" value="{{ data[key] }}">
+        <select class="campo" id="loto-fabricante" aria-label="Fabricante do aerogerador" onchange="atualizarFabricanteModeloLoto()">
+          <option value="">Selecione o fabricante</option>
+          {% for fabricante in ['Vestas', 'Siemens Gamesa', 'GE Vernova', 'Nordex', 'Enercon', 'Goldwind', 'WEG', 'Suzlon', 'MingYang', 'Senvion', 'Acciona Windpower', 'Outro'] %}
+          <option value="{{ fabricante }}">{{ fabricante }}</option>
+          {% endfor %}
+        </select>
+        <input class="campo" type="text" id="loto-outro-fabricante" placeholder="Digite o fabricante" aria-label="Outro fabricante" style="display:none;margin-top:8px" oninput="atualizarFabricanteModeloLoto()">
+        <input class="campo" type="text" id="loto-modelo" placeholder="Modelo do aerogerador (opcional)" aria-label="Modelo do aerogerador" style="margin-top:8px" oninput="atualizarFabricanteModeloLoto()">
+        {% else %}
+        {% if kind == 'loto' and key in ['loto_start_time', 'loto_end_time'] %}
+        <input class="campo" type="time" step="60" id="f_{{ key }}" name="{{ key }}" value="{{ data[key] }}" aria-label="{{ label }}">
+        {% else %}
+        <input class="campo" type="text" id="f_{{ key }}" name="{{ key }}" value="{{ data[key] }}">
+        {% endif %}
+        {% endif %}
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endif %}
+    {% endfor %}
+    {% if cfg.mode == 'single' %}
+    <div class="campo-grupo">
+      <label for="inspection_date">Data da inspeção</label>
+      <input class="campo" type="date" id="inspection_date" name="inspection_date" value="{{ data.inspection_date_input }}">
+    </div>
+    {% endif %}
+    {% if cfg.month_year %}
+    <div class="campo-grupo">
+      <label for="month">Mês</label>
+      <input class="campo" type="text" id="month" name="month" value="{{ data.month }}" maxlength="2" placeholder="MM">
+    </div>
+    <div class="campo-grupo">
+      <label for="year">Ano</label>
+      <input class="campo" type="text" id="year" name="year" value="{{ data.year }}" maxlength="4" placeholder="AAAA">
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if cfg.mode == 'single' %}
+<div class="card secao">
+  <h2>Checklist</h2>
+  {% for item in cfg['items'] %}
+  {% set row = data.rows[loop.index0] %}
+  <div class="item-row {{ 'pendente' if not row.answer }} {{ 'mostrar-acao' if row.answer == 'NAO_ATENDE' }}" data-item-row="{{ loop.index0 }}">
+    <div class="cabecalho">
+      <span class="txt"><span class="num">{{ item[1] if item|length > 1 else '%02d'|format(loop.index) }}</span>{{ item[0] }}</span>
+      <input type="hidden" name="row_answer_{{ loop.index0 }}" id="row-answer-{{ loop.index0 }}" value="{{ row.answer }}">
+      <div class="simnao">
+        {% set _ri=loop.index0 %}{% for v,lab,full,cls in (cfg.get('scale') or [('ATENDE','Atende','Atende','v-sim'),('NAO_ATENDE','Não atende','Não atende','v-nao'),('NA','N/A','N/A','v-na')]) %}
+        <button type="button" data-v="{{ v }}" data-cls="{{ cls }}" title="{{ full }}" class="{{ ('ativo ' ~ cls) if row.answer == v }}" onclick="setResposta({{ _ri }},'{{ v }}')">{{ lab }}</button>
+        {% endfor %}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+        <div class="foto-upload-wrap"><label class="foto-upload-btn">📷 Selecionar fotos <span class="foto-upload-hint">(opcional, até 3)</span><input type="file" name="row_photo_{{ loop.index0 }}" accept="image/jpeg,image/png,image/webp" multiple onchange="limitarFotos(this);mostrarFotosSelecionadas(this)"></label><div class="fotos-selecionadas" aria-live="polite"></div></div>
+        {% if doc %}{% set item_idx=loop.index0 %}{% for ph in row.photos or [] %}<button type="button" class="btn btn-fantasma" onclick="abrirFotoInspecao(this)" data-photo-url="/inspection/{{ kind }}/{{ doc.id }}/photo/-1/{{ item_idx }}/{{ loop.index0 }}">Foto {{ loop.index }}</button>{% endfor %}{% endif %}
+      </div>
+    </div>
+    <div class="acao-corretiva">
+      <label style="font-size:0.8125rem; font-weight:600; margin-bottom:6px; display:block;">Ação corretiva</label>
+      <input class="campo" type="text" name="row_action_{{ loop.index0 }}" value="{{ row.action }}" placeholder="O que precisa ser feito para corrigir?">
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if kind == 'loto' %}
+<div class="card secao" id="loto-workers-card">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+    <div>
+      <h2 style="margin:0 0 4px;">Parte 2 — Trabalhadores LOTO Afetados</h2>
+      <div style="font-size:.8rem;color:var(--cor-texto-secundario);">Selecione os integrantes cadastrados e registre horário e assinatura individual.</div>
+    </div>
+    <strong id="loto-worker-counter" style="font-size:.82rem;color:var(--cor-texto-secundario);">Integrantes: {{ data.workers|length }}/30</strong>
+  </div>
+  <input type="hidden" id="loto-worker-indices" name="loto_worker_indices" value="{% for worker in data.workers %}{{ loop.index0 }}{% if not loop.last %},{% endif %}{% endfor %}">
+  <input type="hidden" id="loto-worker-count" name="loto_worker_count" value="{{ data.workers|length }}">
+  <div id="loto-workers-list">
+    {% for worker in data.workers %}
+    <div class="loto-worker-row" data-loto-worker-row data-loto-index="{{ loop.index0 }}">
+      <div class="loto-worker-head">
+        <span class="loto-worker-number">Integrante {{ '%02d'|format(loop.index) }}</span>
+        {% if loop.index0 > 0 %}<button type="button" class="loto-remove" onclick="removerLotoWorker(this)">Remover</button>{% endif %}
+      </div>
+      <input type="hidden" class="lw-participant-id" name="loto_worker_{{ loop.index0 }}_participant_id" value="{{ worker.participant_id }}">
+      <input type="hidden" class="lw-user-id" name="loto_worker_{{ loop.index0 }}_user_id" value="{{ worker.participant_user_id }}">
+      <input type="hidden" class="lw-cpf" name="loto_worker_{{ loop.index0 }}_cpf" value="{{ worker.cpf }}">
+      <input type="hidden" class="lw-name" name="loto_worker_{{ loop.index0 }}_worker" value="{{ worker.worker }}">
+      <div class="loto-worker-search">
+        <div class="campo-grupo"><label>Pesquisar integrante</label><input class="campo lw-query" type="search" value="{{ worker.cpf or worker.worker }}" placeholder="Digite CPF ou nome" autocomplete="off"></div>
+        <button type="button" class="btn btn-secundario" onclick="buscarLotoWorker(this)">Pesquisar</button>
+      </div>
+      <div class="loto-worker-status {{ 'ok' if worker.participant_id else '' }}">{% if worker.participant_id %}✓ Participante selecionado.{% endif %}</div>
+      <div class="loto-worker-suggestions"></div>
+      <div class="loto-worker-grid">
+        <div class="campo-grupo"><label>Nome</label><input class="campo lw-name-display" type="text" value="{{ worker.worker }}" readonly></div>
+        <div class="campo-grupo"><label>Empresa</label><input class="campo lw-company" type="text" name="loto_worker_{{ loop.index0 }}_company" value="{{ worker.company }}" readonly></div>
+        <div class="campo-grupo"><label>Função</label><input class="campo lw-role" type="text" name="loto_worker_{{ loop.index0 }}_role" value="{{ worker.role }}" readonly></div>
+        <div class="campo-grupo"><label>Horário</label><input class="campo lw-time" type="time" name="loto_worker_{{ loop.index0 }}_time" value="{{ worker.time }}"></div>
+      </div>
+      <div class="sig-pad-wrap">
+        <label>Assinatura / rubrica do integrante</label>
+        {% if worker.signature_image %}<div class="sig-status assinado" style="margin-bottom:6px;">✓ Assinatura já salva no rascunho. Você pode mantê-la ou refazer.</div>{% endif %}
+        <canvas class="sig-pad" id="pad-loto_worker_{{ loop.index0 }}"></canvas>
+        <div class="sig-actions">
+          <button type="button" class="btn btn-fantasma" onclick="limparAssinatura('loto_worker_{{ loop.index0 }}')">Limpar</button>
+          <span class="sig-status" id="sig-status-loto_worker_{{ loop.index0 }}">{{ 'Assinado.' if worker.signature_image else 'Ainda não assinado nesta sessão.' }}</span>
+        </div>
+        <input type="hidden" name="sig_loto_worker_{{ loop.index0 }}" id="sig-input-loto_worker_{{ loop.index0 }}">
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn btn-fantasma" onclick="adicionarLotoWorker()">+ Adicionar integrante</button>
+</div>
+
+<template id="loto-worker-template">
+  <div class="loto-worker-row" data-loto-worker-row data-loto-index="__IDX__">
+    <div class="loto-worker-head"><span class="loto-worker-number">Integrante __NUM__</span><button type="button" class="loto-remove" onclick="removerLotoWorker(this)">Remover</button></div>
+    <input type="hidden" class="lw-participant-id" name="loto_worker___IDX___participant_id" value="">
+    <input type="hidden" class="lw-user-id" name="loto_worker___IDX___user_id" value="">
+    <input type="hidden" class="lw-cpf" name="loto_worker___IDX___cpf" value="">
+    <input type="hidden" class="lw-name" name="loto_worker___IDX___worker" value="">
+    <div class="loto-worker-search"><div class="campo-grupo"><label>Pesquisar integrante</label><input class="campo lw-query" type="search" placeholder="Digite CPF ou nome" autocomplete="off"></div><button type="button" class="btn btn-secundario" onclick="buscarLotoWorker(this)">Pesquisar</button></div>
+    <div class="loto-worker-status"></div><div class="loto-worker-suggestions"></div>
+    <div class="loto-worker-grid"><div class="campo-grupo"><label>Nome</label><input class="campo lw-name-display" type="text" readonly></div><div class="campo-grupo"><label>Empresa</label><input class="campo lw-company" type="text" name="loto_worker___IDX___company" readonly></div><div class="campo-grupo"><label>Função</label><input class="campo lw-role" type="text" name="loto_worker___IDX___role" readonly></div><div class="campo-grupo"><label>Horário</label><input class="campo lw-time" type="time" name="loto_worker___IDX___time"></div></div>
+    <div class="sig-pad-wrap"><label>Assinatura / rubrica do integrante</label><canvas class="sig-pad" id="pad-loto_worker___IDX__"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('loto_worker___IDX__')">Limpar</button><span class="sig-status" id="sig-status-loto_worker___IDX__">Ainda não assinado nesta sessão.</span></div><input type="hidden" name="sig_loto_worker___IDX__" id="sig-input-loto_worker___IDX__"></div>
+  </div>
+</template>
+
+{% endif %}
+
+<div class="card secao">
+  <h2>{{ 'Responsável / Autorizado pela aplicação do LOTO' if kind == 'loto' else 'Responsável pela inspeção' }}</h2>
+  <div class="sig-pad-wrap">
+    <label>Rubrica</label>
+    <canvas class="sig-pad" id="pad-responsible"></canvas>
+    <div class="sig-actions">
+      <button type="button" class="btn btn-fantasma" onclick="limparAssinatura('responsible')">Limpar</button>
+      <span class="sig-status" id="sig-status-responsible">{{ 'Assinado.' if data.signature_image else 'Ainda não assinado nesta sessão.' }}</span>
+    </div>
+    <input type="hidden" name="sig_responsible" id="sig-input-responsible">
+  </div>
+</div>
+
+{% else %}
+{% for name in cfg.periods %}
+{% set pi = loop.index0 %}
+{% set info = data.periods[name] %}
+{% set completo = info.signature_image and info.date and (info.answers | select('in', ['C','NC','NA']) | list | length) == cfg['items']|length %}
+{% set bloqueado = info.locked %}
+{% set futuro = not info.editable and not bloqueado %}
+<details {{ 'hidden' if (data.day_mode and name != data.day_period) }} class="periodo-accordion {{ 'periodo-bloqueado' if bloqueado or futuro }}" data-period-index="{{ pi }}" data-period-locked="{{ '1' if bloqueado else '0' }}" data-period-future="{{ '1' if futuro else '0' }}" data-has-saved-signature="{{ '1' if info.signature_image else '0' }}" {% if info.editable %}open{% endif %}>
+  <summary class="periodo-summary">
+    <span class="titulo">
+      <svg width="16" height="16" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+      {{ name }}
+    </span>
+    {% if bloqueado %}
+      <span class="periodo-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Concluído · bloqueado</span>
+    {% elif futuro %}<span class="periodo-lock">🔒 Aguardando dia anterior</span>
+    {% elif completo %}<span class="badge badge-sucesso">Pronto para finalizar</span>{% else %}<span class="badge badge-neutro">Pendente</span>{% endif %}
+  </summary>
+  <input type="hidden" name="period_{{ pi }}_locked" id="period-lock-{{ pi }}" value="{{ '1' if bloqueado else '0' }}">
+  <div class="periodo-body">
+    {% if bloqueado %}<div class="periodo-readonly-note">✓ Período concluído. Conteúdo disponível somente para consulta; nenhuma informação pode ser alterada.</div>{% elif futuro %}<div class="periodo-readonly-note">🔒 Este dia será liberado somente após finalizar o dia anterior.</div>{% endif %}
+    <div class="campo-grupo" style="max-width:220px; margin-bottom:12px;">
+      <label for="period_{{ pi }}_date">Data</label>
+      <input class="campo" type="date" id="period_{{ pi }}_date" name="period_{{ pi }}_date" value="{{ info.date_input }}" {% if info.editable %}min="{{ now_date }}" max="{{ now_date }}"{% else %}disabled aria-disabled="true"{% endif %}>
+    </div>
+    {% for item in cfg['items'] %}
+    <div class="item-row" style="padding:8px 0;">
+      <div class="cabecalho">
+        <span class="txt"><span class="num">{{ item[1] if item|length > 1 else '%02d'|format(loop.index) }}</span>{{ item[0] }}</span>
+        <select class="campo" name="period_{{ pi }}_item_{{ loop.index0 }}" style="width:170px;" {% if bloqueado or futuro %}disabled aria-disabled="true"{% endif %}>
+          <option value="">Selecione</option>
+          <option value="C" {% if info.answers[loop.index0] == 'C' %}selected{% endif %}>Conforme</option>
+          <option value="NC" {% if info.answers[loop.index0] == 'NC' %}selected{% endif %}>Não conforme</option>
+          <option value="NA" {% if info.answers[loop.index0] == 'NA' %}selected{% endif %}>Não se aplica</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+        <div class="foto-upload-wrap"><label class="foto-upload-btn">📷 Selecionar fotos <span class="foto-upload-hint">(opcional, até 3)</span><input type="file" name="period_{{ pi }}_photo_{{ loop.index0 }}" accept="image/jpeg,image/png,image/webp" multiple onchange="limitarFotos(this);mostrarFotosSelecionadas(this)" {% if bloqueado or futuro %}disabled{% endif %}></label><div class="fotos-selecionadas" aria-live="polite"></div></div>
+        {% if doc %}{% set item_idx=loop.index0 %}{% for ph in (info.photos[item_idx] if info.photos else []) %}<button type="button" class="btn btn-fantasma" onclick="abrirFotoInspecao(this)" data-photo-url="/inspection/{{ kind }}/{{ doc.id }}/photo/{{ pi }}/{{ item_idx }}/{{ loop.index0 }}">Foto {{ loop.index }}</button>{% endfor %}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    <div class="sig-pad-wrap">
+      <label>Rubrica do responsável</label>
+      {% if bloqueado %}
+        <div class="sig-status assinado">✓ Rubrica registrada. Este período está encerrado e disponível somente para consulta.</div>
+      {% elif futuro %}
+        <div class="sig-status">🔒 Rubrica bloqueada até este dia ser liberado.</div>
+      {% else %}
+        {% if info.signature_image %}<div class="sig-status assinado">✓ Rubrica já salva no rascunho e reconhecida. Você pode mantê-la ou fazer uma nova.</div>{% endif %}
+        <canvas class="sig-pad" id="pad-period_{{ pi }}"></canvas>
+        <div class="sig-actions">
+          <button type="button" class="btn btn-fantasma" onclick="limparAssinatura('period_{{ pi }}')">Limpar</button>
+          <span class="sig-status" id="sig-status-period_{{ pi }}">Ainda não assinado nesta sessão.</span>
+        </div>
+        <input type="hidden" name="sig_period_{{ pi }}" id="sig-input-period_{{ pi }}">
+      {% endif %}
+    </div>
+    {% if info.editable %}
+    <div class="periodo-footer" style="display:flex; justify-content:flex-end; margin-top:var(--espaco-3);">
+      <button type="button" class="btn btn-primario" data-finish-period="true" onclick="concluirPeriodo({{ pi }})">Finalizar {{ name }}</button>
+    </div>
+    {% endif %}
+  </div>
+</details>
+{% endfor %}
+
+<div class="card secao">
+  <h2>Observações</h2>
+  <textarea class="campo" name="observations" style="min-height:80px; width:100%; font-family:var(--fonte-base);">{{ data.observations }}</textarea>
+</div>
+
+{% if cfg.get('nonconformities') %}
+<div class="card secao">
+  <h2>Registro de não conformidade</h2>
+  <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; min-width:760px;">
+      <thead><tr>
+        <th style="text-align:left; padding:8px;">Item</th>
+        <th style="text-align:left; padding:8px;">Descrição da ação</th>
+        <th style="text-align:left; padding:8px;">Responsável</th>
+        <th style="text-align:left; padding:8px;">Data</th>
+      </tr></thead>
+      <tbody>
+      {% for row in data.nonconformities %}
+      <tr>
+        <td style="padding:6px;"><input class="campo" name="nc_item_{{ loop.index0 }}" value="{{ row.item }}"></td>
+        <td style="padding:6px;"><input class="campo" name="nc_action_{{ loop.index0 }}" value="{{ row.action }}"></td>
+        <td style="padding:6px;"><input class="campo" name="nc_responsible_{{ loop.index0 }}" value="{{ row.responsible }}"></td>
+        <td style="padding:6px;"><input class="campo" type="date" name="nc_date_{{ loop.index0 }}" value="{{ row.date_input }}"></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+<style>.campo-faltando{outline:2px solid #d92d20;outline-offset:2px;border-radius:8px;background:rgba(217,45,32,.08)}</style>
+<script>
+function finalizarSingle(btn){
+  const faltam=Array.from(document.querySelectorAll('input[id^="row-answer-"]')).filter(i=>!i.value);
+  if(faltam.length){
+    document.querySelectorAll('.campo-faltando').forEach(e=>e.classList.remove('campo-faltando'));
+    faltam.forEach(i=>i.closest('.item-row').classList.add('campo-faltando'));
+    faltam[0].closest('.item-row').scrollIntoView({behavior:'smooth',block:'center'});
+    alert('Selecione uma opção em todos os itens ('+faltam.length+' sem resposta).');
+    return false;
+  }
+  document.getElementById('form-action').value='finalize'; return true;
+}
+</script>
+<div class="form-footer">
+  <button type="submit" class="btn btn-secundario" onclick="document.getElementById('form-action').value='draft'">Salvar rascunho</button>
+  {% if cfg.mode == 'single' %}
+  <button type="submit" class="btn btn-primario" onclick="return finalizarSingle(this)">Finalizar</button>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  const original=document.getElementById('f_manufacturer_model');
+  const sel=document.getElementById('loto-fabricante');
+  const model=document.getElementById('loto-modelo');
+  const other=document.getElementById('loto-outro-fabricante');
+  if(!original || !sel || !model || !other)return;
+  const saved=(original.value||'').trim();
+  const manufacturers=Array.from(sel.options).map(x=>x.value).filter(x=>x && x!=='Outro').sort((a,b)=>b.length-a.length);
+  const found=manufacturers.find(x=>saved.toLowerCase()===x.toLowerCase() || saved.toLowerCase().startsWith(x.toLowerCase()+' / ') || saved.toLowerCase().startsWith(x.toLowerCase()+' - '));
+  if(found){sel.value=found;model.value=saved.slice(found.length).replace(/^\s*[/\-]\s*/, '');}
+  else if(saved){sel.value='Outro';other.value=saved;}
+  window.atualizarFabricanteModeloLoto=function(){
+    other.style.display=sel.value==='Outro'?'block':'none';
+    const fabricante=sel.value==='Outro'?other.value.trim():sel.value;
+    original.value=[fabricante,model.value.trim()].filter(Boolean).join(' / ');
+  };
+  window.atualizarFabricanteModeloLoto();
+})();
+</script>
+</form>
+
+<script>
+  {% if kind == 'height_kit' %}
+  const clusterSites = {{ cluster_sites | tojson }};
+  const currentSite = {{ data.site | tojson }};
+  function atualizarSites() {
+    const cluster = document.getElementById('cluster').value;
+    const siteSelect = document.getElementById('site');
+    const sites = clusterSites[cluster] || [];
+    siteSelect.innerHTML = '<option value="">Selecione</option>' + sites.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (sites.includes(currentSite)) siteSelect.value = currentSite;
+    siteSelect.dispatchEvent(new Event('change'));
+  }
+  atualizarSites();
+  {% endif %}
+
+  {% if cfg.mode == 'single' %}
+  function setResposta(i, v) {
+    document.getElementById('row-answer-' + i).value = v;
+    const item = document.querySelector('[data-item-row="' + i + '"]');
+    item.classList.remove('pendente');
+    item.classList.toggle('mostrar-acao', v === 'NAO_ATENDE');
+    const btns = item.querySelectorAll('.simnao button');
+    btns.forEach(b => { b.classList.remove('ativo','v-sim','v-nao','v-na'); if (b.dataset.v === v) b.classList.add('ativo', b.dataset.cls); });
+  }
+
+  {% if kind == 'loto' %}
+  function atualizarLotoWorkerMeta(){
+    const rows=Array.from(document.querySelectorAll('[data-loto-worker-row]'));
+    rows.forEach((row,pos)=>{ const n=row.querySelector('.loto-worker-number'); if(n)n.textContent='Integrante '+String(pos+1).padStart(2,'0'); });
+    const indices=rows.map(r=>r.dataset.lotoIndex).filter(Boolean);
+    const indicesInput=document.getElementById('loto-worker-indices'); if(indicesInput) indicesInput.value=indices.join(',');
+    const count=document.getElementById('loto-worker-count'); if(count) count.value=String(rows.length);
+    const counter=document.getElementById('loto-worker-counter'); if(counter) counter.textContent='Integrantes: '+rows.length+'/30';
+  }
+  function adicionarLotoWorker(){
+    const list=document.getElementById('loto-workers-list'); const rows=Array.from(list.querySelectorAll('[data-loto-worker-row]'));
+    if(rows.length>=30){alert('Limite de 30 integrantes.');return;}
+    const used=rows.map(r=>Number(r.dataset.lotoIndex||-1)).filter(Number.isFinite); const idx=(used.length?Math.max(...used):-1)+1;
+    const tpl=document.getElementById('loto-worker-template');
+    const holder=document.createElement('div'); holder.innerHTML=tpl.innerHTML.replaceAll('__IDX__',String(idx)).replaceAll('__NUM__',String(rows.length+1).padStart(2,'0')).trim();
+    const row=holder.firstElementChild; list.appendChild(row); atualizarLotoWorkerMeta(); ativarBuscaLotoAoDigitar(row);
+    const canvas=row.querySelector('.sig-pad'); if(canvas) iniciarPad(canvas);
+    const q=row.querySelector('.lw-query'); if(q) q.focus();
+  }
+  function removerLotoWorker(btn){
+    const row=btn.closest('[data-loto-worker-row]'); if(!row)return;
+    const rows=document.querySelectorAll('[data-loto-worker-row]');
+    if(rows.length<=1){ row.querySelectorAll('input').forEach(i=>i.value=''); const c=row.querySelector('canvas'); if(c){const key=c.id.replace('pad-',''); limparAssinatura(key);} row.querySelector('.loto-worker-status').textContent=''; row.querySelector('.loto-worker-suggestions').innerHTML=''; return; }
+    row.remove(); atualizarLotoWorkerMeta();
+  }
+  function aplicarLotoParticipante(row,data){
+    row.querySelector('.lw-participant-id').value=data.participant_id||'';
+    row.querySelector('.lw-user-id').value=data.user_id||'';
+    row.querySelector('.lw-cpf').value=data.cpf||'';
+    row.querySelector('.lw-name').value=data.full_name||'';
+    const nomeVisivel=row.querySelector('.lw-name-display'); if(nomeVisivel) nomeVisivel.value=data.full_name||'';
+    row.querySelector('.lw-company').value=data.company||'';
+    row.querySelector('.lw-role').value=data.job_title||'';
+    row.querySelector('.lw-query').value=data.cpf||data.full_name||'';
+    const status=row.querySelector('.loto-worker-status'); status.textContent='✓ Participante selecionado: '+(data.full_name||''); status.className='loto-worker-status ok';
+    const box=row.querySelector('.loto-worker-suggestions'); box.innerHTML=''; box.classList.remove('show');
+  }
+  function sugestoesLotoWorker(row,matches){
+    const box=row.querySelector('.loto-worker-suggestions'); box.innerHTML='';
+    (matches||[]).forEach(data=>{ const b=document.createElement('button'); b.type='button'; b.className='loto-worker-suggestion'; const det=[data.company,data.job_title].filter(Boolean).join(' · '); b.textContent=data.full_name+(det?' — '+det:''); b.onclick=()=>aplicarLotoParticipante(row,data); box.appendChild(b); });
+    box.classList.toggle('show',box.children.length>0);
+  }
+  async function pesquisarLotoWorker(row,q,{silencioso=false}={}){
+    const status=row.querySelector('.loto-worker-status'); const box=row.querySelector('.loto-worker-suggestions');
+    if(!q){ box.innerHTML=''; box.classList.remove('show'); return; }
+    if(!silencioso){ status.textContent='Buscando...'; status.className='loto-worker-status'; }
+    const form=new FormData(); form.append('csrf_token', {{ csrf_token | tojson }}); const digits=q.replace(/\D/g,''); if(digits.length>=11) form.append('cpf',q); else form.append('name',q);
+    try{
+      const resp=await fetch('/api/participants/lookup',{method:'POST',body:form}); const data=await resp.json();
+      if(data.found){ aplicarLotoParticipante(row,data); }
+      else if(data.multiple&&Array.isArray(data.matches)){
+        if(!silencioso) status.textContent=data.message||'Selecione o participante correto.';
+        sugestoesLotoWorker(row,data.matches);
+      } else {
+        box.innerHTML=''; box.classList.remove('show');
+        if(!silencioso){ status.textContent=data.message||'Participante não encontrado.'; status.className='loto-worker-status erro'; }
+      }
+    } catch(e){ if(!silencioso){ status.textContent='Não foi possível pesquisar agora.'; status.className='loto-worker-status erro'; } }
+  }
+  async function buscarLotoWorker(btn){
+    const row=btn.closest('[data-loto-worker-row]'); const q=(row.querySelector('.lw-query').value||'').trim();
+    if(!q){alert('Digite o CPF ou o nome do integrante.');return;}
+    await pesquisarLotoWorker(row,q);
+  }
+  function ativarBuscaLotoAoDigitar(root=document){
+    root.querySelectorAll('.lw-query').forEach(input=>{
+      if(input.dataset.liveSearch==='1') return;
+      input.dataset.liveSearch='1'; let timer=null;
+      input.addEventListener('input',()=>{
+        const row=input.closest('[data-loto-worker-row]'); const q=(input.value||'').trim();
+        clearTimeout(timer);
+        if(!row) return;
+        if(q.length<3){ const box=row.querySelector('.loto-worker-suggestions'); box.innerHTML=''; box.classList.remove('show'); return; }
+        timer=setTimeout(()=>pesquisarLotoWorker(row,q,{silencioso:true}),280);
+      });
+      input.addEventListener('keydown',e=>{ if(e.key==='Escape'){ const row=input.closest('[data-loto-worker-row]'); const box=row&&row.querySelector('.loto-worker-suggestions'); if(box){box.innerHTML='';box.classList.remove('show');} } });
+    });
+  }
+  function setLotoMelhoria(v){
+    const input=document.getElementById('improvements-answer'); if(input) input.value=v;
+    const buttons=document.querySelectorAll('.loto-improvement-toggle button'); buttons.forEach(b=>b.classList.remove('ativo','sim','nao'));
+    if(v==='SIM'&&buttons[0]) buttons[0].classList.add('ativo','sim'); if(v==='NÃO'&&buttons[1]) buttons[1].classList.add('ativo','nao');
+  }
+  document.addEventListener('DOMContentLoaded',()=>{atualizarLotoWorkerMeta(); ativarBuscaLotoAoDigitar();});
+  {% endif %}
+  {% else %}
+  function marcarFaltando(els) {
+    document.querySelectorAll('.campo-faltando').forEach(e => e.classList.remove('campo-faltando'));
+    els.forEach(e => (e.closest('.item-row') || e).classList.add('campo-faltando'));
+    const a = els[0]; if (a) { (a.closest('.item-row') || a).scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+  function validarPeriodoAntesDeConcluir(pi) {
+    const bloco = document.querySelector('[data-period-index="' + pi + '"]');
+    if (!bloco || bloco.dataset.periodLocked === '1') return false;
+    const data = document.getElementById('period_' + pi + '_date');
+    const selects = bloco.querySelectorAll('select[name^="period_' + pi + '_item_"]');
+    const faltando = Array.from(selects).filter(s => !['C','NC','NA'].includes(s.value));
+    const assinatura = document.getElementById('sig-input-period_' + pi);
+    // A data vazia é preenchida automaticamente pelo servidor com a data atual.
+    const fillNa = document.getElementById('fill-na'); if (fillNa) fillNa.value = '0';
+    if (faltando.length) {
+      marcarFaltando(faltando);
+      if (!confirm(faltando.length + ' item(ns) sem seleção. Deseja marcá-los como N/A e concluir o dia?\n\nOK = marcar como N/A e concluir\nCancelar = voltar e selecionar')) return false;
+      if (fillNa) fillNa.value = '1';
+    }
+    const rubricaSalva = bloco.dataset.hasSavedSignature === '1';
+    if ((!assinatura || !assinatura.value) && !rubricaSalva) { alert('Faça a rubrica do responsável antes de finalizar.'); return false; }
+    return true;
+  }
+
+  function bloquearPeriodoUI(pi) {
+    const bloco = document.querySelector('[data-period-index="' + pi + '"]');
+    if (!bloco) return;
+    bloco.dataset.periodLocked = '1';
+    bloco.classList.add('periodo-bloqueado');
+    bloco.removeAttribute('open');
+    const hidden = document.getElementById('period-lock-' + pi); if (hidden) hidden.value = '1';
+    const body = bloco.querySelector('.periodo-body');
+    if (body) {
+      body.hidden = false;
+      body.querySelectorAll('select, input:not([type="hidden"]), textarea, button').forEach(el => { el.disabled = true; });
+      const canvas = body.querySelector('.sig-pad'); if (canvas) canvas.style.display = 'none';
+      const footer = body.querySelector('.periodo-footer'); if (footer) footer.style.display = 'none';
+    }
+    const summary = bloco.querySelector('.periodo-summary');
+    if (summary) {
+      summary.onclick = null;
+      const badge = summary.querySelector('.badge, .periodo-lock');
+      if (badge) badge.outerHTML = '<span class="periodo-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Concluído · bloqueado</span>';
+    }
+    aplicarBloqueioDadosGerais();
+  }
+
+  function aplicarBloqueioDadosGerais() {
+    const travado = Array.from(document.querySelectorAll('[data-period-index]')).some(bloco => {
+      const hidden = document.getElementById('period-lock-' + bloco.dataset.periodIndex);
+      return bloco.dataset.periodLocked === '1' || (hidden && hidden.value === '1');
+    });
+    const card = document.getElementById('inspection-general-card');
+    if (!card) return;
+    card.classList.toggle('dados-gerais-bloqueados', travado);
+    card.querySelectorAll('input.campo').forEach(el => { el.readOnly = travado; el.setAttribute('aria-readonly', travado ? 'true' : 'false'); });
+  }
+  function aplicarBloqueiosPeriodos() {
+    document.querySelectorAll('[data-period-index]').forEach(bloco => {
+      if (bloco.dataset.periodFuture === '1') {
+        bloco.classList.add('periodo-bloqueado');
+        bloco.removeAttribute('open');
+        bloco.querySelectorAll('select, input:not([type=\"hidden\"]), textarea, button').forEach(el => { el.disabled = true; el.setAttribute('aria-disabled','true'); });
+        const canvas = bloco.querySelector('.sig-pad'); if (canvas) canvas.style.pointerEvents = 'none';
+        return;
+      }
+      const pi = bloco.dataset.periodIndex;
+      const hidden = document.getElementById('period-lock-' + pi);
+      if ((hidden && hidden.value === '1') || bloco.dataset.periodLocked === '1') bloquearPeriodoUI(pi);
+    });
+    if (!document.querySelector('.periodo-accordion[open]')) {
+      const proximo = document.querySelector('.periodo-accordion:not(.periodo-bloqueado)');
+      if (proximo) proximo.setAttribute('open','');
+    }
+    aplicarBloqueioDadosGerais();
+  }
+  window.aplicarBloqueiosPeriodos = aplicarBloqueiosPeriodos;
+
+  function concluirPeriodo(pi) {
+    if (!validarPeriodoAntesDeConcluir(pi)) return;
+    document.getElementById('form-action').value = 'complete_period';
+    document.getElementById('form-active-period').value = pi;
+    document.getElementById('period-lock-' + pi).value = '1';
+    const f = document.getElementById('inspection-form');
+    // Não bloqueia os campos antes do POST: evita perda de selects/data/rubrica no envio.
+    if (f.requestSubmit) f.requestSubmit(); else f.submit();
+  }
+  document.addEventListener('DOMContentLoaded', aplicarBloqueiosPeriodos);
+  {% endif %}
+
+  // ---- Assinaturas (canvas por chave, funciona nos dois modos) ----
+  const pads = {};
+  function iniciarPad(canvas) {
+    const key = canvas.id.replace('pad-', '');
+    const ctx = canvas.getContext('2d');
+    function resize() {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = canvas.clientWidth * ratio; canvas.height = canvas.clientHeight * ratio;
+      ctx.scale(ratio, ratio); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#181818';
+    }
+    resize();
+    let drawing = false, has = false;
+    function pos(e) { const r = canvas.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x: p.clientX - r.left, y: p.clientY - r.top }; }
+    function start(e) { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+    function move(e) { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); has = true; e.preventDefault(); }
+    function end() {
+      if (!drawing) return; drawing = false;
+      if (has) {
+        document.getElementById('sig-input-' + key).value = canvas.toDataURL('image/png');
+        const st = document.getElementById('sig-status-' + key);
+        st.textContent = 'Assinado.'; st.classList.add('assinado');
+      }
+    }
+    canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', move); canvas.addEventListener('touchend', end);
+    pads[key] = { canvas, ctx, reset:()=>{drawing=false;has=false;} };
+  }
+  document.querySelectorAll('.sig-pad').forEach(iniciarPad);
+  function limparAssinatura(key) {
+    const p = pads[key]; if (!p) return;
+    p.reset();
+    p.ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
+    document.getElementById('sig-input-' + key).value = '';
+    const st = document.getElementById('sig-status-' + key);
+    st.textContent = 'Ainda não assinado nesta sessão.'; st.classList.remove('assinado');
+  }
+</script>
+<script>
+/* Controle de fotos definido no início do formulário. */
+</script>
+
+<link rel="stylesheet" href="/static/css/submit-feedback.css?v=2">
+<script defer src="/static/js/submit-feedback.js?v=2"></script>
+{% endblock %}

@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block page_title %}{{ data.code }} · Inspeção de Veículo Pesado{% endblock %}
+{% block content %}
+<style>
+  .foto-upload-wrap { display:flex; flex-direction:column; align-items:flex-start; gap:8px; max-width:100%; }
+  .foto-upload-btn { position:relative; display:inline-flex!important; align-items:center; gap:7px; cursor:pointer!important; border:1px solid #d2d6db; border-radius:999px; background:#fff; color:#262626; font-size:.82rem; font-weight:650; padding:10px 14px; min-height:42px; max-width:100%; transition:background .15s,border-color .15s; }
+  .foto-upload-btn:hover { background:#f3f5f7; border-color:#9099a5; }
+  .foto-upload-btn:focus-within { outline:3px solid #79bdf5; outline-offset:2px; }
+  .foto-upload-hint { font-size:.74rem; color:#686e77; font-weight:400; }
+  .foto-upload-btn input[type=file] { position:absolute!important; width:1px!important; height:1px!important; opacity:0!important; overflow:hidden!important; clip-path:inset(50%); }
+  .fotos-selecionadas { display:flex; flex-wrap:wrap; gap:6px; width:100%; }
+  .form-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); margin-bottom: var(--espaco-3); }
+  .form-grid .campo-grupo { margin: 0; }
+  .campo-grupo label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  select.campo { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234B4B4B'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 32px; }
+  textarea.campo { min-height: 80px; resize: vertical; font-family: var(--fonte-base); }
+
+  .day-accordion { border-radius: var(--raio-card); background: var(--serena-branco); box-shadow: var(--sombra-card); margin-bottom: var(--espaco-2); overflow: hidden; }
+  .day-summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: var(--espaco-3) var(--espaco-4); }
+  .day-summary::-webkit-details-marker { display: none; }
+  .day-summary .titulo { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .day-summary .chev { transition: transform .15s; color: var(--cor-texto-secundario); }
+  .day-accordion[open] .chev { transform: rotate(90deg); }
+  .day-body { padding: 0 var(--espaco-4) var(--espaco-4); border-top: 1px solid #EFEBE5; }
+  .day-accordion.day-bloqueado { background:#F6F3EF; border:1px solid #DDD7D0; box-shadow:none; }
+  .day-accordion.day-bloqueado .day-summary { cursor:pointer; opacity:.95; }
+  .day-lock { display:inline-flex; align-items:center; gap:6px; color:#17634E; font-size:.78rem; font-weight:700; }
+  .day-lock svg { width:14px; height:14px; }
+  .day-readonly-note { margin:12px 0 2px; padding:10px 12px; border-radius:10px; background:#EEF7F3; color:#17634E; font-size:.8rem; font-weight:700; }
+  .day-accordion.day-bloqueado .day-body { background:#FBFAF8; }
+  .day-accordion.day-bloqueado .campo:disabled { opacity:1; color:#4A4743; background:#F2EFEB; -webkit-text-fill-color:#4A4743; cursor:default; }
+  .dados-gerais-bloqueados { background:#F8F6F3; }
+  .dados-gerais-bloqueados input.campo, .dados-gerais-bloqueados textarea.campo { background:#F0ECE7; color:#5E5A55; }
+  .dados-gerais-bloqueados select.campo, .dados-gerais-bloqueados .uiselect-btn { pointer-events:none; opacity:.72; }
+  .dados-gerais-bloqueados::after { content:'Dados gerais bloqueados após a primeira assinatura deste documento.'; display:block; margin-top:10px; color:#17634E; font-size:.76rem; font-weight:700; }
+
+  .item-row { display: grid; grid-template-columns: 40px 1fr 160px minmax(150px,220px); gap: var(--espaco-3); align-items: center; padding: var(--espaco-2) 0; border-bottom: 1px dashed #EFEBE5; }
+  .item-row .num { color: var(--cor-texto-secundario); font-weight: 700; font-family: var(--fonte-display); }
+  .item-row select { width: 100%; }
+
+  .sig-pad-wrap { margin-top: var(--espaco-3); }
+  .sig-pad { border: 1px dashed #D8D3CC; border-radius: var(--raio-input); background: var(--serena-areia); touch-action: none; width: 100%; height: 140px; display: block; }
+  .sig-actions { display: flex; gap: var(--espaco-2); margin-top: var(--espaco-2); align-items: center; }
+  .sig-status { font-size: 0.82rem; color: var(--cor-texto-secundario); }
+  .sig-status.assinado { color: #1C7A5E; font-weight: 600; }
+
+  .day-footer { display: flex; justify-content: flex-end; gap: var(--espaco-2); margin-top: var(--espaco-3); }
+  .form-footer { display: flex; justify-content: flex-end; gap: var(--espaco-2); margin-top: var(--espaco-4); }
+</style>
+
+<style>.campo-faltando{outline:2px solid #d92d20;outline-offset:2px;border-radius:8px;background:rgba(217,45,32,.08)}</style>
+<form autocomplete="off" method="post" enctype="multipart/form-data" action="{{ '/vehicle/' + doc.id|string + '/save' if doc else '/vehicle/save' }}" id="vehicle-form" data-submit-feedback="true">
+<script type="application/json" id="validation-fields">{{ (data.get('_validation_fields', []) or []) | tojson }}</script>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="action" id="form-action" value="draft">
+  <input type="hidden" name="active_day" id="form-active-day" value="0"><input type="hidden" name="fill_na" id="fill-na" value="0">
+
+  <div class="card" id="vehicle-general-card" style="margin-bottom: var(--espaco-4);">
+    <div class="form-grid">
+      <div class="campo-grupo">
+        <label for="cluster">Cluster</label>
+        <select class="campo" id="cluster" name="cluster" onchange="atualizarSites()">
+          <option value="">Selecione</option>
+          {% for c in clusters %}
+          <option value="{{ c }}" {% if data.cluster == c %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="campo-grupo">
+        <label for="site">Site</label>
+        <select class="campo" id="site" name="site"><option value="">Selecione</option></select>
+      </div>
+      <div class="campo-grupo">
+        <label for="model">Modelo</label>
+        <input class="campo" type="text" id="model" name="model" value="{{ data.model }}" required>
+      </div>
+      <div class="campo-grupo">
+        <label for="operator">Motorista / Operador</label>
+        <input class="campo" type="text" id="operator" name="operator" value="{{ data.operator }}" required>
+      </div>
+    </div>
+    <div class="form-grid" style="grid-template-columns: 120px 120px 1fr;">
+      <div class="campo-grupo">
+        <label for="month">Mês</label>
+        <input class="campo" type="text" id="month" name="month" value="{{ data.month }}" maxlength="2" placeholder="MM">
+      </div>
+      <div class="campo-grupo">
+        <label for="year">Ano</label>
+        <input class="campo" type="text" id="year" name="year" value="{{ data.year }}" maxlength="4" placeholder="AAAA">
+      </div>
+      <div class="campo-grupo">
+        <label for="observations">Observações</label>
+        <textarea class="campo" id="observations" name="observations">{{ data.observations }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  {% for day in days %}
+  {% set di = loop.index0 %}
+  {% set info = data.days[day] %}
+  {% set completo = info.signature_image and (info.answers | select('in', ['C','NA']) | list | length) == items|length %}
+  {% set bloqueado = info.locked or completo %}
+  <details {{ 'hidden' if (data.day_mode and day != data.day_period) }} class="day-accordion {{ 'day-bloqueado' if bloqueado }}" data-day-index="{{ di }}" data-day-locked="{{ '1' if bloqueado else '0' }}" {% if ((data.day_mode and day == data.day_period) or (not data.day_mode and loop.first)) and not bloqueado %}open{% endif %}>
+    <summary class="day-summary">
+      <span class="titulo">
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        {{ day }}
+      </span>
+      {% if bloqueado %}
+        <span class="day-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Concluído · bloqueado</span>
+      {% elif completo %}
+        <span class="badge badge-sucesso">Completo</span>
+      {% else %}
+        <span class="badge badge-neutro">Pendente</span>
+      {% endif %}
+    </summary>
+    <input type="hidden" name="day_{{ di }}_locked" id="day-lock-{{ di }}" value="{{ '1' if bloqueado else '0' }}">
+    <div class="day-body">
+      {% if bloqueado %}<div class="day-readonly-note">✓ Dia concluído. Conteúdo disponível somente para consulta; nenhuma informação pode ser alterada.</div>{% endif %}
+      {% for item in items %}
+      <div class="item-row">
+        <span class="num">{{ '%02d'|format(item_numbers[loop.index0]) }}</span>
+        <span>{{ item }}</span>
+        <select class="campo" name="day_{{ di }}_item_{{ loop.index0 }}" {% if bloqueado %}disabled aria-disabled="true"{% endif %}>
+          <option value="">Selecione</option>
+          <option value="C" {% if info.answers[loop.index0] == 'C' %}selected{% endif %}>Conforme</option>
+          <option value="NC" {% if info.answers[loop.index0] == 'NC' %}selected{% endif %}>Não conforme</option>
+          <option value="NA" {% if info.answers[loop.index0] == 'NA' %}selected{% endif %}>Não se aplica</option>
+        </select>
+        <div class="vehicle-photo-box">
+          {% set item_photos = info.photos[loop.index0] if info.photos and loop.index0 < info.photos|length else [] %}
+          {% if item_photos %}<small>📷 {{ item_photos|length }}/3 foto(s) anexada(s)</small>{% endif %}
+          {% if not bloqueado and item_photos|length < 3 %}
+          <div class="foto-upload-wrap"><label class="foto-upload-btn">📷 Selecionar fotos <span class="foto-upload-hint">(opcional, até 3)</span><input type="file" name="day_{{ di }}_photo_{{ loop.index0 }}" accept="image/jpeg,image/png,image/webp" multiple onchange="limitarFotos(this);mostrarFotosSelecionadas(this)"></label><div class="fotos-selecionadas" aria-live="polite"></div></div>
+          {% elif bloqueado and not item_photos %}<small>Sem foto</small>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+
+      {% set tem_nc = 'NC' in info.answers %}
+      <div class="nc-just-box" id="nc-just-{{ di }}" style="margin:14px 0;{{ '' if tem_nc else 'display:none;' }}">
+        <div style="background:#FFF4E5;border:1px solid #F0B35A;color:#7A4A00;border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:.85rem;"><strong>Atenção:</strong> há item <b>Não conforme</b> neste dia. Justifique abaixo o motivo e as medidas adotadas para poder concluir.</div>
+        <label for="nc-text-{{ di }}">Justificativa do item Não conforme <span style="color:#B42318">*</span></label>
+        <textarea class="campo" id="nc-text-{{ di }}" name="day_{{ di }}_no_justification" rows="4" maxlength="1500" style="width:100%;font-family:var(--fonte-base);" {% if bloqueado %}disabled{% endif %} placeholder="Ex.: o que está fora do padrão, risco envolvido e ação tomada (veículo liberado com restrição, reparo agendado…)">{{ info.no_justification or '' }}</textarea>
+      </div>
+
+      <div class="sig-pad-wrap">
+        <label>Rubrica do responsável do dia</label>
+        {% if bloqueado %}
+          <div class="sig-status assinado">✓ Rubrica registrada. Este dia está encerrado e disponível somente para consulta.</div>
+        {% else %}
+          {% if info.signature_image %}<div class="sig-status assinado">✓ Rubrica já registrada nesta sessão. Ao concluir o dia, ele será bloqueado definitivamente.</div>{% endif %}
+          <canvas class="sig-pad" id="pad-{{ di }}"></canvas>
+          <div class="sig-actions">
+            <button type="button" class="btn btn-fantasma" onclick="limparAssinatura({{ di }})">Limpar</button>
+            <span class="sig-status" id="sig-status-{{ di }}">Ainda não assinado nesta sessão.</span>
+          </div>
+          <input type="hidden" name="sig_day_{{ di }}" id="sig-input-{{ di }}">
+        {% endif %}
+      </div>
+
+      {% if not bloqueado %}
+      <div class="day-footer">
+        <button type="button" class="btn btn-primario" data-finish-period="true" onclick="concluirDia({{ di }})">Concluir {{ day }}</button>
+      </div>
+      {% endif %}
+    </div>
+  </details>
+  {% endfor %}
+
+  <div class="form-footer">
+    <button type="submit" class="btn btn-secundario" onclick="document.getElementById('form-action').value='draft'">Salvar rascunho</button>
+  </div>
+</form>
+
+<script>
+const fotosPendentes = new WeakMap();
+function limitarFotos(input){
+  const anteriores = fotosPendentes.get(input) || [];
+  const todas = Array.from(input.files || []);
+  const grandes = todas.filter(f => f.size > 10000000);
+  if (grandes.length) alert(grandes.map(f => f.name).join(', ') + ': a foto deve ter no máximo 10 MB.');
+  const naoSuportadas = todas.filter(f => f.size <= 10000000 && !/^image\/(jpeg|png|webp)$/.test(f.type));
+  if (naoSuportadas.length) alert('Formato não suportado (use JPG, PNG ou WEBP): ' + naoSuportadas.map(f => f.name).join(', '));
+  const novas = todas.filter(f => f.size <= 10000000 && /^image\/(jpeg|png|webp)$/.test(f.type));
+  const unicas = anteriores.slice();
+  for (const f of novas) {
+    if (!unicas.some(a => a.name === f.name && a.size === f.size && a.lastModified === f.lastModified)) unicas.push(f);
+  }
+  if (unicas.length > 3) alert('Cada item aceita no máximo 3 fotos. As fotos anteriores foram mantidas.');
+  const mantidas = unicas.slice(0, 3);
+  fotosPendentes.set(input, mantidas);
+  const dt = new DataTransfer();
+  mantidas.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+}
+function removerFotoSelecionada(input, indice){
+  const mantidas = (fotosPendentes.get(input) || Array.from(input.files || [])).filter((_,i) => i !== indice);
+  fotosPendentes.set(input, mantidas);
+  const dt = new DataTransfer();
+  mantidas.forEach(f => dt.items.add(f));
+  input.files = dt.files;
+  mostrarFotosSelecionadas(input);
+}
+function mostrarFotosSelecionadas(input){
+  const area=input.closest('.foto-upload-wrap')?.querySelector('.fotos-selecionadas');
+  if(!area)return;
+  area.querySelectorAll('button').forEach(b=>{if(b.dataset.localPhotoUrl)URL.revokeObjectURL(b.dataset.localPhotoUrl);});
+  area.replaceChildren();
+  Array.from(input.files||[]).slice(0,3).forEach((file,i)=>{
+    if(!file.type.startsWith('image/'))return;
+    const url=URL.createObjectURL(file);
+    const b=document.createElement('button'); b.type='button';
+    b.className='btn btn-fantasma'; b.textContent='Ver foto '+(i+1);
+    b.dataset.localPhotoUrl=url;
+    b.onclick=()=>abrirFotoInspecao(b);
+    area.appendChild(b);
+    const remover=document.createElement('button');
+    remover.type='button'; remover.className='btn btn-fantasma';
+    remover.textContent='✕ Foto '+(i+1);
+    remover.setAttribute('aria-label','Remover foto '+(i+1));
+    remover.onclick=()=>removerFotoSelecionada(input,i);
+    area.appendChild(remover);
+  });
+}
+function abrirFotoInspecao(btn){
+  const modal=document.getElementById('foto-inspecao-modal'), img=document.getElementById('foto-inspecao-imagem'), err=document.getElementById('foto-inspecao-erro');
+  img.removeAttribute('src'); err.style.display='none'; img.style.display='block';
+  modal.style.display='flex';
+  img.onerror=function(){img.style.display='none';err.style.display='block';};
+  img.src=btn.dataset.localPhotoUrl||btn.dataset.photoUrl;
+}
+function fecharFotoInspecao(){
+  document.getElementById('foto-inspecao-modal').style.display='none';
+  document.getElementById('foto-inspecao-imagem').removeAttribute('src');
+}
+</script>
+<div id="foto-inspecao-modal" role="dialog" aria-modal="true" aria-label="Visualização de foto" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.88);align-items:center;justify-content:center;flex-direction:column;padding:16px">
+  <button type="button" onclick="fecharFotoInspecao()" style="align-self:flex-end;color:white;background:#333;border:1px solid #aaa;border-radius:8px;padding:10px 16px;margin-bottom:12px">Fechar ✕</button>
+  <img id="foto-inspecao-imagem" alt="Foto anexada ao checklist" style="max-width:100%;max-height:78vh;object-fit:contain;background:transparent">
+  <p id="foto-inspecao-erro" style="display:none;color:white">Não foi possível carregar a foto. Verifique a conexão ou o arquivo armazenado.</p>
+</div>
+<script>
+  const clusterSites = {{ cluster_sites | tojson }};
+  const currentSite = {{ data.site | tojson }};
+  function atualizarSites() {
+    const cluster = document.getElementById('cluster').value;
+    const siteSelect = document.getElementById('site');
+    const sites = clusterSites[cluster] || [];
+    siteSelect.innerHTML = '<option value="">Selecione</option>' +
+      sites.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (sites.includes(currentSite)) siteSelect.value = currentSite;
+    siteSelect.dispatchEvent(new Event('change'));
+  }
+  atualizarSites();
+
+  // ---- Assinatura por dia (canvas simples, mouse e toque) ----
+  const pads = {};
+  document.querySelectorAll('.sig-pad').forEach(canvas => {
+    const di = canvas.id.split('-')[1];
+    const ctx = canvas.getContext('2d');
+    function resize() {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = canvas.clientWidth * ratio;
+      canvas.height = canvas.clientHeight * ratio;
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#181818';
+    }
+    resize();
+    let drawing = false, has = false;
+    function pos(e) {
+      const r = canvas.getBoundingClientRect();
+      const p = e.touches ? e.touches[0] : e;
+      return { x: p.clientX - r.left, y: p.clientY - r.top };
+    }
+    function start(e) { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+    function move(e) { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); has = true; e.preventDefault(); }
+    function end() {
+      if (!drawing) return;
+      drawing = false;
+      if (has) {
+        document.getElementById('sig-input-' + di).value = canvas.toDataURL('image/png');
+        const st = document.getElementById('sig-status-' + di);
+        st.textContent = 'Assinado.'; st.classList.add('assinado');
+      }
+    }
+    canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', move); canvas.addEventListener('touchend', end);
+    pads[di] = { canvas, ctx, reset:()=>{drawing=false;has=false;} };
+  });
+  function limparAssinatura(di) {
+    const canvas = pads[di].canvas, ctx = pads[di].ctx;
+    pads[di].reset();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    document.getElementById('sig-input-' + di).value = '';
+    const st = document.getElementById('sig-status-' + di);
+    st.textContent = 'Ainda não assinado nesta sessão.'; st.classList.remove('assinado');
+  }
+  function atualizarCaixaNc(di) {
+    const bloco = document.querySelector('[data-day-index="' + di + '"]');
+    const box = document.getElementById('nc-just-' + di);
+    if (!bloco || !box) return;
+    const algum = Array.from(bloco.querySelectorAll('select[name^="day_' + di + '_item_"]')).some(s => s.value === 'NC');
+    box.style.display = algum ? '' : 'none';
+  }
+  document.addEventListener('change', function (e) {
+    const t = e.target;
+    if (t && t.matches && t.matches('select[name^="day_"][name*="_item_"]')) atualizarCaixaNc(t.name.split('_')[1]);
+  });
+  function validarDiaAntesDeConcluir(di) {
+    document.querySelectorAll('.campo-faltando').forEach(e => e.classList.remove('campo-faltando'));
+    const bloco = document.querySelector('[data-day-index="' + di + '"]');
+    if (!bloco || bloco.dataset.dayLocked === '1') return false;
+    const selects = bloco.querySelectorAll('select[name^="day_' + di + '_item_"]');
+    const faltando = Array.from(selects).filter(s => !['C','NA'].includes(s.value));
+    const naoConformes = Array.from(selects).filter(s => s.value === 'NC');
+    const assinatura = document.getElementById('sig-input-' + di);
+    if (naoConformes.length) {
+      const just = document.getElementById('nc-text-' + di);
+      if (!just || !just.value.trim()) {
+        naoConformes.forEach(s => s.classList.add('campo-faltando'));
+        if (just) { just.classList.add('campo-faltando'); just.scrollIntoView({behavior:'smooth', block:'center'}); just.focus(); }
+        alert('Há item Não conforme neste dia. Descreva a justificativa na caixa indicada para concluir.');
+        return false;
+      }
+    }
+    const fillNa = document.getElementById('fill-na'); if (fillNa) fillNa.value = '0';
+    if (faltando.length) {
+      faltando.forEach(s => s.classList.add('campo-faltando')); faltando[0].scrollIntoView({behavior:'smooth', block:'center'});
+      if (!confirm(faltando.length + ' item(ns) sem seleção. Deseja marcá-los como N/A e concluir o dia?\n\nOK = marcar como N/A e concluir\nCancelar = voltar e selecionar')) return false;
+      if (fillNa) fillNa.value = '1';
+    }
+    if (!assinatura || !assinatura.value) { alert('Faça a rubrica do responsável antes de concluir.'); return false; }
+    return true;
+  }
+  function bloquearDiaUI(di) {
+    const bloco = document.querySelector('[data-day-index="' + di + '"]');
+    if (!bloco) return;
+    bloco.dataset.dayLocked = '1';
+    bloco.classList.add('day-bloqueado');
+    bloco.removeAttribute('open');
+    const hidden = document.getElementById('day-lock-' + di); if (hidden) hidden.value = '1';
+    const body = bloco.querySelector('.day-body');
+    if (body) {
+      body.hidden = false;
+      body.querySelectorAll('select, input:not([type="hidden"]), textarea, button').forEach(el => { el.disabled = true; });
+      const canvas = body.querySelector('.sig-pad'); if (canvas) canvas.style.display = 'none';
+      const footer = body.querySelector('.day-footer'); if (footer) footer.style.display = 'none';
+    }
+    const summary = bloco.querySelector('.day-summary');
+    if (summary) {
+      summary.onclick = null;
+      const badge = summary.querySelector('.badge, .day-lock');
+      if (badge) badge.outerHTML = '<span class="day-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Concluído · bloqueado</span>';
+    }
+    aplicarBloqueioDadosGeraisVeiculo();
+  }
+  function aplicarBloqueioDadosGeraisVeiculo() {
+    const travado = Array.from(document.querySelectorAll('[data-day-index]')).some(bloco => {
+      const hidden = document.getElementById('day-lock-' + bloco.dataset.dayIndex);
+      return bloco.dataset.dayLocked === '1' || (hidden && hidden.value === '1');
+    });
+    const card = document.getElementById('vehicle-general-card');
+    if (!card) return;
+    card.classList.toggle('dados-gerais-bloqueados', travado);
+    card.querySelectorAll('input.campo, textarea.campo').forEach(el => { el.readOnly = travado; el.setAttribute('aria-readonly', travado ? 'true' : 'false'); });
+  }
+  function aplicarBloqueiosDias() {
+    document.querySelectorAll('[data-day-index]').forEach(bloco => {
+      const di = bloco.dataset.dayIndex;
+      const hidden = document.getElementById('day-lock-' + di);
+      if ((hidden && hidden.value === '1') || bloco.dataset.dayLocked === '1') bloquearDiaUI(di);
+    });
+    if (!document.querySelector('.day-accordion[open]')) {
+      const proximo = document.querySelector('.day-accordion:not(.day-bloqueado)');
+      if (proximo) proximo.setAttribute('open','');
+    }
+    aplicarBloqueioDadosGeraisVeiculo();
+  }
+  window.aplicarBloqueiosDias = aplicarBloqueiosDias;
+  function concluirDia(di) {
+    if (!validarDiaAntesDeConcluir(di)) return;
+    document.getElementById('form-action').value = 'complete_day';
+    document.getElementById('form-active-day').value = di;
+    document.getElementById('day-lock-' + di).value = '1';
+    // Não desativa os campos após o envio: no iPhone/Safari isso fazia as respostas (C/NC/NA) e a rubrica chegarem em branco ao servidor.
+    const f = document.getElementById('vehicle-form'); if (f.requestSubmit) f.requestSubmit(); else f.submit();
+  }
+  document.addEventListener('DOMContentLoaded', aplicarBloqueiosDias);
+</script>
+
+<link rel="stylesheet" href="/static/css/submit-feedback.css?v=2">
+<script defer src="/static/js/submit-feedback.js?v=2"></script>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block page_title %}Coleta de assinaturas · APR + PTs · {{ doc_reference_code(doc) }}{% endblock %}
+{% block content %}
+<style>
+  .resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); margin-bottom: var(--espaco-4); }
+  .resumo .campo-somente-leitura { background: var(--serena-areia); border-radius: var(--raio-input); padding: 10px 14px; min-height:42px; }
+  .resumo label { display: block; font-size: 0.78rem; color: var(--cor-texto-secundario); margin-bottom: 4px; }
+  .entry-card { margin-bottom: var(--espaco-4); }
+  .entry-head { display: flex; justify-content: space-between; align-items: flex-start; gap:12px; margin-bottom: var(--espaco-3); }
+  .entry-head h2 { font-size: 1rem; margin: 0; }
+  .entry-meta { color:var(--cor-texto-secundario); font-size:.82rem; margin-top:4px; }
+  .sig-pad { border: 1px dashed #BFB8AF; border-radius: var(--raio-input); background: #fff; touch-action: none; width: 100%; height: 170px; display: block; margin-bottom: var(--espaco-2); }
+  .sig-actions { display: flex; gap: var(--espaco-2); align-items: center; flex-wrap:wrap; }
+  .progresso { display: flex; align-items: center; gap: 10px; margin-bottom: var(--espaco-4); }
+  .progresso-barra { flex: 1; height: 8px; background: var(--serena-areia); border-radius: 999px; overflow: hidden; }
+  .progresso-barra div { height: 100%; background: var(--cor-sucesso); }
+  .aviso-coleta { background:#FFF6DD; border:1px solid #F0D795; border-radius:12px; padding:12px 14px; font-size:.86rem; margin-bottom:var(--espaco-4); color:#6F5600; }
+  .doc-completo { margin-bottom:var(--espaco-4); }
+  .doc-completo summary { cursor:pointer; font-weight:700; padding:4px 0; }
+  .doc-section { margin-top:16px; }
+  .doc-section h3 { font-size:.95rem; margin:0 0 8px; }
+  .tabela-wrap { overflow-x:auto; }
+  table.readonly { width:100%; border-collapse:collapse; font-size:.82rem; min-width:680px; }
+  table.readonly th, table.readonly td { border:1px solid #E3DFD9; padding:8px; text-align:left; vertical-align:top; }
+  table.readonly th { background:var(--serena-areia); }
+  .check-read { display:grid; grid-template-columns:1fr auto; gap:8px 12px; padding:8px 0; border-bottom:1px dashed #E3DFD9; font-size:.84rem; }
+  .queued-local { border-color:#8DB8E8 !important; box-shadow:0 0 0 2px #E7F1FF inset; }
+  @media (max-width:800px) {
+    .resumo { grid-template-columns:1fr 1fr; }
+    .entry-head { flex-direction:column; }
+  }
+  @media (max-width:520px) {
+    .resumo { grid-template-columns:1fr; }
+    .sig-actions .btn { flex:1; }
+  }
+</style>
+
+<div class="card resumo">
+  <div><label>Código</label><div class="campo-somente-leitura">{{ doc_reference_code(doc) }}</div></div>
+  <div><label>Atividade</label><div class="campo-somente-leitura">{{ data.activity }}</div></div>
+  <div><label>Cluster / Site</label><div class="campo-somente-leitura">{{ data.cluster }}{% if data.site %} · {{ data.site }}{% endif %}</div></div>
+  <div><label>Data da APR</label><div class="campo-somente-leitura">{{ data.apr_date }}{% if data.apr_time %} · {{ data.apr_time }}{% endif %}</div></div>
+</div>
+
+
+{% if collector_mode %}
+<div class="card" id="qr-signature-card" style="margin-bottom:var(--espaco-4);display:grid;grid-template-columns:190px 1fr;gap:20px;align-items:center;border:2px solid rgba(255,82,76,.20);">
+  <div style="text-align:center;">
+    <button type="button" id="qr-fullscreen-trigger" aria-label="Mostrar QR Code em tela cheia" style="border:0;background:transparent;padding:0;cursor:pointer;">
+      <img src="/apr/{{ doc.id }}/assinaturas-qr.svg" alt="QR Code geral de assinaturas" style="width:176px;max-width:100%;background:#fff;padding:8px;border:1px solid #E3DFD9;border-radius:14px;display:block;">
+    </button>
+    <div style="font-size:.75rem;color:var(--cor-texto-secundario);margin-top:6px;">Toque no QR para ampliar</div>
+  </div>
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+      <h2 style="margin:0;">QR Code geral para assinaturas</h2>
+      <span class="badge badge-{{ 'sucesso' if pending_today == 0 and eligible_today else 'atencao' }}">Hoje {{ signed_today }}/{{ eligible_today }} assinados</span>
+    </div>
+    <p style="color:var(--cor-texto-secundario);margin:0 0 10px;">Mostre este único QR Code para toda a equipe. Cada participante escaneia, entra na própria conta e faz sua rubrica e assinatura. A conta do criador ou do administrador não pode assinar por outros integrantes.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <span class="badge badge-sucesso">Assinados hoje: {{ signed_today }}</span>
+      <span class="badge badge-atencao">Pendentes hoje: {{ pending_today }}</span>
+      <span style="font-size:.8rem;color:var(--cor-texto-secundario);">{{ today_label }}</span>
+    </div>
+    <div class="qr-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primario" type="button" id="qr-fullscreen-button">Mostrar em tela cheia</button>
+      <button class="btn btn-secundario" type="button" id="qr-copy-link" data-url="{{ qr_target_url }}">Copiar link</button>
+      <a class="btn btn-secundario" href="/apr/{{ doc.id }}/assinaturas-qr.svg" download="QR_APR_{{ doc_reference_code(doc) }}.svg">Baixar QR Code</a>
+      <a class="btn btn-secundario" href="{{ qr_target_url }}" target="_blank">Testar fluxo do QR</a>
+    </div>
+    <div id="qr-copy-feedback" style="display:none;margin-top:8px;font-size:.8rem;color:var(--cor-sucesso);font-weight:700;">Link copiado.</div>
+  </div>
+</div>
+
+<div id="qr-fullscreen-modal" role="dialog" aria-modal="true" aria-label="QR Code geral de assinaturas" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.86);align-items:center;justify-content:center;padding:18px;">
+  <div style="background:#fff;border-radius:22px;padding:20px;max-width:520px;width:min(94vw,520px);text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.35);">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;text-align:left;">
+      <div>
+        <strong style="font-size:1.15rem;">QR geral · {{ doc_reference_code(doc) }}</strong>
+        <div style="font-size:.8rem;color:#666;margin-top:2px;">Todos podem usar este mesmo QR para visualizar e assinar.</div>
+      </div>
+      <button type="button" id="qr-fullscreen-close" aria-label="Fechar QR Code" style="width:42px;height:42px;border-radius:50%;border:0;background:#111;color:#fff;font-size:1.35rem;cursor:pointer;">×</button>
+    </div>
+    <img src="/apr/{{ doc.id }}/assinaturas-qr.svg" alt="QR Code geral ampliado" style="width:min(76vw,390px);max-width:100%;background:#fff;padding:10px;">
+    <div style="margin-top:10px;font-weight:700;">Assinados hoje: {{ signed_today }} · Pendentes: {{ pending_today }}</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modal=document.getElementById('qr-fullscreen-modal');
+  const openers=[document.getElementById('qr-fullscreen-trigger'),document.getElementById('qr-fullscreen-button')].filter(Boolean);
+  const closer=document.getElementById('qr-fullscreen-close');
+  const copyBtn=document.getElementById('qr-copy-link');
+  const feedback=document.getElementById('qr-copy-feedback');
+  function openQr(){ if(!modal) return; modal.style.display='flex'; document.body.style.overflow='hidden'; }
+  function closeQr(){ if(!modal) return; modal.style.display='none'; document.body.style.overflow=''; }
+  openers.forEach(b=>b.addEventListener('click',openQr));
+  if(closer) closer.addEventListener('click',closeQr);
+  if(modal) modal.addEventListener('click',e=>{ if(e.target===modal) closeQr(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeQr(); });
+  if(copyBtn){
+    copyBtn.addEventListener('click',async()=>{
+      const url=copyBtn.dataset.url || (window.location.origin + '/apr/{{ doc.id }}/assinatura-diaria');
+      try{
+        await navigator.clipboard.writeText(url);
+      }catch(e){
+        const ta=document.createElement('textarea'); ta.value=url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      if(feedback){ feedback.style.display='block'; setTimeout(()=>feedback.style.display='none',2200); }
+    });
+  }
+})();
+</script>
+<style>
+@media(max-width:680px) {
+  #qr-signature-card {grid-template-columns:1fr!important;text-align:center;}
+  #qr-signature-card > div:nth-child(2) {text-align:left;}
+  .qr-actions .btn {flex:1 1 46%;text-align:center;justify-content:center;}
+}
+@media(max-width:440px) { .qr-actions .btn {flex:1 1 100%;} }
+</style>
+{% endif %}
+
+<div class="progresso">
+  <span class="badge badge-{{ 'sucesso' if all_signed else 'atencao' }}">{{ participant_signed_count }}/{{ participant_total }} assinaram</span>
+  <div class="progresso-barra"><div style="width: {{ (participant_signed_count / participant_total * 100) if participant_total else 0 }}%;"></div></div>
+</div>
+
+<div class="aviso-coleta" style="background:#EEF7F2;border-color:#B8DCCB;color:#285C48;">
+  <strong>Uma assinatura para todo o conjunto:</strong> cada rubrica registrada aqui é aplicada automaticamente à APR e às PTs vinculadas selecionadas neste fluxo.
+</div>
+
+{% if collector_mode and not all_signed %}
+<div class="aviso-coleta">
+  <strong>Assinatura pela própria conta:</strong> cada integrante deve entrar na própria conta para assinar. Você pode acompanhar as pendências abaixo. A coleta no mesmo aparelho fica disponível apenas no fluxo offline.
+</div>
+{% endif %}
+
+<details class="card doc-completo" open>
+  <summary>Ver APR e permissões vinculadas antes de assinar</summary>
+  <div class="doc-section">
+    <h3>Dados da atividade</h3>
+    <div class="resumo" style="margin-bottom:0;">
+      <div><label>Severidade</label><div class="campo-somente-leitura">{{ data.severity }}</div></div>
+      <div><label>Validade</label><div class="campo-somente-leitura">{{ data.apr_valid_until }}</div></div>
+      <div><label>Canal de rádio</label><div class="campo-somente-leitura">{{ data.radio_channel }}</div></div>
+      <div><label>Atividade crítica</label><div class="campo-somente-leitura">{{ data.critical_activity }}</div></div>
+    </div>
+  </div>
+
+  {% if data.critical_activity == 'SIM' %}
+  <div class="doc-section">
+    <h3>Permissões vinculadas</h3>
+    {% for name in data.critical_permits %}
+      {% set st = linked_permit_states[name] %}
+      <div class="check-read"><span>{{ name }}{% if st.code %} — {{ st.code }}{% endif %}</span><span class="badge badge-{{ 'sucesso' if st.ready else 'atencao' }}">{{ st.status }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="doc-section">
+    <h3>Etapas, perigos, riscos e controles</h3>
+    <div class="tabela-wrap">
+      <table class="readonly">
+        <thead><tr><th>#</th><th>Etapa</th><th>Perigo</th><th>Risco</th><th>Severidade</th><th>Medida de controle</th></tr></thead>
+        <tbody>
+          {% for step in data.steps %}
+          <tr><td>{{ loop.index }}</td><td>{{ step.stage }}</td><td style="white-space:pre-line;">{{ step.hazard }}</td><td style="white-space:pre-line;">{{ step.risk }}</td><td>{{ step.severity }}</td><td>{{ step.control }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h3>Checklist</h3>
+    {% for question in checklist_items %}
+      {% set resposta = data.checklist[loop.index0] if loop.index0 < data.checklist|length else '' %}
+      <div class="check-read"><span>{{ '%02d'|format(loop.index) }}. {{ question }}</span><span class="badge badge-{{ 'sucesso' if resposta in ['SIM','N/A'] else 'atencao' }}">{{ resposta or '—' }}</span></div>
+    {% endfor %}
+  </div>
+
+  <div class="doc-section">
+    <h3>Equipe</h3>
+    <div class="tabela-wrap">
+      <table class="readonly">
+        <thead><tr><th>Integrante</th><th>Empresa</th><th>Função</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for w in data.workers %}
+          <tr><td>{{ w.worker }}</td><td>{{ w.company }}</td><td>{{ w.role }}</td><td>{{ 'Assinado' if w.signature_image else 'Pendente' }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</details>
+
+{% if not can_sign and not all_signed %}
+<div class="card" style="margin-bottom:var(--espaco-4); color:var(--cor-texto-secundario);">
+  Esta APR não está mais aguardando assinaturas no momento.
+</div>
+{% endif %}
+
+
+
+{% for entry in entries %}
+<div class="card entry-card" data-entry-index="{{ entry.index }}">
+  <div class="entry-head">
+    <div>
+      <h2>{{ entry.worker }} · {{ entry.company }}</h2>
+      <div class="entry-meta">{{ entry.role }}{% if entry.cpf_masked %} · CPF {{ entry.cpf_masked }}{% endif %}</div>
+    </div>
+    {% if entry.signature_image %}
+      <span class="badge badge-sucesso">Assinado em {{ entry.date }}</span>
+    {% else %}
+      <span class="badge badge-atencao">Pendente</span>
+    {% endif %}
+  </div>
+
+  {% if entry.signature_image %}
+    <p style="color:var(--cor-texto-secundario); font-size:0.88rem;">✓ Assinatura registrada em {{ entry.signed_at }}.</p>
+  {% elif can_sign and entry.is_own and entry.participant_user_id %}
+    {% set online_url = '/apr/' ~ doc.id ~ '/assinar' if entry.is_own else '/api/apr/' ~ doc.id ~ '/participant-signature-present' %}
+    <form method="post" action="{{ online_url }}" class="form-assinatura"
+          data-doc-id="{{ doc.id }}"
+          data-worker-index="{{ entry.index }}"
+          data-worker-label="{{ entry.worker }} · {{ doc_reference_code(doc) }}"
+          data-present-capture="{{ '0' if entry.is_own else '1' }}"
+          data-online-url="{{ online_url }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="worker_index" value="{{ entry.index }}">
+      <input type="hidden" name="participant_user_id" value="{{ entry.participant_user_id }}">
+      <input type="hidden" name="sig_participant" id="sig-input-{{ entry.index }}">
+      {% if not entry.is_own %}
+      <p style="font-size:.84rem; color:var(--cor-texto-secundario); margin:0 0 8px;">Entregue o dispositivo a <strong>{{ entry.worker }}</strong> para que faça a própria rubrica abaixo.</p>
+      {% endif %}
+      {% if entry.is_own %}
+      <div class="otp-box" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 10px;">
+        <input type="text" name="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="Código (opcional)" style="max-width:190px; letter-spacing:.2em; text-align:center;">
+        <button type="button" class="btn btn-fantasma" data-otp-request data-url="/apr/{{ doc.id }}/assinar/codigo">Enviar código</button>
+        <span class="otp-msg" style="font-size:.8rem; color:var(--cor-texto-secundario);">Opcional: o código chega nas suas notificações. Sem ele, assine manualmente.</span>
+      </div>
+      {% endif %}
+      <canvas class="sig-pad" id="pad-{{ entry.index }}" aria-label="Área de rubrica de {{ entry.worker }}"></canvas>
+      <div class="sig-actions">
+        <button type="button" class="btn btn-fantasma" onclick="limparAssinatura({{ entry.index }})">Limpar</button>
+        <button type="submit" class="btn btn-primario">Confirmar assinatura</button>
+      </div>
+      <div class="sig-envio-status" style="font-size:0.8rem; color:var(--cor-texto-secundario); margin-top:8px;"></div>
+    </form>
+  {% elif not entry.participant_user_id %}
+    <p style="color:var(--cor-perigo); font-size:0.88rem;">Este integrante ainda não possui usuário ativo vinculado. Vincule o participante antes de coletar a assinatura.</p>
+  {% else %}
+    <p style="color:var(--cor-texto-secundario); font-size:0.88rem;">Este integrante deve entrar na própria conta para assinar. Você pode acompanhar a pendência por aqui.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+
+{% if collector_mode and participant_total > 0 and all_signed %}
+<div class="card" style="margin-bottom:var(--espaco-4);">
+  <h2 style="margin-top:0;">Assinaturas concluídas</h2>
+  <p style="color:var(--cor-texto-secundario);">Todas as rubricas já foram coletadas e vinculadas à APR e às PTs. A próxima etapa é enviar o conjunto para aprovação do líder ou responsável selecionado.</p>
+  <form method="post" action="/apr/{{ doc.id }}/save">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="action" value="submit_approval">
+    <button type="submit" class="btn btn-primario">Enviar para aprovação</button>
+  </form>
+</div>
+{% endif %}
+
+<script>
+  const pads = {};
+  document.querySelectorAll('.sig-pad').forEach(canvas => {
+    const idx = canvas.id.replace('pad-', '');
+    const ctx = canvas.getContext('2d');
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(canvas.clientWidth * ratio));
+    canvas.height = Math.max(1, Math.floor(canvas.clientHeight * ratio));
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.strokeStyle = '#181818';
+    let drawing = false, has = false;
+    function point(e) { const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; }
+    function startDraw(e){ drawing=true; try{canvas.setPointerCapture(e.pointerId);}catch(_e){} const p=point(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+    function moveDraw(e){ if(!drawing)return; const p=point(e); ctx.lineTo(p.x,p.y); ctx.stroke(); has=true; e.preventDefault(); }
+    function endDraw(e){ if(!drawing)return; drawing=false; if(has) document.getElementById('sig-input-'+idx).value=canvas.toDataURL('image/png'); if(e)e.preventDefault(); }
+    canvas.addEventListener('pointerdown',startDraw,{passive:false}); canvas.addEventListener('pointermove',moveDraw,{passive:false});
+    canvas.addEventListener('pointerup',endDraw,{passive:false}); canvas.addEventListener('pointercancel',endDraw,{passive:false}); window.addEventListener('pointerup',endDraw,{passive:false});
+    pads[idx]={canvas,ctx,clear:()=>{ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);has=false;}};
+  });
+  function limparAssinatura(idx){ const p=pads[idx]; if(!p)return; p.clear(); document.getElementById('sig-input-'+idx).value=''; }
+  async function serverError(resp){ try{const data=await resp.json();return data.detail||data.message||`Erro ${resp.status}`;}catch(_e){return `Erro ${resp.status}`;} }
+  document.querySelectorAll('[data-otp-request]').forEach(b=>{
+    b.addEventListener('click',async()=>{
+      const msg=b.parentElement.querySelector('.otp-msg'); b.disabled=true;
+      try{
+        const fd=new FormData(); fd.append('csrf_token',b.closest('form').querySelector('[name=csrf_token]').value);
+        const r=await fetch(b.dataset.url,{method:'POST',body:fd,credentials:'same-origin'});
+        const j=await r.json(); msg.textContent=j.message||'';
+      }catch(e){ msg.textContent='Falha ao solicitar o código.'; }
+      setTimeout(()=>{b.disabled=false;},30000);
+    });
+  });
+  document.querySelectorAll('.form-assinatura').forEach(form=>{
+    form.addEventListener('submit',async(ev)=>{
+      ev.preventDefault();
+      const idx=form.dataset.workerIndex, sig=document.getElementById('sig-input-'+idx).value;
+      const statusEl=form.querySelector('.sig-envio-status'), btn=form.querySelector('button[type=submit]');
+      if(!sig){statusEl.style.color='var(--cor-perigo)';statusEl.textContent='Faça a rubrica antes de confirmar.';return;}
+      btn.disabled=true; statusEl.style.color='var(--cor-texto-secundario)'; statusEl.textContent='Enviando assinatura…';
+      if(form.dataset.presentCapture==='0'){ HTMLFormElement.prototype.submit.call(form); return; }
+      try{
+        const resp=await fetch(form.dataset.onlineUrl,{method:'POST',body:new FormData(form),credentials:'same-origin'});
+        if(!resp.ok) throw new Error(await serverError(resp));
+        statusEl.style.color='#1C7A5E'; statusEl.textContent='Assinatura registrada. Atualizando…'; window.location.reload();
+      }catch(e){btn.disabled=false;statusEl.style.color='var(--cor-perigo)';statusEl.textContent=e.message||'Não foi possível registrar a assinatura.';}
+    });
+  });
+  (function(){
+    const f=document.getElementById('manual-form'); if(!f) return;
+    const st=document.getElementById('manual-status'), who=document.getElementById('manual-who'), otp=document.getElementById('manual-otp');
+    const cpf=()=>document.getElementById('manual-cpf').value;
+    document.getElementById('manual-buscar').addEventListener('click',async()=>{
+      who.style.color=''; who.textContent='Buscando…';
+      try{
+        const r=await fetch('/apr/{{ doc.id }}/assinar-manual/buscar?cpf='+encodeURIComponent(cpf()),{credentials:'same-origin'});
+        if(!r.ok) throw new Error(await serverError(r));
+        const j=await r.json(); who.style.color='#1C7A5E'; who.textContent='✓ '+j.name+' · '+j.company;
+        otp.style.display=j.token_available?'flex':'none';
+      }catch(e){ who.style.color='var(--cor-perigo)'; who.textContent=e.message; otp.style.display='none'; }
+    });
+    document.getElementById('manual-gerar').addEventListener('click',async(ev)=>{
+      const b=ev.currentTarget, m=document.getElementById('manual-otp-msg'); b.disabled=true;
+      try{
+        const fd=new FormData(); fd.append('csrf_token',f.querySelector('[name=csrf_token]').value); fd.append('cpf',cpf());
+        const r=await fetch('/apr/{{ doc.id }}/assinar-manual/codigo',{method:'POST',body:fd,credentials:'same-origin'});
+        if(!r.ok) throw new Error(await serverError(r)); m.textContent=(await r.json()).message;
+      }catch(e){ m.textContent=e.message; }
+      setTimeout(()=>{b.disabled=false;},30000);
+    });
+    f.addEventListener('submit',async(ev)=>{
+      ev.preventDefault();
+      if(!document.getElementById('sig-input-manual').value){ st.style.color='var(--cor-perigo)'; st.textContent='Faça a rubrica antes de confirmar.'; return; }
+      const btn=f.querySelector('button[type=submit]'); btn.disabled=true; st.style.color=''; st.textContent='Enviando assinatura…';
+      try{
+        const r=await fetch(f.action,{method:'POST',body:new FormData(f),credentials:'same-origin'});
+        if(!r.ok) throw new Error(await serverError(r));
+        st.style.color='#1C7A5E'; st.textContent='Assinatura registrada. Atualizando…'; location.reload();
+      }catch(e){ btn.disabled=false; st.style.color='var(--cor-perigo)'; st.textContent=e.message; }
+    });
+  })();
+</script>
+{% endblock %}

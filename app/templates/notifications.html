@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block page_title %}Notificações{% endblock %}
+{% block content %}
+<style>
+  .notif-list { display: flex; flex-direction: column; gap: var(--espaco-2); }
+  .notif-item { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); text-decoration: none; color: inherit; }
+  .notif-item.unread { border-left: 4px solid var(--cor-primaria); }
+  .notif-item .texto strong { display: block; }
+  .notif-item .texto span { color: var(--cor-texto-secundario); font-size: 0.82rem; }
+  .toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--espaco-3); }
+  .push-card { margin-bottom: var(--espaco-4); display:flex; gap:18px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .push-copy { min-width:240px; flex:1; }
+  .push-copy h3 { margin:0 0 6px; font-size:1rem; }
+  .push-copy p { margin:0; color:var(--cor-texto-secundario); font-size:.86rem; line-height:1.45; }
+  .push-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .push-status { font-size:.8rem; font-weight:700; padding:7px 10px; border-radius:999px; background:#f3f1ef; }
+  .push-status.on { background:#e8f7ee; color:#21683d; }
+  .push-status.off { background:#fff1e9; color:#8d431c; }
+  .push-message { width:100%; margin-top:4px; font-size:.82rem; }
+</style>
+
+{% if items %}
+<div class="toolbar">
+  <form method="post" action="/notifications/read-all">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-fantasma" type="submit">Marcar todas como lidas</button>
+  </form>
+</div>
+<div class="notif-list">
+  {% for n in items %}
+  <a class="card notif-item {% if not n.read %}unread{% endif %}" href="/notifications/{{ n.id }}/open">
+    <div class="texto">
+      <strong>{{ n.doc_code }}{% if n.doc_title %} — {{ n.doc_title }}{% endif %}</strong>
+      <span>{{ n.message }} · {{ n.created_at.strftime('%d/%m/%Y %H:%M') if n.created_at else '' }}</span>
+    </div>
+    {% if not n.read %}<span class="badge badge-atencao">Nova</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state" style="text-align:center; padding: var(--espaco-6);">Você não tem notificações.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block page_title %}Painel
+<script>
+const historyClusterSites = {{ history_cluster_sites | tojson }};
+function atualizarSitesHistorico(clusterValue,wantedSite){
+  const site=document.getElementById('history-site');
+  if(!site) return;
+  const cluster=String(clusterValue||'').trim();
+  const sites=Array.isArray(historyClusterSites[cluster]) ? historyClusterSites[cluster] : [];
+  const wanted=String(wantedSite||'').trim();
+  site.innerHTML='<option value="">Todos os Sites</option>';
+  sites.forEach(function(st){
+    const opt=document.createElement('option'); opt.value=st; opt.textContent=st; site.appendChild(opt);
+  });
+  if(wanted && sites.includes(wanted)) site.value=wanted;
+  site.dispatchEvent(new Event('change',{bubbles:true}));
+}
+window.atualizarSitesHistorico=atualizarSitesHistorico;
+const historyCluster=document.getElementById('history-cluster');
+if(historyCluster) atualizarSitesHistorico(historyCluster.value,{{ site_filter | tojson }});
+</script>
+
+{% endblock %}
+{% block content %}
+<style>
+.dashboard-heading{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin:0 0 28px;padding:24px 26px;border-radius:18px;background:linear-gradient(120deg,#22272b,#353c40);color:white}
+.dashboard-heading h1{margin:5px 0 6px;font-size:clamp(1.55rem,3vw,2.15rem);color:white}
+.dashboard-heading p{margin:0;color:#d2d7da;font-size:.9rem}
+.dashboard-heading .btn{background:white;color:#22272b;border:0}
+.dashboard-eyebrow{font-size:.7rem;font-weight:800;letter-spacing:.15em;color:#ffb2a8}
+.dashboard-section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 12px;flex-wrap:wrap}
+.dashboard-section-title>div{display:flex;align-items:center;gap:10px}
+.dashboard-section-title h2{margin:0;font-size:1.14rem}
+.dashboard-index{display:inline-grid;place-items:center;width:31px;height:31px;border-radius:9px;background:#fff0ec;color:#b13b2e;font-weight:800;font-size:.76rem}
+.dashboard-hint{font-size:.77rem;color:var(--cor-texto-secundario)}
+.dashboard-filter-panel{border:1px solid #e7e2dd;background:#fff;border-radius:15px;margin-bottom:16px;overflow:hidden}
+.dashboard-filter-panel>summary{cursor:pointer;padding:15px 18px;font-weight:800;list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dashboard-filter-panel>summary::-webkit-details-marker{display:none}
+.dashboard-filter-panel>summary:before{content:'⌄';color:#a23c31;font-size:1.2rem}
+.dashboard-filter-panel>summary span{font-weight:400;font-size:.77rem;color:var(--cor-texto-secundario)}
+.dashboard-filter-panel .filtros{margin:0;box-shadow:none;border-radius:0;border-top:1px solid #f0ece8}
+.dashboard-documents{scroll-margin-top:25px}
+@media(max-width:700px){.dashboard-heading{padding:20px}.dashboard-heading .btn{width:100%;text-align:center}.dashboard-hint{display:none}}
+</style>
+
+<style>
+  .painel-hero { display: grid; grid-template-columns: 1.3fr 1fr; gap: var(--espaco-3); margin-bottom: var(--espaco-5); }
+  .hero-stat { background: var(--serena-grafite); color: var(--serena-branco); border-radius: var(--raio-card); padding: var(--espaco-4); display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+  .hero-stat { overflow:hidden; background:linear-gradient(135deg,#1b1b1b 0%,#2a1d1b 55%,#3a1f1b 100%); background-size:200% 200%; animation:heroShift 9s ease-in-out infinite; }
+  @keyframes heroShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+  .hero-stat::after { content: ''; position: absolute; width: 70%; height: 24px; background: linear-gradient(90deg,rgba(255,82,70,0),rgba(255,82,70,.55)); transform: rotate(-10deg); right: -20%; top: 65%; animation:heroStripe 5s ease-in-out infinite; }
+  @keyframes heroStripe{0%,100%{transform:rotate(-10deg) translateX(0)}50%{transform:rotate(-10deg) translateX(-28px)}}
+  .hero-stat::before { content:''; position:absolute; width:220px; height:220px; border-radius:50%; left:-60px; top:-90px; background:radial-gradient(circle,rgba(255,82,70,.28),rgba(255,82,70,0) 70%); animation:heroOrb 6s ease-in-out infinite; pointer-events:none; }
+  @keyframes heroOrb{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(40px,24px) scale(1.25)}}
+  .hero-stat .valor { text-shadow:0 0 28px rgba(255,82,70,.55); animation:heroPop .8s cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes heroPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+  .hero-stat .sub::before { content:''; display:inline-block; width:8px; height:8px; border-radius:50%; background:#3ddc97; margin-right:7px; vertical-align:1px; animation:heroLive 1.8s ease-out infinite; }
+  @keyframes heroLive{0%{box-shadow:0 0 0 0 rgba(61,220,151,.7)}100%{box-shadow:0 0 0 9px rgba(61,220,151,0)}}
+  .mini-stat:hover .mini-ico { animation:miniWiggle .6s ease; }
+  @keyframes miniWiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg) scale(1.15)}60%{transform:rotate(10deg) scale(1.15)}}
+  @media (prefers-reduced-motion:reduce){.hero-stat,.hero-stat::before,.hero-stat::after,.hero-stat .valor,.hero-stat .sub::before,.mini-stat:hover .mini-ico{animation:none!important}}
+  .hero-stat .rotulo { font-size: 0.85rem; opacity: 0.75; position: relative; z-index: 1; }
+  .hero-stat .valor { font-family: var(--fonte-display); font-size: 3rem; font-weight: 700; line-height: 1; margin: var(--espaco-2) 0; position: relative; z-index: 1; }
+  .hero-stat .sub { font-size: 0.82rem; opacity: 0.7; position: relative; z-index: 1; }
+  .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--espaco-2); }
+  .mini-stat { display: flex; flex-direction: column; justify-content: center; gap: 2px; border-top: 3px solid var(--mini-cor, var(--cor-primaria)); }
+  .mini-stat .valor { font-family: var(--fonte-display); font-size: 1.6rem; font-weight: 700; }
+  .mini-stat .rotulo { color: var(--cor-texto-secundario); font-size: 0.78rem; }
+  .painel-acoes { display:flex; flex-wrap:wrap; gap:var(--espaco-2); margin:-6px 0 var(--espaco-5); }
+  .painel-acoes .btn { display:inline-flex; align-items:center; gap:8px; min-height:42px; text-decoration:none; }
+  .painel-acoes svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .aviso-lista { display: flex; flex-direction: column; gap: var(--espaco-2); margin-bottom: var(--espaco-5); }
+  .aviso-item { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); text-decoration: none; color: inherit; border-left: 4px solid var(--cor-atencao); }
+  .aviso-item .texto strong { display: block; }
+  .aviso-item .texto span { color: var(--cor-texto-secundario); font-size: 0.85rem; }
+  .filtros { display: flex; flex-wrap: wrap; gap: var(--espaco-2); margin-bottom: var(--espaco-4); align-items: center; background: var(--serena-branco); border-radius: var(--raio-card); padding: var(--espaco-3); box-shadow: var(--sombra-card); }
+  .filtros input[type="text"] { flex: 1; min-width: 180px; border: 1px solid #D8D3CC; }
+  .filtros .filtro-data { min-width:150px; }
+  .filtros .filtro-grupo { display:flex; flex-direction:column; gap:4px; min-width:145px; }
+  .filtros .filtro-grupo > span { font-size:.70rem; color:var(--cor-texto-secundario); font-weight:700; }
+  .filtros .limpar-filtros { text-decoration:none; }
+  .filtros select { border-radius: var(--raio-input); border: 1px solid #D8D3CC; padding: 10px 34px 10px 12px; font-family: var(--fonte-base); background: var(--serena-branco); color: var(--cor-texto); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234B4B4B'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+  .doc-list { display: flex; flex-direction: column; gap: 12px; }
+  .doc-card {
+    display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:20px;
+    color:inherit; padding:18px 20px; border:1px solid #ECE8E3; box-shadow:0 4px 16px rgba(24,24,24,.05);
+    transition:box-shadow .15s ease,border-color .15s ease;
+  }
+  .doc-card{position:relative}
+  .doc-share{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;border:1px solid #E3DDD6;background:#fff;color:var(--cor-texto-secundario);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+  .doc-share:hover{background:#FFF4F2;color:#FF5246;border-color:#FFC9C3}
+  .doc-card:hover { border-color:#DDD6CF; box-shadow:0 10px 26px rgba(24,24,24,.09); }
+  .doc-card .info { min-width:0; }
+  .doc-title-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:5px; }
+  .doc-card .info strong { display:block; font-size:.96rem; line-height:1.35; overflow-wrap:anywhere; }
+  .doc-card .info span.doc-meta { color:var(--cor-texto-secundario); font-size:.78rem; display:block; margin-top:3px; line-height:1.45; }
+  .doc-status { flex:0 0 auto; }
+  .doc-right { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+  .doc-right .btn, .doc-more > summary {
+    min-height:40px; padding:9px 15px; border-radius:12px; font-size:.80rem; font-weight:700; line-height:1;
+    text-decoration:none; white-space:nowrap;
+  }
+  .doc-more { position:relative; }
+  .doc-more > summary {
+    list-style:none; display:inline-flex; align-items:center; justify-content:center; gap:7px; cursor:pointer;
+    background:#F3F0EC; color:var(--cor-texto); border:1px solid #E3DDD6; user-select:none;
+  }
+  .doc-more > summary::-webkit-details-marker { display:none; }
+  .doc-more > summary::after { content:'⌄'; font-size:.9rem; transform:translateY(-1px); }
+  .doc-more[open] > summary { background:#EDE8E2; }
+  .doc-more-menu {
+    position:fixed; z-index:1000; right:0; top:calc(100% + 7px); min-width:230px; max-width:calc(100vw - 24px); padding:7px;
+    background:#fff; border:1px solid #E3DDD6; border-radius:13px; box-shadow:0 16px 34px rgba(24,24,24,.15);
+  }
+  .doc-more-menu a {
+    display:block; padding:10px 11px; border-radius:9px; color:var(--cor-texto); text-decoration:none; font-size:.80rem; font-weight:600;
+  }
+  .doc-more-menu a:hover { background:#F6F3EF; }
+  .empty-state { text-align:center; padding:var(--espaco-6) var(--espaco-4); color:var(--cor-texto-secundario); }
+  @media (max-width: 900px) {
+    .doc-card { grid-template-columns:1fr; gap:14px; align-items:start; }
+    .doc-right { width:100%; justify-content:flex-start; }
+  }
+  @media (max-width: 700px) {
+    .painel-hero { grid-template-columns:1fr; }
+    .hero-stat { padding:var(--espaco-3); }
+    .doc-card { padding:15px; }
+    .doc-right { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .doc-right .btn, .doc-more > summary { width:100%; min-height:42px; text-align:center; padding:10px 12px; }
+    .doc-more { width:100%; }
+    .doc-more-menu { position:absolute; width:min(260px,calc(100vw - 40px)); }
+  }
+  @media (max-width: 430px) {
+    .doc-right { grid-template-columns:1fr; }
+  }
+.panel-intro{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin:0 0 18px}
+.panel-intro span{font-size:.7rem;font-weight:800;letter-spacing:.12em;color:#b63b32}
+.panel-intro h2{font-size:1.45rem;margin:4px 0}
+.panel-intro p{color:#6b7074;margin:0}
+@media(max-width:700px){.panel-intro .btn{width:100%;text-align:center}}
+</style>
+
+
+<style>
+.welcome{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;margin:0 0 18px;padding:22px 24px;border-radius:20px;background:linear-gradient(120deg,#fff4f2,#fff9f1 60%,#fff);border:1px solid #f3e4df;position:relative;overflow:hidden;animation:dash-rise .6s ease both}
+.welcome::after{content:'';position:absolute;right:-40px;top:-60px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,82,70,.18),transparent 70%);pointer-events:none}
+.welcome-eyebrow{font-size:.7rem;font-weight:800;letter-spacing:.14em;color:#b63b32}
+.welcome h2{font-size:clamp(1.4rem,3vw,1.9rem);margin:4px 0 2px}
+.welcome p{margin:0;color:#6b7074;font-size:.9rem;text-transform:capitalize}
+.welcome-actions{display:flex;gap:10px;flex-wrap:wrap;position:relative;z-index:1}
+.welcome-btn{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid #e3ddd6;background:#fff;color:#22272b;font-weight:700;font-size:.88rem;text-decoration:none;transition:transform .15s ease,box-shadow .2s ease}
+.welcome-btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.welcome-btn.primary{background:var(--serena-coral,#ff5246);border-color:var(--serena-coral,#ff5246);color:#fff}
+.welcome-btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(24,24,24,.12)}
+.stat-link{text-decoration:none;color:inherit;transition:transform .18s ease,box-shadow .2s ease;animation:dash-rise .6s ease both}
+.hero-stat.stat-link{color:var(--serena-branco)}
+.stat-link:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(24,24,24,.14)}
+.mini-stats .stat-link:nth-child(1){animation-delay:.08s}.mini-stats .stat-link:nth-child(2){animation-delay:.16s}.mini-stats .stat-link:nth-child(3){animation-delay:.24s}
+.mini-stat{position:relative}
+.mini-ico{position:absolute;right:14px;top:14px;width:22px;height:22px;fill:none;stroke:var(--mini-cor,#999);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.7}
+.doc-card{border-left:4px solid #d8d3cc;animation:dash-rise .5s ease both}
+.doc-card.st-ok{border-left-color:var(--cor-sucesso,#2f7d4f)}
+.doc-card.st-warn{border-left-color:var(--cor-atencao,#d9902f)}
+.doc-card.st-off{border-left-color:#b9b4ae;opacity:.85}
+.doc-card:hover{transform:translateY(-2px)}
+.dashboard-filter-panel{animation:dash-rise .5s ease both}
+.empty-state svg{display:block;margin:0 auto}
+.week-card{margin:0 0 var(--espaco-5,24px);padding:16px 20px;animation:dash-rise .6s ease .3s both}
+.week-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.week-head span{font-size:.75rem;color:var(--cor-texto-secundario)}
+.week-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:end}
+.week-col{display:flex;flex-direction:column;align-items:center;gap:5px}
+.week-track{width:100%;max-width:46px;height:84px;background:#f3efea;border-radius:10px;display:flex;align-items:flex-end;overflow:hidden}
+.week-track i{display:block;width:100%;height:var(--h);min-height:3px;background:#d8d3cc;border-radius:10px;transform-origin:bottom;animation:bar-grow .7s cubic-bezier(.2,.8,.2,1) both}
+.week-col.is-today .week-track i{background:var(--serena-coral,#ff5246)}
+.week-num{font-size:.78rem;font-weight:700}.week-day{font-size:.72rem;color:var(--cor-texto-secundario);text-transform:capitalize}
+@keyframes bar-grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@media(prefers-reduced-motion:reduce){.week-card,.week-track i{animation:none!important}}
+@keyframes dash-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.welcome,.stat-link,.doc-card,.dashboard-filter-panel{animation:none!important}.stat-link:hover,.doc-card:hover,.welcome-btn:hover{transform:none}}
+@media(max-width:700px){.welcome{padding:18px}.welcome-actions{width:100%}.welcome-btn{flex:1;justify-content:center}}
+</style>
+<div class="welcome">
+  <div class="welcome-text">
+    <span class="welcome-eyebrow">SAFETY PLUS · DOCUMENTOS</span>
+    <h2><span id="greeting">Olá</span>{% if user and user.full_name %}, {{ user.full_name.split()[0] }}{% endif %}!</h2>
+    <p id="welcome-date">Consulte seus documentos e acompanhe as ações pendentes.</p>
+  </div>
+</div>
+
+<div class="painel-hero">
+  <a class="hero-stat stat-link" href="/">
+    <span class="rotulo">Documentos visíveis para você</span>
+    <span class="valor" data-count="{{ counts.total }}">{{ counts.total }}</span>
+    <span class="sub">{{ counts.today }} atualizados hoje</span>
+  </a>
+  <div class="mini-stats">
+    <a class="card mini-stat stat-link" href="/?status=Rascunho" style="--mini-cor: var(--cor-neutro);"><svg class="mini-ico" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg><span class="valor" data-count="{{ counts.drafts }}">{{ counts.drafts }}</span><span class="rotulo">Rascunhos</span></a>
+    <a class="card mini-stat stat-link" href="/?status=Aguardando aprovação" style="--mini-cor: var(--cor-atencao);"><svg class="mini-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="valor" data-count="{{ counts.pending }}">{{ counts.pending }}</span><span class="rotulo">Pendentes</span></a>
+    <a class="card mini-stat stat-link" href="/?status=Finalizada" style="--mini-cor: var(--cor-sucesso); grid-column: span 2;"><svg class="mini-ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg><span class="valor" data-count="{{ counts.final }}">{{ counts.final }}</span><span class="rotulo">Finalizados / PDFs</span></a>
+  </div>
+</div>
+
+<div class="card week-card">
+  <div class="week-head"><strong>Atividade dos últimos 7 dias</strong><span>documentos atualizados por dia</span></div>
+  {% set wmax = (week_activity|map(attribute='count')|max) or 1 %}
+  <div class="week-bars">
+    {% for d in week_activity %}
+    <div class="week-col {% if loop.last %}is-today{% endif %}" title="{{ d.day }}: {{ d.count }} documento(s)">
+      <span class="week-num">{{ d.count }}</span>
+      <div class="week-track"><i style="--h:{{ (d.count / wmax * 100)|round|int }}%;animation-delay:{{ loop.index0 * 0.07 }}s"></i></div>
+      <span class="week-day">{{ 'hoje' if loop.last else d.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if pending_signatures %}
+<h2>Assinaturas pendentes para você</h2>
+<div class="aviso-lista">
+  {% for item in pending_signatures %}
+  <a class="card aviso-item" href="{{ item.url or ('/apr/' ~ item.doc.id ~ '/assinar') }}">
+    <div class="texto"><strong>{{ doc_reference_code(item.doc) }} — {{ item.doc.title }}</strong><span>{{ item.message }}</span></div>
+    <span class="badge badge-atencao">Assinar</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if pending_approvals %}
+<h2>Aguardando sua aprovação</h2>
+<div class="aviso-lista">
+  {% for item in pending_approvals %}
+  <a class="card aviso-item" href="/apr/{{ item.doc.id }}/aprovar">
+    <div class="texto"><strong>{{ doc_reference_code(item.doc) }} — {{ item.doc.title }}</strong><span>Criado por {{ item.creator }} · {{ item.message }}</span></div>
+    <span class="badge badge-atencao">Revisar e aprovar</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Documentos</h2>
+<details class="dashboard-filter-panel" {% if (q or kind_filter or status_filter or period_filter or cluster_filter or site_filter or creator_filter or company_filter or today_filter or date_from_filter or date_to_filter) %}open{% endif %}>
+<summary>Filtros e busca <span>{% if (q or kind_filter or status_filter or period_filter or cluster_filter or site_filter or creator_filter or company_filter or today_filter or date_from_filter or date_to_filter) %}filtros ativos{% else %}toque para filtrar{% endif %}</span></summary>
+<form class="filtros" method="get" action="/">
+  <input class="campo" type="text" name="q" placeholder="Buscar por código, atividade, cluster ou site" value="{{ q }}">
+  <select class="campo" name="kind">
+    <option value="">Todos os tipos</option>
+    {% for k, label in kinds.items() %}<option value="{{ k }}" {% if kind_filter == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <select class="campo" name="status">
+    <option value="">Todos os status</option>
+    {% for s in ['Rascunho', 'Em andamento', 'Pendente de encerramento', 'Aguardando aprovação', 'Pendente assinatura', 'Finalizada', 'Cancelado'] %}<option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+  </select>
+  <select class="campo" name="period" id="history-period">
+    <option value="">Qualquer período</option>
+    <option value="today" {% if period_filter == 'today' %}selected{% endif %}>Hoje</option>
+    <option value="7days" {% if period_filter == '7days' %}selected{% endif %}>Últimos 7 dias</option>
+    <option value="month" {% if period_filter == 'month' %}selected{% endif %}>Este mês</option>
+    <option value="custom" {% if period_filter == 'custom' %}selected{% endif %}>Personalizado</option>
+  </select>
+  <div class="filtro-grupo"><span>De</span><input class="campo filtro-data" type="date" name="date_from" value="{{ date_from_filter }}"></div>
+  <div class="filtro-grupo"><span>Até</span><input class="campo filtro-data" type="date" name="date_to" value="{{ date_to_filter }}"></div>
+  <select class="campo" name="creator">
+    <option value="">Todos os criadores</option>
+    {% for item in creator_options %}<option value="{{ item.id }}" {% if creator_filter == (item.id|string) %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+  </select>
+  <input class="campo" type="text" name="company" placeholder="Empresa / Contratada" value="{{ company_filter }}">
+  <select class="campo" id="history-cluster" name="cluster" onchange="atualizarSitesHistorico(this.value,'')">
+    <option value="">Todos os Clusters</option>
+    {% for c in history_clusters %}<option value="{{ c }}" {% if cluster_filter == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+  </select>
+  <select class="campo" id="history-site" name="site">
+    <option value="">Todos os Sites</option>
+    {% for st in history_cluster_sites.get(cluster_filter, []) %}<option value="{{ st }}" {% if site_filter == st %}selected{% endif %}>{{ st }}</option>{% endfor %}
+  </select>
+  <select class="campo" name="sort">
+    <option value="recent" {% if sort_filter == 'recent' %}selected{% endif %}>Mais recentes</option>
+    <option value="oldest" {% if sort_filter == 'oldest' %}selected{% endif %}>Mais antigos</option>
+  </select>
+  <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:var(--cor-texto-secundario);"><input type="checkbox" name="today" value="1" {% if today_filter %}checked{% endif %}> Só hoje</label>
+  <button class="btn btn-primario" type="submit">Filtrar</button>
+  <a class="btn btn-secundario limpar-filtros" href="/">Limpar filtros</a>
+</form>
+</details>
+
+{% if documents %}
+<div class="doc-list">
+  {% for doc in documents %}
+  <div class="card doc-card st-{{ 'ok' if doc.status == 'Finalizada' else ('off' if doc.status == 'Cancelado' else ('warn' if doc.status in ['Aguardando aprovação','Pendente assinatura','Pendente de encerramento'] else 'draft')) }}">
+    <div class="info">
+      <div class="doc-title-row">
+        <strong>{{ doc_reference_code(doc) }} — {{ doc.title }}</strong>
+        <span class="doc-status">
+          {% if doc.status == 'Finalizada' %}<span class="badge badge-sucesso">Finalizada</span>
+          {% elif doc.status == 'Cancelado' %}<span class="badge badge-neutro">Cancelado</span>
+          {% elif doc.status in ['Aguardando aprovação', 'Pendente assinatura', 'Pendente de encerramento'] %}<span class="badge badge-atencao">{{ doc.status }}</span>
+          {% else %}<span class="badge badge-neutro">{{ doc.status }}</span>{% endif %}
+        </span>
+      </div>
+      <span class="doc-meta">{{ doc.cluster }}{% if doc.site %} · {{ doc.site }}{% endif %}{% if doc.activity %} · {{ doc.activity }}{% endif %}</span>
+      <span class="doc-meta">Atualizado em {{ doc.updated_at.strftime('%d/%m/%Y %H:%M') if doc.updated_at else '' }}</span>
+    </div>
+    <div class="doc-right">
+      {% if doc.status == 'Finalizada' %}
+        {% if doc.kind == 'apr' %}
+        <a class="btn btn-secundario" href="/apr/{{ doc.id }}/pts">PTs / Dossiê</a>
+        {% endif %}
+        <a class="btn btn-primario" href="/document/{{ doc.id }}/pdf" title="Visualizar PDF finalizado" aria-label="Abrir PDF {{ doc_reference_code(doc) }}"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px;margin-right:5px"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5"/><path d="M8.5 16.5h7M8.5 13h7"/></svg>Abrir PDF</a>
+        <a class="btn btn-secundario" href="/document/{{ doc.id }}/historico" title="Ver o histórico de alterações deste documento">Histórico de alterações</a>
+        <button type="button" class="doc-share" title="Compartilhar" aria-label="Compartilhar {{ doc_reference_code(doc)|e }}" onclick="compartilharDocumento({{ doc.id }}, '{{ doc_reference_code(doc)|e }}')"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-4.2M8.6 13.4l6.8 4.2"/></svg></button>
+        {% if doc.kind == 'apr' %}
+        <button type="button" class="btn btn-secundario" onclick="abrirNota({{ doc.id }}, '{{ doc_reference_code(doc)|e }}')">+ Observação / Risco</button>
+        <a class="btn btn-secundario" href="/apr/{{ doc.id }}/membro">+ Integrante</a>
+        {% endif %}
+        {% if doc.kind == 'apr' %}
+        <form method="post" action="/apr/{{ doc.id }}/duplicar" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="btn btn-secundario" title="Cria uma nova APR igual a esta, com o checklist zerado para preencher">Clonar APR</button>
+        </form>
+        {% endif %}
+      {% elif doc.kind == 'apr' and doc.status == 'Pendente assinatura' %}
+        <a class="btn btn-primario" href="/apr/{{ doc.id }}/assinar">Assinaturas</a>
+      {% elif doc.kind == 'apr' and doc.status == 'Aguardando aprovação' and user.role in ['Administrador','Super Administrador','DEV'] %}
+        <a class="btn btn-primario" href="{{ document_open_url(doc, user) }}">Aprovar</a>
+      {% elif doc.kind in ['pt_height','confined','electrical','line_live','vegetation','lifting','tme'] and doc.status in ['Em andamento','Pendente de encerramento'] %}
+        <a class="btn btn-primario" href="{{ document_open_url(doc, user) }}">Encerrar PT</a>
+      {% elif doc.status == 'Cancelado' %}
+        <span class="btn btn-secundario" style="cursor:default;opacity:.65;">Documento cancelado</span>
+      {% else %}
+        <a class="btn btn-secundario" href="{{ document_open_url(doc, user) }}">Continuar</a>
+      {% endif %}
+      {% if user.role in ['Administrador','Super Administrador','DEV'] and doc.status == 'Rascunho' %}
+      <form method="post" action="/admin/documents/{{ doc.id }}/delete" onsubmit="return confirm('Excluir definitivamente este rascunho? Essa ação não pode ser desfeita.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-secundario" type="submit" style="color:var(--cor-perigo);">Excluir</button>
+      </form>
+      {% endif %}
+      {% if user.role in ['Administrador','Super Administrador','DEV'] and doc.status == 'Aguardando aprovação' %}
+      <form method="post" action="/admin/documents/{{ doc.id }}/cancel" onsubmit="var m=prompt('Informe o motivo do cancelamento:'); if(!m || !m.trim()) return false; this.querySelector('[name=reason]').value=m.trim(); return confirm('Cancelar este documento e manter o registro no histórico?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="reason" value="">
+        <button class="btn btn-secundario" type="submit" style="color:var(--cor-perigo);">Cancelar documento</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty-state"><svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.45"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 13h6M9 17h4"/></svg><p style="margin:10px 0 0">Nenhum documento encontrado com esses filtros.</p></div>
+{% endif %}
+
+
+<script>
+async function compartilharDocumento(docId, codigo){
+  const url = `/document/${docId}/pdf?raw=1`;
+  const nome = `${codigo || 'Safety-Plus'}.pdf`;
+  try {
+    const resp = await fetch(url, {credentials:'same-origin'});
+    if (!resp.ok) throw new Error('Não foi possível carregar o PDF.');
+    const blob = await resp.blob();
+    const file = new File([blob], nome, {type:'application/pdf'});
+    if (navigator.share) {
+      try {
+        if (!navigator.canShare || navigator.canShare({files:[file]})) {
+          await navigator.share({title: codigo || 'Safety Plus', text:'Documento finalizado do Safety Plus', files:[file]});
+          return;
+        }
+        await navigator.share({title: codigo || 'Safety Plus', text:'Documento finalizado do Safety Plus', url: location.origin + `/document/${docId}/pdf`});
+        return;
+      } catch (shareError) {
+        if (shareError && shareError.name === 'AbortError') return;
+      }
+    }
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+    alert('O compartilhamento direto não é suportado neste navegador. O PDF foi baixado para você compartilhar.');
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;
+    alert((e && e.message) ? e.message : 'Não foi possível compartilhar este PDF.');
+  }
+}
+
+(function(){
+  const p=document.getElementById('history-period');
+  if(!p) return;
+  p.addEventListener('change',function(){
+    if(this.value==='custom'){
+      const first=document.querySelector('.filtros input[name="date_from"]');
+      if(first) first.focus();
+    }
+  });
+})();
+</script>
+</section>
+
+<script>
+(function(){
+  var h=new Date().getHours(), g=document.getElementById('greeting');
+  if(g) g.textContent=h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite');
+  var d=document.getElementById('welcome-date');
+  if(d) try{d.textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}catch(e){}
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  document.querySelectorAll('[data-count]').forEach(function(el){
+    var end=parseInt(el.getAttribute('data-count'),10); if(!end||end<2) return;
+    var start=null, dur=700;
+    el.textContent='0';
+    function step(ts){ if(start===null) start=ts; var p=Math.min((ts-start)/dur,1); el.textContent=Math.round(end*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(step); else el.textContent=end; }
+    requestAnimationFrame(step);
+  });
+})();
+</script>
+
+<dialog id="nota-dialog" class="nota-dialog">
+  <form method="post" id="nota-form" onsubmit="return validarNota(this)">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h3 id="nota-titulo" style="margin:0 0 4px">Adicionar à APR</h3>
+    <p style="margin:0 0 12px;font-size:.85rem;color:var(--cor-texto-secundario)">Registre durante a execução. Entra no PDF como folha auditável.</p>
+    <div class="nota-tipos" role="radiogroup">
+      <label><input type="radio" name="note_type" value="Etapa adicional" checked onchange="trocaTipoNota()"><span>Etapa completa</span></label>
+      <label><input type="radio" name="note_type" value="Observação" onchange="trocaTipoNota()"><span>Só observação</span></label>
+    </div>
+    <div id="nota-etapa">
+      <label class="nota-l">Etapa *</label><input class="campo" name="step_stage" maxlength="300" placeholder="Descreva a etapa da atividade">
+      <label class="nota-l">Perigo *</label><textarea class="campo" name="step_hazard" rows="2" maxlength="600" list="nota-perigos" placeholder="Perigo identificado"></textarea>
+      <div class="nota-sug" data-alvo="step_hazard">{% for o in apr_hazard_options[:8] %}<button type="button" onclick="nota_add(this)">{{ o }}</button>{% endfor %}</div>
+      <label class="nota-l">Risco *</label><textarea class="campo" name="step_risk" rows="2" maxlength="600" placeholder="Risco associado"></textarea>
+      <div class="nota-sug" data-alvo="step_risk">{% for o in apr_risk_catalog[:8] %}<button type="button" onclick="nota_add(this)">{{ o }}</button>{% endfor %}</div>
+      <label class="nota-l">Severidade *</label>
+      <div class="nota-tipos"><label><input type="radio" name="step_severity" value="C"><span>C · Baixo</span></label><label><input type="radio" name="step_severity" value="B"><span>B · Médio</span></label><label><input type="radio" name="step_severity" value="A"><span>A · Alto</span></label></div>
+      <label class="nota-l">Medida de controle *</label><textarea class="campo" name="step_control" rows="2" maxlength="800" placeholder="Como o risco será controlado"></textarea>
+    </div>
+    <div id="nota-obs" hidden>
+    <textarea name="observation" id="nota-texto" class="campo" rows="5" maxlength="2000" placeholder="Descreva..." oninput="document.getElementById('nota-cont').textContent=this.value.length"></textarea>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <small id="nota-cont-wrap" hidden><span id="nota-cont">0</span>/2000</small><span></span>
+      <span style="display:flex;gap:8px"><button type="button" class="btn btn-fantasma" onclick="document.getElementById('nota-dialog').close()">Cancelar</button><button type="submit" class="btn btn-primario">Salvar</button></span>
+    </div>
+  </form>
+</dialog>
+<style>
+  .nota-dialog{border:0;border-radius:16px;padding:20px;width:min(560px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .nota-dialog::backdrop{background:rgba(24,24,24,.5)}
+  .nota-l{display:block;font-size:.8rem;font-weight:700;margin:10px 0 4px}.nota-sug{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.nota-sug button{border:1px solid #D8D3CC;background:#fff;border-radius:999px;font-size:.72rem;padding:3px 9px;cursor:pointer}.nota-sug button:hover{background:#F6F3EF}
+  .nota-dialog{max-height:90vh;overflow:auto}
+  .nota-tipos{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .nota-tipos label{cursor:pointer}.nota-tipos input{position:absolute;opacity:0}
+  .nota-tipos span{display:inline-block;padding:6px 12px;border-radius:999px;border:1px solid #D8D3CC;font-size:.84rem;font-weight:600}
+  .nota-tipos input:checked+span{background:#FF5246;border-color:#FF5246;color:#fff}
+  .nota-tipos input:focus-visible+span{outline:2px solid #181818}
+</style>
+<script>
+  function abrirNota(id,codigo){
+    const f=document.getElementById('nota-form'); f.action='/apr/'+id+'/observations';
+    document.getElementById('nota-titulo').textContent='Adicionar à '+codigo;
+    f.reset(); document.getElementById('nota-cont').textContent='0'; trocaTipoNota();
+    const d=document.getElementById('nota-dialog'); d.showModal();
+    setTimeout(()=>document.getElementById('nota-texto').focus(),30);
+  }
+  function tipoNota(){ return document.querySelector('#nota-form [name=note_type]:checked').value; }
+  function trocaTipoNota(){
+    const et=tipoNota()==='Etapa adicional';
+    document.getElementById('nota-etapa').hidden=!et; document.getElementById('nota-obs').hidden=et;
+    document.getElementById('nota-cont-wrap').hidden=et;
+  }
+  function nota_add(b){
+    const t=document.querySelector('#nota-form [name='+b.parentElement.dataset.alvo+']');
+    t.value=(t.value?t.value+'\n':'')+b.textContent; t.focus();
+  }
+  function validarNota(f){
+    if(tipoNota()==='Etapa adicional'){
+      if(!f.step_severity.value){ alert('Selecione a severidade.'); return false; }
+      return ['step_stage','step_hazard','step_risk','step_control'].every(n=>f[n].value.trim());
+    }
+    return !!f.observation.value.trim();
+  }
+</script>
+<script>
+  // Menu "Mais ações": posição fixa calculada pelo botão, para nunca ser cortado pelo cartão ou pela tela.
+  (function(){
+    function fechar(except){ document.querySelectorAll('.doc-more[open]').forEach(d=>{ if(d!==except) d.removeAttribute('open'); }); }
+    document.querySelectorAll('.doc-more').forEach(function(d){
+      d.addEventListener('toggle',function(){
+        if(!d.open) return;
+        fechar(d);
+        const s=d.querySelector('summary'), m=d.querySelector('.doc-more-menu');
+        const r=s.getBoundingClientRect(), mw=m.offsetWidth, mh=m.offsetHeight;
+        let left=Math.min(Math.max(12,r.right-mw),window.innerWidth-mw-12);
+        let top=r.bottom+7;
+        if(top+mh>window.innerHeight-12) top=Math.max(12,r.top-mh-7);
+        m.style.left=left+'px'; m.style.top=top+'px'; m.style.right='auto';
+      });
+    });
+    document.addEventListener('click',function(e){ if(!e.target.closest('.doc-more')) fechar(null); });
+    window.addEventListener('scroll',function(){ fechar(null); },true);
+    window.addEventListener('resize',function(){ fechar(null); });
+  })();
+</script>
+{% endblock %}

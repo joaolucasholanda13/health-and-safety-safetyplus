@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block page_title %}Recursos de Emergência (DEV){% endblock %}
+{% block content %}
+<style>
+  .re-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:var(--espaco-4); align-items:center; }
+  .re-tabs a { padding:8px 14px; border-radius:999px; background:#F1EEE9; color:#4a443f; text-decoration:none; font-size:.85rem; font-weight:600; }
+  .re-tabs a.on { background:var(--serena-coral-escuro,#E0473C); color:#fff; }
+  .rx-row { display:grid; grid-template-columns:1.4fr 1fr 1.6fr auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px dashed #EFEAE4; }
+  .rx-row input { width:100%; }
+  .rx-head { font-size:.72rem; font-weight:700; color:var(--cor-texto-secundario); text-transform:uppercase; letter-spacing:.04em; padding-bottom:4px; }
+  .rx-btns { display:flex; gap:4px; }
+  .rx-btns button { min-width:34px; }
+  .rx-cl { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:6px 14px; font-size:.84rem; }
+  .rx-cl label { display:flex; gap:7px; align-items:center; }
+  @media (max-width:720px){ .rx-row{grid-template-columns:1fr;} .rx-head{display:none;} }
+</style>
+<p style="color:var(--cor-texto-secundario);font-size:.9rem;margin-top:0">Edite os recursos externos de emergência de cada unidade. O que for salvo aparece na página <a href="/recursos-externos">Recursos Externos</a>, no formulário da APR e no PDF da APR (para os clusters vinculados).</p>
+<div class="re-tabs">
+  {% for u in units %}<a href="/dev/recursos-emergencia?unidade={{ u.key }}" class="{{ 'on' if cur and u.key==cur.key }}">{{ u.name }}</a>{% endfor %}
+</div>
+
+{% if cur %}
+<form method="post" action="/dev/recursos-emergencia/salvar" class="card" style="margin-bottom:var(--espaco-4)" id="rx-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="unit_key" value="{{ cur.key }}">
+  <div style="display:grid;grid-template-columns:1fr 90px;gap:10px;margin-bottom:14px">
+    <label class="sx-field"><span>Nome da unidade</span><input class="campo" name="name" value="{{ cur.name }}" required></label>
+    <label class="sx-field"><span>UF</span><input class="campo" name="state" value="{{ cur.state }}" maxlength="2"></label>
+  </div>
+  <h3 style="font-size:.9rem;margin:0 0 8px">Clusters / Sites da APR que usam esta lista</h3>
+  <div class="rx-cl" style="margin-bottom:16px">
+    {% for c in all_clusters %}<label><input type="checkbox" name="clusters" value="{{ c }}" {% if c in cur.clusters %}checked{% endif %}>{{ c }}</label>{% endfor %}
+  </div>
+  <h3 style="font-size:.9rem;margin:0 0 6px">Recursos ({{ cur.resources|length }})</h3>
+  <div class="rx-row rx-head"><div>Nome do recurso</div><div>Contato (vários: separe com " / ")</div><div>Endereço</div><div></div></div>
+  <div id="rx-rows">
+    {% for n,p,a in cur.resources %}
+    <div class="rx-row">
+      <input class="campo" name="res_name" value="{{ n }}" placeholder="Nome">
+      <input class="campo" name="res_phone" value="{{ p }}" placeholder="(00) 0000-0000">
+      <input class="campo" name="res_addr" value="{{ a }}" placeholder="Endereço (opcional)">
+      <div class="rx-btns"><button type="button" class="btn btn-fantasma" data-act="up" title="Subir">↑</button><button type="button" class="btn btn-fantasma" data-act="down" title="Descer">↓</button><button type="button" class="btn btn-fantasma" data-act="del" title="Remover" style="color:#B42318">✕</button></div>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+    <button type="button" class="btn btn-secundario" id="rx-add">+ Adicionar recurso</button>
+    <button type="submit" class="btn btn-primario">Salvar alterações</button>
+  </div>
+  <p style="font-size:.78rem;color:var(--cor-texto-secundario);margin:10px 0 0">Linhas sem nome são descartadas ao salvar. As alterações só valem depois de clicar em Salvar.</p>
+</form>
+
+<template id="rx-tpl">
+  <div class="rx-row">
+    <input class="campo" name="res_name" placeholder="Nome">
+    <input class="campo" name="res_phone" placeholder="(00) 0000-0000">
+    <input class="campo" name="res_addr" placeholder="Endereço (opcional)">
+    <div class="rx-btns"><button type="button" class="btn btn-fantasma" data-act="up" title="Subir">↑</button><button type="button" class="btn btn-fantasma" data-act="down" title="Descer">↓</button><button type="button" class="btn btn-fantasma" data-act="del" title="Remover" style="color:#B42318">✕</button></div>
+  </div>
+</template>
+<script>
+(function(){
+  const rows=document.getElementById('rx-rows');
+  document.getElementById('rx-add').addEventListener('click',()=>{
+    const n=document.getElementById('rx-tpl').content.firstElementChild.cloneNode(true);
+    rows.appendChild(n); n.querySelector('input').focus();
+  });
+  rows.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-act]'); if(!b) return;
+    const r=b.closest('.rx-row'), a=b.dataset.act;
+    if(a==='del'){ if(confirm('Remover este recurso? Vale ao salvar.')) r.remove(); }
+    else if(a==='up' && r.previousElementSibling) rows.insertBefore(r,r.previousElementSibling);
+    else if(a==='down' && r.nextElementSibling) rows.insertBefore(r.nextElementSibling,r);
+  });
+  let dirty=false; document.getElementById('rx-form').addEventListener('input',()=>dirty=true);
+  document.getElementById('rx-form').addEventListener('submit',()=>dirty=false);
+  window.addEventListener('beforeunload',e=>{ if(dirty){ e.preventDefault(); e.returnValue=''; } });
+})();
+</script>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--espaco-3)">
+  <form method="post" action="/dev/recursos-emergencia/nova" class="card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h3 style="font-size:.95rem;margin:0 0 10px">Nova unidade</h3>
+    <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:10px">
+      <input class="campo" name="name" placeholder="Nome da unidade" required><input class="campo" name="state" placeholder="UF" maxlength="2">
+    </div>
+    <button class="btn btn-secundario" type="submit">Criar unidade</button>
+  </form>
+  <div class="card">
+    <h3 style="font-size:.95rem;margin:0 0 10px">Outras ações</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      {% if cur %}
+      <form method="post" action="/dev/recursos-emergencia/excluir" onsubmit="return confirm('Excluir a unidade {{ cur.name }} e todos os seus recursos?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="unit_key" value="{{ cur.key }}">
+        <button class="btn btn-fantasma" type="submit" style="color:#B42318;border-color:#F04438">Excluir unidade</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/dev/recursos-emergencia/restaurar" onsubmit="return confirm('Voltar TODAS as unidades para a lista original? As edições serão perdidas.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-fantasma" type="submit">Restaurar padrão</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

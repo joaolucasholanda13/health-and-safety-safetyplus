@@ -1,0 +1,9 @@
+[Unit]
+Description=Verifica Safety Plus a cada minuto
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=60s
+
+[Install]
+WantedBy=timers.target

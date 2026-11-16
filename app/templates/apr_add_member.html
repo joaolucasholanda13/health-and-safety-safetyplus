@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block page_title %}Incluir integrante na APR{% endblock %}
+{% block content %}
+<style>
+  .mem-wrap{max-width:720px;margin:0 auto}.mem-card{padding:24px}.mem-note{background:#F7F5F2;border-radius:12px;padding:14px;margin:16px 0}
+  .mem-results{display:flex;flex-direction:column;gap:6px;margin:10px 0}.mem-opt{text-align:left;padding:10px 12px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
+  .mem-opt.sel{border-color:var(--cor-primaria);background:#fff4f2}.mem-status{font-size:.86rem;margin:6px 0}.mem-status.erro{color:var(--cor-perigo)}
+  .mem-picked{font-weight:700;margin:10px 0}.actions{display:flex;gap:10px;flex-wrap:wrap}.actions .btn{text-decoration:none}
+  .mem-list{margin:16px 0 0;padding-left:18px;font-size:.88rem}.mem-list li+li{margin-top:7px}
+</style>
+<div class="mem-wrap"><div class="card mem-card">
+  <h2 style="margin-top:0;">Incluir integrante na APR</h2>
+  <div class="mem-note"><strong>{{ doc_reference_code(doc) }}</strong><br>{{ data.activity or 'Sem atividade informada' }} · {{ data.cluster or 'Sem cluster/site' }}</div>
+  <p style="font-size:.86rem;color:var(--cor-texto-secundario);">Selecione o integrante para enviar a solicitação às notificações da conta dele. A própria pessoa deverá entrar no sistema, consultar a APR e assinar. É necessário um usuário ativo vinculado ao cadastro do participante.</p>
+  <p style="font-size:.86rem;color:var(--cor-texto-secundario);">Após a assinatura do integrante, o sistema gera a nova APR com a inclusão registrada. A APR atual permanece disponível como versão anterior e o conteúdo aprovado é preservado.</p>
+  <label for="busca">Nome ou CPF do integrante</label>
+  <div style="display:flex;gap:8px;margin:7px 0;">
+    <input class="campo" id="busca" style="flex:1" placeholder="Digite o nome ou CPF" autocomplete="off">
+    <button type="button" class="btn btn-secundario" id="btnBuscar">Buscar</button>
+  </div>
+  <div class="mem-status" id="status"></div>
+  <div class="mem-results" id="resultados"></div>
+  <form method="post" action="/apr/{{ doc.id }}/membro">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="participant_id" id="participant_id">
+    <div class="mem-picked" id="escolhido"></div>
+    <label for="reason">Motivo / observação (opcional)</label>
+    <input class="campo" id="reason" name="reason" maxlength="500" style="width:100%;margin:7px 0 14px;">
+    <div class="actions"><button class="btn btn-primario" type="submit" id="btnIncluir" disabled>Enviar solicitação de assinatura</button><a class="btn btn-secundario" href="/">Cancelar</a></div>
+  </form>
+  {% if pending_members %}
+  <h3 style="margin-top:22px;">Aguardando assinatura do integrante</h3>
+  <ul class="mem-list">{% for m in pending_members %}<li><strong>{{ m.worker }}</strong> — {{ m.company }}{% if m.role %} · {{ m.role }}{% endif %}<br><span style="color:var(--cor-texto-secundario);">Solicitação enviada em {{ m.created_at }}{% if m.added_by %} por {{ m.added_by }}{% endif %}.</span></li>{% endfor %}</ul>
+  {% endif %}
+  {% if members %}
+  <h3 style="margin-top:22px;">Já incluídos nesta APR</h3>
+  <ul class="mem-list">{% for m in members %}<li><strong>{{ m.worker }}</strong> — {{ m.company }}{% if m.role %} · {{ m.role }}{% endif %} ({{ m.created_at }})</li>{% endfor %}</ul>
+  {% endif %}
+</div></div>
+<script>
+(function(){
+  const csrf={{ csrf_token|tojson }};
+  const busca=document.getElementById('busca'), status=document.getElementById('status'), box=document.getElementById('resultados');
+  const pid=document.getElementById('participant_id'), picked=document.getElementById('escolhido'), btn=document.getElementById('btnIncluir');
+  function atualizarBotao(){btn.disabled=!pid.value;}
+  function escolher(d){
+    pid.value=d.can_sign?d.participant_id:''; atualizarBotao();
+    picked.textContent='Selecionado: '+d.full_name+' — '+[d.company,d.job_title].filter(Boolean).join(' · ');
+    box.innerHTML='';
+    status.textContent=d.can_sign?'A solicitação será enviada para a conta deste integrante.':'Este participante precisa de um usuário ativo vinculado antes de receber a solicitação.';
+    status.className=d.can_sign?'mem-status':'mem-status erro';
+  }
+  function mostrar(lista){
+    box.innerHTML='';
+    lista.forEach(d=>{const b=document.createElement('button');b.type='button';b.className='mem-opt';
+      b.textContent=d.full_name+' — '+[d.company,d.job_title].filter(Boolean).join(' · ')+(d.can_sign?'':' (sem usuário ativo)');
+      b.onclick=()=>escolher(d);box.appendChild(b);});
+  }
+  async function buscar(){
+    const q=busca.value.trim(); if(!q) return;
+    pid.value=''; atualizarBotao(); picked.textContent=''; status.className='mem-status'; status.textContent='Buscando...';
+    const fd=new FormData(); fd.append('csrf_token',csrf);
+    if(q.replace(/\D/g,'').length>=11) fd.append('cpf',q); else fd.append('name',q);
+    try{
+      const r=await fetch('/api/participants/lookup',{method:'POST',body:fd,credentials:'same-origin'});
+      const d=await r.json();
+      if(d.found){ status.textContent=''; escolher(d); }
+      else if(d.multiple){ status.textContent=d.message; mostrar(d.matches||[]); }
+      else { status.textContent=d.message||'Não encontrado.'; status.className='mem-status erro'; }
+    }catch(e){ status.textContent='Não foi possível buscar agora. Verifique a conexão.'; status.className='mem-status erro'; }
+  }
+  document.getElementById('btnBuscar').onclick=buscar;
+  let buscaTimer=null;
+  busca.addEventListener('input',()=>{
+    clearTimeout(buscaTimer);
+    const q=busca.value.trim(), digits=q.replace(/\D/g,''), hasLetters=/[A-Za-zÀ-ÿ]/.test(q);
+    pid.value=''; atualizarBotao(); picked.textContent='';
+    if((!hasLetters&&digits.length<11)||(hasLetters&&q.length<3)){box.innerHTML='';status.textContent='';return;}
+    buscaTimer=setTimeout(buscar,280);
+  });
+  busca.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();buscar();} if(e.key==='Escape'){box.innerHTML='';status.textContent='';}});
+
+  atualizarBotao();
+})();
+</script>
+{% endblock %}

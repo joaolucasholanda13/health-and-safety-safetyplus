@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block page_title %}Atualizações do sistema{% endblock %}
+{% block content %}
+<style>
+  .secao { margin-bottom: var(--espaco-4); }
+  .rel { border-left: 5px solid var(--serena-coral-escuro); margin-bottom: var(--espaco-3); }
+  .rel .meta { font-size:.78rem; color:var(--cor-texto-secundario); }
+  .rel ul { margin:6px 0 0; padding-left:20px; font-size:.88rem; line-height:1.5; }
+</style>
+<div class="card secao" style="border-left:5px solid #c0392b">
+  <h2 style="font-size:1rem;margin-bottom:6px">Parada do sistema para manutenção</h2>
+  {% set sch = maint.schedule %}
+  {% if sch %}
+  <div style="background:#FFF8F5;border:1px solid #F3C9C2;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:.88rem;line-height:1.5">
+    <b>{{ 'Em andamento agora' if maint.scheduled_active else 'Programada' }}</b>: {{ sch.start_label }} até {{ sch.end_label }}.<br>
+    {{ sch.message }}<br><small style="color:var(--cor-texto-secundario)">Agendada por {{ sch.created_by }}. {{ 'O acesso está bloqueado para todos, exceto o DEV' if maint.scheduled_active else 'Todos os usuários já veem o aviso no topo do sistema.' }}</small>
+    <form method="post" action="/dev/manutencao/cancelar-agenda" style="margin-top:10px" onsubmit="return confirm('Cancelar a parada e remover o aviso de todos os usuários?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="btn btn-fantasma" style="color:#B42318;border-color:#F04438">Cancelar parada</button>
+    </form>
+  </div>
+  {% else %}
+  <p style="font-size:.86rem;color:var(--cor-texto-secundario);margin-top:0">Avise todos com antecedência. Os usuários veem um aviso com contagem regressiva no topo do sistema, e no horário marcado o acesso é bloqueado (só o DEV continua entrando) até o retorno previsto.</p>
+  {% endif %}
+  <form method="post" action="/dev/manutencao/agendar" onsubmit="return confirm('Programar a parada e avisar todos os usuários?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="campo-grupo"><label style="font-weight:600;font-size:.84rem;display:block;margin-bottom:6px">Início da parada</label><input class="campo" type="datetime-local" name="start" required></div>
+      <div class="campo-grupo"><label style="font-weight:600;font-size:.84rem;display:block;margin-bottom:6px">Retorno previsto</label><input class="campo" type="datetime-local" name="end" required></div>
+    </div>
+    <div class="campo-grupo" style="margin-bottom:12px"><label style="font-weight:600;font-size:.84rem;display:block;margin-bottom:6px">Mensagem para os usuários</label>
+      <input class="campo" type="text" name="message" maxlength="300" placeholder="Ex.: Atualização do sistema. Finalize e salve seus rascunhos antes do horário."></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:.86rem;margin-bottom:8px"><input type="checkbox" name="popup" value="1" checked> Abrir caixa de aviso na tela dos usuários (na hora em que virem, e de novo 1 hora e 10 minutos antes)</label>
+    <label style="display:flex;gap:8px;align-items:center;font-size:.86rem;margin-bottom:12px"><input type="checkbox" name="notify" value="1" checked> Enviar também notificação no celular/computador (push)</label>
+    <button type="submit" class="btn btn-primario">{{ 'Reprogramar parada' if sch else 'Programar parada e avisar todos' }}</button>
+  </form>
+</div>
+
+<div class="card secao">
+  <h2 style="font-size:1rem;margin-bottom:6px">Publicar atualização para os usuários</h2>
+  <p style="font-size:.86rem;color:var(--cor-texto-secundario);margin-top:0">Versão atual: <b>{{ app_version }}</b>. Ao publicar, todos os usuários conectados recebem o aviso "Nova versão disponível" e, ao atualizar, a janela "O que há de novo". Use depois de subir o código novo no servidor.</p>
+  <form method="post" action="/dev/atualizacoes/publicar" onsubmit="return confirm('Publicar esta atualização para todos os usuários?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo-grupo" style="margin-bottom:12px"><label style="font-weight:600;font-size:.84rem;display:block;margin-bottom:6px">Título</label>
+      <input class="campo" type="text" name="title" maxlength="160" required placeholder="Ex.: Novo checklist e melhorias de assinatura"></div>
+    <div class="campo-grupo" style="margin-bottom:12px"><label style="font-weight:600;font-size:.84rem;display:block;margin-bottom:6px">O que mudou (um tópico por linha)</label>
+      <textarea class="campo" name="items" rows="6" required style="min-height:130px" placeholder="APR: nova justificativa para respostas NÃO&#10;Assinatura com token opcional"></textarea></div>
+    <button type="submit" class="btn btn-primario">Publicar atualização</button>
+  </form>
+</div>
+<h2 style="font-size:1rem">Histórico</h2>
+{% for r in releases %}
+<div class="card rel">
+  <div class="meta">Versão {{ r.version }} · {{ r.date }}{% if r.published_by %} · por {{ r.published_by }}{% endif %}{% if loop.first %} · <b>atual</b>{% endif %}</div>
+  <b>{{ r.title }}</b>
+  <ul>{% for i in r['items'] %}<li>{{ i }}</li>{% endfor %}</ul>
+  <details style="margin-top:10px">
+    <summary style="cursor:pointer;font-size:.84rem;font-weight:600">✏️ Editar{% if not loop.first %} / excluir{% endif %}{% if r.edited %} <span style="font-weight:400;color:var(--cor-texto-secundario)">(editada)</span>{% endif %}</summary>
+    <form method="post" action="/dev/atualizacoes/editar" style="display:grid;gap:8px;margin-top:10px">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="version" value="{{ r.version }}">
+      <label class="sx-field"><span>Título</span><input class="campo" name="title" value="{{ r.title }}" maxlength="160" required></label>
+      <label class="sx-field"><span>O que mudou (um tópico por linha)</span><textarea class="campo" name="items" rows="{{ [r['items']|length + 1, 4]|max }}" required>{{ r['items']|join('\n') }}</textarea></label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primario" type="submit">Salvar edição</button></div>
+    </form>
+    {% if not loop.first %}
+    <form method="post" action="/dev/atualizacoes/excluir" style="margin-top:8px" onsubmit="return confirm('Remover a versão {{ r.version }} do histórico? Os usuários deixam de vê-la em Novidades.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="version" value="{{ r.version }}">
+      <button class="btn btn-fantasma" type="submit" style="color:#B42318;border-color:#F04438">Excluir do histórico</button>
+    </form>
+    {% else %}<p style="font-size:.76rem;color:var(--cor-texto-secundario);margin:8px 0 0">A versão atual não pode ser excluída (só editada).</p>{% endif %}
+  </details>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block page_title %}Assinar inclusão na APR{% endblock %}
+{% block content %}
+<style>
+  .member-signature-wrap{max-width:720px;margin:0 auto}.member-signature-card{padding:24px}
+  .member-signature-note{background:#F7F5F2;border-radius:12px;padding:14px;margin:16px 0}
+  .member-signature-meta{font-size:.88rem;color:var(--cor-texto-secundario);line-height:1.6}
+  .member-signature-pad{display:block;width:100%;height:170px;border:1px solid #d8d3cc;border-radius:12px;background:#fff;touch-action:none;margin:9px 0}
+  .member-signature-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.member-signature-actions .btn{text-decoration:none}
+  .member-signature-status{font-size:.86rem;margin:9px 0;color:var(--cor-texto-secundario)}
+</style>
+<div class="member-signature-wrap"><div class="card member-signature-card">
+  <h2 style="margin-top:0;">Assinar minha inclusão na APR</h2>
+  <div class="member-signature-note"><strong>{{ doc_reference_code(doc) }}</strong><br>{{ data.activity or 'Sem atividade informada' }} · {{ data.cluster or 'Sem cluster/site' }}</div>
+  <p><strong>{{ member.worker }}</strong>{% if member.company %} — {{ member.company }}{% endif %}{% if member.role %} · {{ member.role }}{% endif %}</p>
+  <div class="member-signature-meta">
+    {% if member.added_by %}Solicitado por {{ member.added_by }}{% if member.created_at %} em {{ member.created_at }}{% endif %}.<br>{% endif %}
+    {% if member.reason %}Motivo / observação: {{ member.reason }}{% endif %}
+  </div>
+  {% if already_signed %}
+    <p class="member-signature-status" role="status">Sua assinatura já foi registrada{% if member.signed_at %} em {{ member.signed_at }}{% endif %}.</p>
+    <a class="btn btn-secundario" href="/document/{{ doc.id }}/pdf" target="_blank" rel="noopener">Consultar APR</a>
+  {% else %}
+    <p class="member-signature-meta">Consulte a APR e faça sua própria assinatura abaixo para confirmar a inclusão na equipe. Após a confirmação, será gerada uma nova versão da APR com sua assinatura.</p>
+    <p><a class="btn btn-secundario" href="/document/{{ doc.id }}/pdf" target="_blank" rel="noopener">Consultar APR antes de assinar</a></p>
+    <form method="post" action="/apr/{{ doc.id }}/integrantes/{{ member.id }}/assinar" id="member-signature-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="signature" id="member-signature-input">
+      <label for="member-signature-pad">Minha assinatura</label>
+      <canvas class="member-signature-pad" id="member-signature-pad" aria-label="Desenhe sua própria assinatura"></canvas>
+      <div class="member-signature-status" id="member-signature-status" role="status" aria-live="polite">Faça sua assinatura antes de confirmar.</div>
+      <div class="member-signature-actions">
+        <button type="button" class="btn btn-fantasma" id="member-signature-clear">Limpar assinatura</button>
+        <button type="submit" class="btn btn-primario" id="member-signature-submit">Confirmar minha assinatura</button>
+        <a class="btn btn-secundario" href="/notifications">Voltar às notificações</a>
+      </div>
+    </form>
+  {% endif %}
+</div></div>
+{% if not already_signed %}
+<script>
+(function(){
+  const form=document.getElementById('member-signature-form');
+  const canvas=document.getElementById('member-signature-pad'), input=document.getElementById('member-signature-input');
+  const status=document.getElementById('member-signature-status'), submit=document.getElementById('member-signature-submit');
+  const ctx=canvas.getContext('2d');
+  let drawing=false, signed=false;
+  function resizePad(){
+    const old=document.createElement('canvas'); old.width=canvas.width; old.height=canvas.height;
+    if(signed) old.getContext('2d').drawImage(canvas,0,0);
+    const rect=canvas.getBoundingClientRect(), ratio=window.devicePixelRatio||1;
+    canvas.width=Math.max(1,Math.floor(rect.width*ratio)); canvas.height=Math.max(1,Math.floor(rect.height*ratio));
+    ctx.setTransform(ratio,0,0,ratio,0,0); ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#181818';
+    if(signed){ctx.drawImage(old,0,0,rect.width,rect.height);input.value=canvas.toDataURL('image/png');}
+  }
+  function point(event){const rect=canvas.getBoundingClientRect();return {x:event.clientX-rect.left,y:event.clientY-rect.top};}
+  function start(event){
+    if(event.pointerType==='mouse'&&event.button!==0)return;
+    event.preventDefault(); drawing=true;
+    try{canvas.setPointerCapture(event.pointerId);}catch(_e){}
+    const p=point(event);ctx.beginPath();ctx.moveTo(p.x,p.y);
+  }
+  function move(event){
+    if(!drawing)return;
+    event.preventDefault();const p=point(event);ctx.lineTo(p.x,p.y);ctx.stroke();signed=true;
+    input.value=canvas.toDataURL('image/png');status.textContent='Assinatura pronta para confirmar.';status.style.color='';
+  }
+  function end(){drawing=false;}
+  canvas.addEventListener('pointerdown',start,{passive:false});canvas.addEventListener('pointermove',move,{passive:false});
+  canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);window.addEventListener('pointerup',end);
+  document.getElementById('member-signature-clear').addEventListener('click',()=>{
+    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);signed=false;input.value='';
+    status.textContent='Faça sua assinatura antes de confirmar.';status.style.color='';
+  });
+  form.addEventListener('submit',event=>{
+    if(!signed||!input.value){event.preventDefault();status.textContent='Faça sua assinatura antes de confirmar.';status.style.color='var(--cor-perigo)';return;}
+    submit.disabled=true;submit.textContent='Enviando assinatura…';
+  });
+  window.addEventListener('resize',resizePad);resizePad();
+})();
+</script>
+{% endif %}
+{% endblock %}

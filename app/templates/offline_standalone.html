@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#181818"><title>Modo Offline · Safety Plus</title>
+<link rel="manifest" href="/static/manifest.webmanifest?v=361831">
+<link rel="icon" type="image/png" sizes="64x64" href="/static/icons/safety-plus-favicon-64-v361831.png">
+<link rel="stylesheet" href="/static/css/serena-tokens.css?v=361895">
+<link rel="stylesheet" href="/static/css/serena-admin.css?v=361895">
+<style>
+  .os-top { background: var(--serena-grafite); color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .os-top .brand { display: flex; align-items: center; gap: 10px; font-family: var(--fonte-display); font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; }
+  .os-top a.back { color: #E7E4E0; font-size: .85rem; text-decoration: none; border: 1px solid #3A3A3A; border-radius: 999px; padding: 8px 14px; }
+  .os-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+</style>
+</head>
+<body data-user-id="">
+<header class="os-top">
+  <a class="brand" href="/"><svg viewBox="35 93 136 135" width="24" height="24" aria-hidden="true"><polygon points="171,93 35,129 35,138 171,102" fill="#FF5246"/><rect x="35" y="144" width="136" height="18" fill="#FF5246"/><polygon points="171,167 35,203 35,227 171,191" fill="#FF5246"/></svg>Safety Plus</a>
+  <a class="back" href="/">Tentar abrir o painel</a>
+</header>
+<main class="os-main">
+{% include "_offline_center.html" %}
+</main>
+<script src="/static/js/offline-core.js?v=361919"></script>
+<script src="/static/js/offline-sync.js?v=361920"></script>
+<script src="/static/js/offline-center.js?v=361918"></script>
+</body>
+</html>

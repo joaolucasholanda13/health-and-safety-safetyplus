@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block page_title %}Login único (SSO){% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:var(--espaco-4);border-left:5px solid {{ '#2e7d32' if sso.enabled else '#c0392b' }}">
+  <h2 style="font-size:1rem;margin-bottom:6px">Microsoft Entra ID · {{ 'Ativo' if sso.enabled else 'Desativado' }}</h2>
+  <table class="tabela" style="width:100%;font-size:.88rem">
+    <tr><td>Ativado (SSO_ENABLED)</td><td>{{ 'Sim' if sso.flag else 'Não' }}</td></tr>
+    <tr><td>Tenant ID</td><td>{{ sso.tenant or '— não configurado' }}</td></tr>
+    <tr><td>Client ID</td><td>{{ sso.client or '— não configurado' }}</td></tr>
+    <tr><td>Client secret</td><td>{{ 'Configurado' if sso.secret else '— não configurado' }}</td></tr>
+    <tr><td>Endereço de retorno</td><td>{{ sso.redirect or '— defina DOMAIN ou SSO_REDIRECT_URI' }}</td></tr>
+    <tr><td>Domínios permitidos</td><td>{{ sso.domains or 'Qualquer domínio do tenant' }}</td></tr>
+  </table>
+  <p class="ti-muted" style="font-size:.8rem;margin:10px 0 0">As credenciais ficam no arquivo .env da VPS (SSO_ENABLED, SSO_TENANT_ID, SSO_CLIENT_ID, SSO_CLIENT_SECRET, SSO_ALLOWED_DOMAINS, SSO_REDIRECT_URI) e exigem recriar o serviço web. Por segurança o segredo não é editável nem exibido aqui.</p>
+  {% if sso.enabled %}<p style="margin:10px 0 0"><a class="btn btn-secundario" href="/sso/login">Testar login SSO</a></p>{% endif %}
+</div>
+<div class="card" style="margin-bottom:var(--espaco-4)">
+  <details {{ '' if sso.enabled else 'open' }}>
+    <summary style="cursor:pointer;font-weight:600;font-size:1rem">Como conectar ao Microsoft Entra ID (passo a passo)</summary>
+    <div style="font-size:.88rem;line-height:1.55;margin-top:10px">
+      <p><strong>Como funciona:</strong> o Safety Plus se cadastra na Microsoft como um aplicativo. No login, a pessoa é enviada à Microsoft, que autentica e devolve um código para o <em>endereço de retorno</em>. O servidor troca o código por um token usando o <em>Client secret</em> (o navegador nunca vê o segredo) e lê o e-mail da pessoa. Se existir um usuário ativo com esse e-mail como login, a sessão é criada.</p>
+      <ol style="padding-left:20px;margin:8px 0">
+        <li>Acesse <strong>portal.azure.com</strong> → Microsoft Entra ID → <strong>Registros de aplicativo</strong> → <strong>Novo registro</strong>.</li>
+        <li>Nome: <em>Safety Plus</em>. Tipo de conta: <em>somente este diretório</em>.</li>
+        <li>URI de redirecionamento: tipo <strong>Web</strong>, com o endereço abaixo (precisa ser idêntico nos dois lados):
+          <div style="margin:4px 0"><code id="sso-redirect" style="user-select:all">{{ sso.redirect or '' }}</code></div></li>
+        <li>Na <strong>Visão geral</strong> do aplicativo, copie o <strong>ID do aplicativo (cliente)</strong> → <code>SSO_CLIENT_ID</code> e o <strong>ID do diretório (locatário)</strong> → <code>SSO_TENANT_ID</code>.</li>
+        <li><strong>Certificados e segredos</strong> → Novo segredo do cliente. Copie o <strong>Valor</strong> na hora (depois não aparece mais) → <code>SSO_CLIENT_SECRET</code>. O segredo expira: anote a data para renovar.</li>
+        <li>Na VPS, edite <code>/opt/safety-plus/.env</code> com o bloco abaixo e rode <code>cd /opt/safety-plus &amp;&amp; docker compose up -d web</code>.</li>
+        <li>Volte a esta tela: o status deve ficar <strong>Ativo</strong>. Use <strong>Testar login SSO</strong> e confira em <em>Últimos acessos pelo SSO</em>.</li>
+      </ol>
+      <pre id="sso-env" style="background:#f4f1ec;padding:10px;border-radius:8px;overflow:auto;font-size:.82rem;margin:8px 0">SSO_ENABLED=true
+SSO_TENANT_ID=
+SSO_CLIENT_ID=
+SSO_CLIENT_SECRET=
+SSO_ALLOWED_DOMAINS=
+SSO_REDIRECT_URI=<span id="sso-env-uri">{{ sso.redirect or '' }}</span></pre>
+      <button type="button" class="btn btn-secundario" id="sso-copy">Copiar bloco do .env</button>
+      <p class="ti-muted" style="font-size:.8rem;margin:10px 0 0">Mantenha o login <code>admin</code> por senha como acesso de emergência. Não envie o Client secret por chat nem salve em git.</p>
+    </div>
+  </details>
+</div>
+<script>
+(function(){
+  var uri=location.origin+'/sso/callback';
+  var a=document.getElementById('sso-redirect'),b=document.getElementById('sso-env-uri');
+  if(a&&!a.textContent.trim())a.textContent=uri;
+  if(b&&!b.textContent.trim())b.textContent=uri;
+  var btn=document.getElementById('sso-copy');
+  if(btn)btn.addEventListener('click',function(){
+    var t=document.getElementById('sso-env').textContent;
+    (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){btn.textContent='Copiado!'},function(){btn.textContent='Selecione e copie manualmente'});
+  });
+})();
+</script>
+<div class="card" style="margin-bottom:var(--espaco-4)">
+  <h2 style="font-size:1rem;margin-bottom:6px">Usuários ativos sem e-mail no login ({{ no_email|length }})</h2>
+  <p class="ti-muted" style="font-size:.85rem">O SSO casa a conta pelo e-mail. Estes usuários não conseguem entrar pelo SSO até o login ser trocado pelo e-mail corporativo (continuam entrando por senha).</p>
+  {% if no_email %}<p style="font-size:.88rem">{{ no_email|join(', ') }}</p>{% else %}<p style="font-size:.88rem">Todos os usuários ativos têm e-mail como login.</p>{% endif %}
+</div>
+<div class="card">
+  <h2 style="font-size:1rem;margin-bottom:6px">Últimos acessos pelo SSO</h2>
+  <table class="tabela" style="width:100%;font-size:.85rem">
+    <tr><th>Quando</th><th>Evento</th><th>Detalhe</th></tr>
+    {% for l in logs %}<tr><td>{{ l.created_at.strftime('%d/%m/%Y %H:%M') }}</td><td>{{ 'Sucesso' if l.action=='login_sso' else 'Falha' }}</td><td>{{ l.detail }}</td></tr>
+    {% else %}<tr><td colspan="3">Nenhum acesso pelo SSO ainda.</td></tr>{% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block page_title %}RAC{% endblock %}
+{% block content %}
+<style>
+  .rac-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:20px; }
+  .rac-head h2 { margin:0 0 5px; font-size:1.3rem; }
+  .rac-head p { margin:0; color:var(--cor-texto-secundario); }
+  .rac-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+  .rac-option { display:flex; align-items:center; gap:13px; padding:17px; background:#fff; border:1px solid #E3DFD9; border-radius:16px; color:inherit; text-decoration:none; min-height:92px; transition:.15s ease; }
+  .rac-option:hover { border-color:var(--cor-primaria); box-shadow:0 8px 24px rgba(28,25,23,.07); }
+  .rac-icon { width:44px; height:44px; border-radius:12px; flex:0 0 44px; display:flex; align-items:center; justify-content:center; color:white; background:var(--cor-primaria); }
+  .rac-icon svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .rac-option strong { display:block; font-size:.91rem; line-height:1.25; }
+  .rac-option .note { display:block; color:var(--cor-texto-secundario); font-size:.76rem; margin-top:4px; }
+  .history { margin-top:26px; }
+  .history-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .history-head h3 { margin:0; font-size:1.05rem; }
+  .history-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin:0 0 12px; padding:14px; background:#fff; border:1px solid #E3DFD9; border-radius:14px; }
+  .history-filters .group { display:flex; flex-direction:column; gap:4px; min-width:145px; }
+  .history-filters .group.search { flex:1 1 280px; }
+  .history-filters .group span { font-size:.69rem; color:var(--cor-texto-secundario); font-weight:700; }
+  .history-filters .campo { min-height:42px; border:1px solid #D8D3CC; border-radius:11px; padding:9px 11px; background:#fff; color:var(--cor-texto); font-family:var(--fonte-base); }
+  .history-filters select.campo { padding-right:34px; }
+  .history-filters .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .history-filters details { width:100%; }
+  .history-filters details > summary { cursor:pointer; list-style:none; color:var(--cor-primaria); font-size:.78rem; font-weight:700; padding:2px 0; }
+  .history-filters details > summary::-webkit-details-marker { display:none; }
+  .history-filters .advanced { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-top:10px; padding-top:12px; border-top:1px solid #EEEAE5; }
+  .history-result { color:var(--cor-texto-secundario); font-size:.76rem; margin:0 0 8px; }
+  .table-wrap { overflow:auto; background:#fff; border:1px solid #E3DFD9; border-radius:14px; }
+  table { width:100%; border-collapse:collapse; min-width:780px; }
+  th,td { padding:11px 12px; border-bottom:1px solid #EEEAE5; text-align:left; font-size:.82rem; vertical-align:middle; }
+  th { color:var(--cor-texto-secundario); font-size:.74rem; text-transform:uppercase; letter-spacing:.03em; background:#FBFAF8; }
+  tr:last-child td { border-bottom:0; }
+  .status { display:inline-flex; padding:4px 8px; border-radius:999px; font-size:.72rem; font-weight:700; }
+  .status-final { background:#E7F6EF; color:#17634E; }
+  .status-draft { background:#FFF1D6; color:#755900; }
+  .empty { padding:20px; text-align:center; color:var(--cor-texto-secundario); }
+  @media(max-width:900px){.rac-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:600px){
+    .rac-grid{grid-template-columns:1fr}.rac-head{align-items:flex-start;flex-direction:column}.rac-option{min-height:0}
+    .history-head{align-items:flex-start;flex-direction:column}.history-filters{padding:12px}.history-filters .group{width:100%;min-width:0}.history-filters .actions{width:100%}.history-filters .actions .btn{flex:1}
+  }
+</style>
+
+<div class="rac-head">
+  <div>
+    <h2>RAC — Requisitos para Atividades Críticas</h2>
+    <p>Selecione a RAC que deseja preencher. As RACs são documentos independentes das Permissões de Trabalho.</p>
+  </div>
+</div>
+
+<div class="rac-grid">
+  {% for card in rac_cards %}
+  <a class="rac-option" href="/rac/{{ card.kind }}/new">
+    <span class="rac-icon"><svg aria-hidden="true"><use href="#{{ card.icon }}"/></svg></span>
+    <span>
+      <strong>{{ card.short }}</strong>
+      <span class="note">{{ card.item_count }} requisito(s)</span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="history">
+  <div class="history-head"><h3>Histórico de RACs</h3><span style="color:var(--cor-texto-secundario);font-size:.78rem;">Rascunhos e documentos finalizados</span></div>
+
+  <form class="history-filters" method="get" action="/rac" id="rac-history-filters">
+    <div class="group search"><span>Busca</span><input class="campo" type="text" name="q" placeholder="Código, RAC, atividade, cluster ou site" value="{{ q }}"></div>
+    <div class="group"><span>RAC</span><select class="campo" name="rac_kind"><option value="">Todas as RACs</option>{% for card in rac_cards %}<option value="{{ card.kind }}" {% if rac_kind_filter == card.kind %}selected{% endif %}>{{ card.short }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Status</span><select class="campo" name="status"><option value="">Todos os status</option>{% for s in rac_statuses %}<option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Período</span><select class="campo" name="period" id="rac-period"><option value="">Qualquer período</option><option value="today" {% if period_filter=='today' %}selected{% endif %}>Hoje</option><option value="7days" {% if period_filter=='7days' %}selected{% endif %}>Últimos 7 dias</option><option value="month" {% if period_filter=='month' %}selected{% endif %}>Este mês</option><option value="custom" {% if period_filter=='custom' %}selected{% endif %}>Personalizado</option></select></div>
+    <div class="group"><span>Cluster</span><select class="campo" id="rac-history-cluster" name="cluster"><option value="">Todos os Clusters</option>{% for c in rac_clusters %}<option value="{{ c }}" {% if cluster_filter == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Site</span><select class="campo" id="rac-history-site" name="site"><option value="">Todos os Sites</option>{% for st in rac_cluster_sites.get(cluster_filter, []) %}<option value="{{ st }}" {% if site_filter == st %}selected{% endif %}>{{ st }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Ordenar</span><select class="campo" name="sort"><option value="recent" {% if sort_filter=='recent' %}selected{% endif %}>Mais recentes</option><option value="oldest" {% if sort_filter=='oldest' %}selected{% endif %}>Mais antigos</option></select></div>
+    <div class="actions"><button class="btn btn-primario" type="submit">Filtrar</button><a class="btn btn-secundario" href="/rac">Limpar filtros</a></div>
+
+    <details {% if period_filter=='custom' or date_from_filter or date_to_filter or creator_filter or company_filter %}open{% endif %}>
+      <summary>Mais filtros</summary>
+      <div class="advanced">
+        <div class="group"><span>De</span><input class="campo" type="date" name="date_from" value="{{ date_from_filter }}"></div>
+        <div class="group"><span>Até</span><input class="campo" type="date" name="date_to" value="{{ date_to_filter }}"></div>
+        <div class="group"><span>Criador</span><select class="campo" name="creator"><option value="">Todos os criadores</option>{% for item in creator_options %}<option value="{{ item.id }}" {% if creator_filter == (item.id|string) %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+        <div class="group search"><span>Empresa / Contratada</span><input class="campo" type="text" name="company" placeholder="Buscar empresa" value="{{ company_filter }}"></div>
+      </div>
+    </details>
+  </form>
+  <div class="history-result">{{ rac_documents|length }} documento(s) encontrado(s)</div>
+  <div class="table-wrap">
+    {% if rac_documents %}
+    <table>
+      <thead><tr><th>Código</th><th>RAC</th><th>Cluster / Site</th><th>Atividade</th><th>Status</th><th>Atualizado</th></tr></thead>
+      <tbody>
+      {% for d in rac_documents %}
+      <tr>
+        <td><a href="{{ document_open_url(d,user) }}" style="font-weight:700;color:var(--cor-primaria);text-decoration:none;">{{ doc_reference_code(d) }}</a></td>
+        <td>{{ d.title }}</td>
+        <td>{{ d.cluster }}{% if d.site %} / {{ d.site }}{% endif %}</td>
+        <td>{{ d.activity or '—' }}</td>
+        <td><span class="status {{ 'status-final' if d.status == 'Finalizada' else 'status-draft' }}">{{ d.status }}</span></td>
+        <td>{{ d.updated_at.strftime('%d/%m/%Y %H:%M') if d.updated_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Nenhuma RAC emitida ainda.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+(function(){
+  const map={{ rac_cluster_sites | tojson }};
+  const cluster=document.getElementById('rac-history-cluster');
+  const site=document.getElementById('rac-history-site');
+  const period=document.getElementById('rac-period');
+  if(cluster && site){
+    const refill=function(keep){
+      const wanted=keep ? site.value : '';
+      const items=Array.isArray(map[cluster.value]) ? map[cluster.value] : [];
+      site.innerHTML='<option value="">Todos os Sites</option>';
+      items.forEach(function(v){const o=document.createElement('option');o.value=v;o.textContent=v;site.appendChild(o);});
+      if(wanted && items.includes(wanted)) site.value=wanted;
+    };
+    cluster.addEventListener('change',function(){refill(false);});
+  }
+  if(period){
+    period.addEventListener('change',function(){
+      if(this.value==='custom'){const d=document.querySelector('.history-filters details');if(d)d.open=true;}
+    });
+  }
+})();
+</script>
+{% endblock %}

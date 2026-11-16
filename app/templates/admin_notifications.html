@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block page_title %}Configurações de Notificações{% endblock %}
+{% block content %}
+<style>.pref-row{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid #eee}.pref-row:last-child{border:0}.pref-copy strong{display:block}.pref-copy span{font-size:.8rem;color:var(--cor-texto-secundario)}.switch{width:22px;height:22px;accent-color:var(--cor-primaria)}</style>
+<div class="card" style="max-width:760px">
+ <h2 style="font-size:1.05rem;margin:0 0 6px">Tipos de aviso disponíveis no sistema</h2>
+ <p style="color:var(--cor-texto-secundario);font-size:.86rem;margin:0 0 12px">O administrador define quais avisos podem ser enviados. Quando um tipo for desativado aqui, ele ficará indisponível para todos os usuários.</p>
+ <form method="post" action="/admin/notifications">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% for key,cfg in notification_types.items() %}
+  <label class="pref-row"><span class="pref-copy"><strong>{{ cfg.label }}</strong><span>Disponibilizar este tipo de notificação aos usuários.</span></span><input class="switch" type="checkbox" name="notification_types" value="{{ key }}" {% if global_notification_prefs.get(key,True) %}checked{% endif %}></label>
+  {% endfor %}
+  <button class="btn btn-primario" type="submit" style="margin-top:16px">Salvar configurações</button>
+ </form>
+</div>
+{% endblock %}

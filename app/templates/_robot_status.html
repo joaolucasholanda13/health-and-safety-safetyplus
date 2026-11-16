@@ -1,0 +1,34 @@
+<div class="ti-box">
+  <h3>Robô de manutenção · {{ robot.label }}</h3>
+  <a class="ti-btn alt" href="/dev/monitoramento?aba=robo" style="display:inline-block;text-decoration:none">Atualizar status</a>
+  {% if not robot.available %}
+    <p>O robô externo ainda não está conectado a este ambiente.</p>
+    <p class="ti-muted">O teste local não consulta nem controla o robô da VPS. As funções de Monitoramento, Integridade e Backup continuam disponíveis nas abas existentes.</p>
+  {% else %}
+    {% set r=robot.data %}
+    {% if not robot.fresh %}<p class="banner banner-atencao">O resumo está desatualizado. Os valores abaixo são do último registro, não uma confirmação do estado atual.</p>{% endif %}
+    <p>Última verificação: {{ r.get('checked_at_label') or 'Ainda não executada' }}.</p>
+    <div class="ti-grid">
+      {% for key,label in [('web_ok','Sistema'),('db_ok','Banco'),('https_ok','Acesso HTTPS')] %}
+      <div class="ti-card"><h3>{{ label }}</h3><strong>{{ 'Saudável' if r.get('checks',{}).get(key) is sameas true else 'Falha' if r.get('checks',{}).get(key) is sameas false else 'Não verificado' }}</strong></div>
+      {% endfor %}
+      <div class="ti-card"><h3>Recuperação automática</h3><strong>{{ 'Habilitada' if r.get('auto_restart') else 'Desabilitada' }}</strong><p class="ti-muted">Quando habilitada: somente o serviço web, após três falhas e no máximo uma tentativa por hora.</p></div>
+    </div>
+    <p>Monitoramento agendado: {{ 'ativo' if r.get('monitor_timer_active') else 'inativo' }} · Backup agendado: {{ 'ativo' if r.get('backup_timer_active') else 'inativo' }}.</p>
+    <h3>Testes automáticos dos módulos</h3>
+    {% set tests=r.get('module_tests') %}
+    {% if tests %}
+      <p>Última execução: {{ tests.completed_at_utc }} · <strong>{{ 'Passou' if tests.passed else 'Falhou — requer análise' }}</strong></p>
+      <table class="ti-table"><thead><tr><th>Módulo</th><th>Resultado</th><th>Testes executados</th></tr></thead><tbody>
+      {% for group in tests.groups %}<tr><td>{{ {'apr':'APRs','pts':'PTs','checklists':'Checklists','racs':'RACs'}.get(group.group,group.group) }}</td><td>{{ 'Passou' if group.passed else 'Falhou' }}</td><td>{{ group.tests }}</td></tr>{% endfor %}
+      </tbody></table>
+    {% else %}<p>Os testes dos módulos ainda não foram executados neste supervisor.</p>{% endif %}
+    <p class="ti-muted">Testes com dados fictícios e PDFs em ambiente isolado, sem alterar produção. Não substituem a conferência visual nem testam todos os cliques no navegador.</p>
+    <h3>Backups da VPS</h3>
+    <table class="ti-table"><thead><tr><th>Criado em (UTC)</th><th>Verificação</th><th>Restauração ensaiada</th></tr></thead><tbody>
+    {% for backup in r.get('backups',[]) %}<tr><td>{{ backup.created_at_utc }}</td><td>Arquivos verificados</td><td>{{ 'Sim' if backup.restore_tested else 'Não' }}</td></tr>
+    {% else %}<tr><td colspan="3">Nenhum backup concluído informado pelo robô.</td></tr>{% endfor %}
+    </tbody></table>
+    <p class="ti-muted">A verificação dos arquivos não substitui um teste de restauração. Esta tela é de consulta; configurações e recuperação ficam no supervisor da VPS.</p>
+  {% endif %}
+</div>

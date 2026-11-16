@@ -1,0 +1,9 @@
+[Unit]
+Description=Testa os modulos do Safety Plus diariamente
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 America/Sao_Paulo
+Persistent=true
+
+[Install]
+WantedBy=timers.target

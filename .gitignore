@@ -1,0 +1,30 @@
+# Segredos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+
+# Dados de clientes / runtime (podem conter PII)
+storage/
+backups/
+evidence/
+pdfs/
+signatures/
+*.db
+*.sqlite
+*.sqlite3
+
+# Ambiente / cache
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+*.tmp
+*.bak
+*.backup
+*.zip
+*:Zone.Identifier

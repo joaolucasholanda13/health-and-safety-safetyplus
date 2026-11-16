@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block page_title %}Momento de Segurança{% endblock %}
+{% block content %}
+<style>
+  .sm-wrap{max-width:900px;margin:0 auto}
+  .sm-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .sm-head h2{margin:0 0 4px;font-size:1.3rem}.sm-head p{margin:0;color:var(--cor-texto-secundario)}
+  .sm-code{font-weight:700;color:var(--cor-primaria)}
+  .sm-card{background:#fff;border:1px solid #E3DFD9;border-radius:16px;padding:18px;margin-bottom:14px;animation:permIn .4s ease both}
+  .sm-card h3{margin:0 0 12px;font-size:1rem}
+  .sm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .sm-grid .full{grid-column:1/-1}
+  .sm-f{display:flex;flex-direction:column;gap:5px;font-size:.78rem;font-weight:700;color:var(--cor-texto-secundario)}
+  .sm-f input,.sm-f select,.sm-f textarea{min-height:42px;border:1px solid #D8D3CC;border-radius:11px;padding:9px 11px;font:inherit;font-weight:400;color:var(--cor-texto);background:#fff}
+  .sm-f textarea{min-height:110px;resize:vertical}
+  .sm-f input:focus,.sm-f select:focus,.sm-f textarea:focus{outline:2px solid rgba(255,82,70,.35);border-color:var(--cor-primaria)}
+  .sm-people{display:flex;flex-direction:column;gap:10px}
+  .sm-person{display:grid;grid-template-columns:1.4fr 1fr 1fr auto auto;gap:8px;align-items:end;padding:10px;border:1px solid #EEEAE5;border-radius:12px;background:#FBFAF8;animation:permIn .3s ease both}
+  .sm-person .sm-f{font-size:.7rem}
+  .sm-sig{width:96px;height:42px;border:1px dashed #CFCBC6;border-radius:10px;background:#fff center/contain no-repeat;cursor:pointer;color:var(--cor-texto-secundario);font-size:.72rem;display:flex;align-items:center;justify-content:center}
+  .sm-sig.ok{border-style:solid;border-color:#3ddc97}
+  .sm-x{border:0;background:#FFE9E7;color:#B3261E;border-radius:10px;width:36px;height:42px;cursor:pointer;font-size:1.1rem}
+  .sm-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .sm-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}
+  .sm-modal.open{display:flex}
+  .sm-box{background:#fff;border-radius:16px;padding:16px;width:min(520px,100%)}
+  .sm-box canvas{width:100%;height:200px;border:1px dashed #BDB7AF;border-radius:12px;touch-action:none;background:#fff}
+  @media(max-width:700px){.sm-grid{grid-template-columns:1fr}.sm-person{grid-template-columns:1fr 1fr}.sm-person .sm-f:first-child{grid-column:1/-1}}
+</style>
+<div class="sm-wrap">
+  <div class="sm-head">
+    <div><h2>Momento de Segurança</h2><p>Registro do tema conduzido e da lista de presença · <span class="sm-code">{{ sm_code }}</span></p></div>
+    <a class="btn btn-secundario" href="/momento-seguranca">Voltar</a>
+  </div>
+  <form method="post" action="{{ '/momento-seguranca/%d/save' % doc.id if doc else '/momento-seguranca/save' }}" id="sm-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="sm-card">
+      <h3>Identificação</h3>
+      <div class="sm-grid">
+        <label class="sm-f">Data <input type="date" name="moment_date" value="{{ raw_date }}" required></label>
+        <label class="sm-f">Horário <input type="time" name="moment_time" value="{{ d.moment_time or '' }}"></label>
+        <label class="sm-f">Cluster
+          <select name="cluster" id="sm-cluster" required><option value="">Selecione</option>{% for c in sm_clusters %}<option value="{{ c }}" {% if d.cluster == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+        <label class="sm-f">Site <select name="site" id="sm-site"><option value="">Todos os sites</option></select></label>
+        <label class="sm-f full">Tema do momento <input name="theme" maxlength="160" value="{{ d.theme or '' }}" placeholder="Ex.: Uso correto do cinto de segurança" required></label>
+        <label class="sm-f full">Conduzido por <input name="conductor" maxlength="160" value="{{ d.conductor or '' }}" required></label>
+        <label class="sm-f full">Pontos abordados <textarea name="key_points" maxlength="4000" placeholder="Resumo do que foi conversado, riscos, lições aprendidas e combinados com a equipe.">{{ d.key_points or '' }}</textarea></label>
+      </div>
+    </div>
+    <div class="sm-card">
+      <h3>Lista de presença</h3>
+      <div class="sm-people" id="sm-people"></div>
+      <div style="margin-top:12px"><button type="button" class="btn btn-secundario" id="sm-add">+ Adicionar participante</button></div>
+    </div>
+    <div class="sm-card">
+      <h3>Rubrica do responsável</h3>
+      <input type="hidden" name="conductor_signature" id="sm-csig" value="{{ d.conductor_signature or '' }}">
+      <div class="sm-sig {{ 'ok' if d.conductor_signature }}" id="sm-csig-box" style="width:200px;height:70px" {% if d.conductor_signature %}data-existing="1"{% endif %}>Toque para assinar</div>
+    </div>
+    <div class="sm-actions">
+      <button class="btn btn-secundario" type="submit" name="action" value="draft">Salvar rascunho</button>
+      <button class="btn btn-primario" type="submit" name="action" value="finalize" id="sm-final">Finalizar e gerar PDF</button>
+    </div>
+  </form>
+</div>
+<div class="sm-modal" id="sm-modal"><div class="sm-box">
+  <strong id="sm-modal-title">Rubrica</strong>
+  <canvas id="sm-canvas" width="900" height="360"></canvas>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <button type="button" class="btn btn-fantasma" id="sm-clear">Limpar</button>
+    <button type="button" class="btn btn-secundario" id="sm-cancel">Cancelar</button>
+    <button type="button" class="btn btn-primario" id="sm-ok">Confirmar</button>
+  </div>
+</div></div>
+<script>
+(function(){
+  const SITES={{ sm_sites | tojson }}, CUR_SITE={{ (d.site or '') | tojson }}, PEOPLE={{ (d.participants or []) | tojson }};
+  const cl=document.getElementById('sm-cluster'), st=document.getElementById('sm-site');
+  function fill(keep){const items=Array.isArray(SITES[cl.value])?SITES[cl.value]:[];st.innerHTML='<option value="">Todos os sites</option>';items.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;st.appendChild(o)});st.disabled=!cl.value;if(keep&&items.includes(keep))st.value=keep}
+  cl.addEventListener('change',()=>fill(''));fill(CUR_SITE);
+  const box=document.getElementById('sm-people');
+  const modal=document.getElementById('sm-modal'),cv=document.getElementById('sm-canvas'),cx=cv.getContext('2d');
+  let target=null,drawing=false,dirty=false;
+  function setSig(boxEl,input,val){input.value=val;boxEl.classList.add('ok');if(val.startsWith('data:')){boxEl.style.backgroundImage='url('+val+')';boxEl.textContent=''}else{boxEl.style.backgroundImage='';boxEl.textContent='✓ Assinado (toque para refazer)'}}
+  function openPad(boxEl,input,title){target={boxEl,input};document.getElementById('sm-modal-title').textContent=title;cx.clearRect(0,0,cv.width,cv.height);dirty=false;drawing=false;modal.classList.add('open')}
+  function pos(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]}
+  cv.addEventListener('pointerdown',e=>{drawing=true;const[p,q]=pos(e);cx.beginPath();cx.moveTo(p,q);cv.setPointerCapture(e.pointerId)});
+  cv.addEventListener('pointermove',e=>{if(!drawing)return;const[p,q]=pos(e);cx.lineWidth=4;cx.lineCap='round';cx.strokeStyle='#111';cx.lineTo(p,q);cx.stroke();dirty=true});
+  ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,()=>drawing=false));
+  document.getElementById('sm-clear').onclick=()=>{cx.clearRect(0,0,cv.width,cv.height);dirty=false;drawing=false};
+  document.getElementById('sm-cancel').onclick=()=>modal.classList.remove('open');
+  document.getElementById('sm-ok').onclick=()=>{if(!dirty){alert('Faça a rubrica antes de confirmar.');return}setSig(target.boxEl,target.input,cv.toDataURL('image/png'));modal.classList.remove('open')};
+  function esc(s){return String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+  function addPerson(p){
+    p=p||{};const el=document.createElement('div');el.className='sm-person';
+    el.innerHTML='<label class="sm-f">Nome<input name="p_name" maxlength="160" value="'+esc(p.name)+'"></label><label class="sm-f">Empresa<input name="p_company" maxlength="160" value="'+esc(p.company)+'"></label><label class="sm-f">Função<input name="p_role" maxlength="160" value="'+esc(p.role)+'"></label><input type="hidden" name="p_sig" value=""><div class="sm-sig">Assinar</div><button type="button" class="sm-x" title="Remover" aria-label="Remover participante">×</button>';
+    const inp=el.querySelector('[name=p_sig]'),sb=el.querySelector('.sm-sig');
+    if(p.signature_image)setSig(sb,inp,p.signature_image);
+    sb.onclick=()=>openPad(sb,inp,'Rubrica — '+(el.querySelector('[name=p_name]').value||'participante'));
+    el.querySelector('.sm-x').onclick=()=>el.remove();
+    box.appendChild(el);
+  }
+  (PEOPLE.length?PEOPLE:[{}]).forEach(addPerson);
+  document.getElementById('sm-add').onclick=()=>addPerson();
+  const cbox=document.getElementById('sm-csig-box'),cin=document.getElementById('sm-csig');
+  if(cin.value)setSig(cbox,cin,cin.value);
+  cbox.onclick=()=>openPad(cbox,cin,'Rubrica do responsável');
+})();
+</script>
+{% endblock %}

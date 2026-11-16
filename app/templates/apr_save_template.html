@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block page_title %}Salvar modelo de APR{% endblock %}
+{% block content %}
+<style>
+  .model-wrap{max-width:720px;margin:0 auto}.model-card{padding:24px}.model-note{background:#F7F5F2;border-radius:12px;padding:14px;margin:16px 0}.actions{display:flex;gap:10px;flex-wrap:wrap}.actions .btn{text-decoration:none}@media(max-width:620px){.actions .btn{flex:1 1 100%;text-align:center}}
+</style>
+<div class="model-wrap"><div class="card model-card">
+  <h2 style="margin-top:0;">Salvar APR como modelo</h2>
+  <p>O modelo ficará disponível para a equipe em <strong>APR → Modelos de APR</strong>.</p>
+  <div class="model-note"><strong>{{ doc_reference_code(doc) }}</strong><br>{{ data.activity or 'Sem atividade informada' }} · {{ data.cluster or 'Sem cluster/site' }}</div>
+  <form method="post" action="/apr/{{ doc.id }}/salvar-modelo">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="template_name">Nome do modelo</label>
+    <input class="campo" id="template_name" name="template_name" value="{{ default_name }}" maxlength="160" required style="width:100%;margin:7px 0 14px;">
+    <p style="font-size:.86rem;color:var(--cor-texto-secundario);">Serão guardados atividade, cluster/site, etapas, perigos, riscos, severidades, controles e permissões críticas. Equipe, assinaturas, aprovações, PTs e checklist não são salvos como confirmação.</p>
+    <div class="actions"><button class="btn btn-primario" type="submit">Salvar modelo</button><a class="btn btn-secundario" href="/">Cancelar</a></div>
+  </form>
+</div></div>
+{% endblock %}

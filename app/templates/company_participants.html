@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block page_title %}{{ company.name }} · Participantes{% endblock %}
+{% block content %}
+<style>
+  .secao { margin-bottom: var(--espaco-5); }
+  .secao > h2 { font-size: 1rem; margin-bottom: var(--espaco-3); }
+  .grid-4 { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr; gap: var(--espaco-3); align-items: end; }
+  .campo-grupo label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  .part-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr auto auto; gap: var(--espaco-2); align-items: center; padding: 12px 0; border-bottom: 1px dashed #EFEBE5; }
+  .part-row input, .part-row select { width: 100%; }
+  .toggle-mini { position: relative; width: 40px; height: 22px; }
+  .toggle-mini input { opacity: 0; width: 100%; height: 100%; position: absolute; cursor: pointer; z-index: 2; }
+  .toggle-mini .track { position: absolute; inset: 0; background: #D8D3CC; border-radius: 999px; }
+  .toggle-mini .thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform .15s; }
+  .toggle-mini input:checked ~ .track { background: var(--cor-sucesso); }
+  .toggle-mini input:checked ~ .thumb { transform: translateX(18px); }
+  .excel-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid #EFEAE4; }
+  .excel-upload { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .excel-upload input[type=file] { max-width:340px; padding:9px; border:1px solid #DED9D2; border-radius:10px; background:#fff; }
+  .excel-hint { font-size:.78rem; color:var(--cor-texto-secundario); margin-top:8px; line-height:1.45; }
+</style>
+
+<a href="/admin/participants" style="font-size:0.85rem; color:var(--cor-texto-secundario); text-decoration:none; display:inline-block; margin-bottom:var(--espaco-3);">← Todas as empresas</a>
+
+<div class="card secao">
+  <h2>Dados da empresa</h2>
+  <form method="post" action="/admin/companies/{{ company.id }}/update" class="grid-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="campo-grupo"><label>Nome</label><input class="campo" type="text" name="name" value="{{ company.name }}" required></div>
+    <div class="campo-grupo">
+      <label>Ativa</label>
+      <label class="toggle-mini"><input type="checkbox" name="active" value="1" {% if company.active %}checked{% endif %}><span class="track"></span><span class="thumb"></span></label>
+    </div>
+    <div></div>
+    <button type="submit" class="btn btn-secundario">Salvar empresa</button>
+  </form>
+</div>
+
+<div class="card secao">
+  <h2>Novo participante</h2>
+  <form method="post" action="/admin/participants/create" class="grid-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="company_id" value="{{ company.id }}">
+    <div class="campo-grupo"><label>Nome completo</label><input class="campo" type="text" name="full_name" required></div>
+    <div class="campo-grupo"><label>CPF</label><input class="campo" type="text" name="cpf" maxlength="14" placeholder="Somente números" required></div>
+    <div class="campo-grupo"><label>Função</label><input class="campo" type="text" name="job_title"></div>
+    <div class="campo-grupo">
+      <label>Usuário Safety Plus (p/ assinar)</label>
+      <select class="campo" name="user_id">
+        <option value="">Nenhum</option>
+        {% for u in users %}
+        <option value="{{ u.id }}">{{ u.full_name or u.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="grid-column: span 4;"><button type="submit" class="btn btn-primario">Cadastrar participante</button></div>
+  </form>
+  <div class="excel-actions">
+    <a class="btn btn-fantasma" href="/admin/companies/{{ company.id }}/participants/template.xlsx">⬇ Baixar modelo Excel</a>
+    <a class="btn btn-fantasma" href="/admin/companies/{{ company.id }}/participants/export.xlsx">⬇ Baixar lista atual</a>
+    <form class="excel-upload" method="post" action="/admin/companies/{{ company.id }}/participants/import" enctype="multipart/form-data" onsubmit="return confirm('Importar esta lista? Participantes existentes com o mesmo CPF serão atualizados.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="file" name="participants_file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+      <button type="submit" class="btn btn-primario">⬆ Importar lista Excel</button>
+    </form>
+  </div>
+  <div class="excel-hint">O modelo aceita Nome completo, CPF, Função, Login, Senha e Ativo. A senha é obrigatória apenas para criar um novo login; para usuário existente, deixe em branco para manter a senha atual.</div>
+</div>
+
+<div class="card">
+  <h2 style="font-size:1rem; margin-bottom:12px;">Participantes ({{ participants|length }})</h2>
+  {% for row in participants %}
+  <form method="post" action="/admin/participants/{{ row.participant.id }}/update">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="company_id" value="{{ company.id }}">
+    <div class="part-row">
+      <input class="campo" type="text" name="full_name" value="{{ row.participant.full_name }}">
+      <div class="campo-somente-leitura" style="background:var(--serena-areia); border-radius:var(--raio-input); padding:10px 14px; font-size:0.85rem;">{{ row.cpf_display }}</div>
+      <input class="campo" type="text" name="job_title" value="{{ row.participant.job_title }}" placeholder="Função">
+      <select class="campo" name="user_id">
+        <option value="">Nenhum</option>
+        {% for u in users %}
+        <option value="{{ u.id }}" {% if row.participant.user_id == u.id %}selected{% endif %}>{{ u.full_name or u.username }}</option>
+        {% endfor %}
+      </select>
+      <label class="toggle-mini" title="Ativo"><input type="checkbox" name="active" value="1" {% if row.participant.active %}checked{% endif %}><span class="track"></span><span class="thumb"></span></label>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button type="submit" class="btn btn-fantasma">Salvar</button>
+        <button type="submit" class="btn btn-fantasma" style="color:#B42318; border-color:#F04438;" formaction="/admin/participants/{{ row.participant.id }}/delete" formmethod="post" onclick="return confirm('Remover este participante do cadastro? Documentos antigos não serão apagados.');">Remover</button>
+      </div>
+    </div>
+  </form>
+  {% endfor %}
+</div>
+{% endblock %}

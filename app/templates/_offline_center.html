@@ -1,0 +1,108 @@
+<style>
+.oc-hero { background: var(--serena-grafite); color: #fff; border-radius: 22px; padding: 24px 26px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; align-items: center; position: relative; overflow: hidden; }
+.oc-hero { border-top: 5px solid var(--serena-coral); }
+.oc-hero h2 { font-family: var(--fonte-display); font-size: 1.6rem; margin: 0 0 6px; color: #fff; }
+.oc-hero p { margin: 0; color: #CFCBC6; font-size: .9rem; max-width: 640px; line-height: 1.5; }
+.oc-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.oc-chip { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #3A3A3A; border-radius: 999px; padding: 6px 12px; font-size: .78rem; color: #E7E4E0; }
+.oc-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--serena-grafite-claro); }
+.oc-chip i.on { background: var(--serena-verde); } .oc-chip i.off { background: var(--serena-amarelo); } .oc-chip i.bad { background: var(--serena-coral); }
+.oc-hero-actions { display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
+.oc-progress { height: 6px; border-radius: 999px; background: #333; overflow: hidden; margin-top: 12px; display: none; }
+.oc-progress i { display: block; height: 100%; width: 0; background: var(--serena-coral); transition: width .2s; }
+.oc-prep-msg { font-size: .8rem; color: #CFCBC6; margin-top: 8px; min-height: 1.2em; }
+.oc-steps { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.oc-step { background: #fff; border: 1px solid #ECE8E3; border-radius: 16px; padding: 14px 16px; display: flex; gap: 12px; }
+.oc-step b { font-family: var(--fonte-display); font-size: 1.4rem; color: var(--serena-coral); line-height: 1; }
+.oc-step strong { display: block; font-size: .88rem; margin-bottom: 2px; } .oc-step span { font-size: .78rem; color: var(--serena-grafite-medio); line-height: 1.45; }
+.oc-item { display: grid; grid-template-columns: 40px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #F3F0EC; }
+.oc-item:last-child { border-bottom: 0; }
+.oc-item .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--serena-areia); }
+.oc-item .ic svg { width: 20px; height: 20px; fill: none; stroke: var(--serena-grafite); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.oc-item.att .ic { background: color-mix(in srgb, var(--serena-coral-escuro) 12%, white); } .oc-item.att .ic svg { stroke: var(--serena-coral-escuro); }
+.oc-item.ok .ic { background: color-mix(in srgb, var(--serena-verde) 18%, white); } .oc-item.ok .ic svg { stroke: #157357; }
+.oc-item strong { display: block; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-item small { display: block; font-size: .76rem; color: var(--serena-grafite-claro); }
+.oc-item .err { color: var(--serena-coral-escuro); font-size: .78rem; margin-top: 3px; }
+.oc-item .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.oc-forms { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+.oc-group { background: #fff; border: 1px solid #ECE8E3; border-radius: 16px; padding: 14px 16px; }
+.oc-group h4 { margin: 0 0 10px; font-size: .92rem; display: flex; justify-content: space-between; align-items: center; }
+.oc-group h4 em { font-style: normal; font-size: .72rem; background: var(--serena-areia); border-radius: 999px; padding: 2px 9px; color: var(--serena-grafite-medio); font-weight: 500; }
+.oc-link { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 11px; border-radius: 10px; text-decoration: none; color: var(--serena-grafite); font-size: .85rem; background: #FBFAF8; margin-top: 5px; }
+.oc-link:hover { background: var(--serena-areia); }
+.oc-link::after { content: '›'; color: var(--serena-coral); font-size: 1.2rem; line-height: 1; }
+.oc-muted { color: var(--serena-grafite-claro); font-size: .82rem; }
+@media (max-width: 820px) { .oc-hero { grid-template-columns: 1fr; } .oc-steps, .oc-forms { grid-template-columns: 1fr; } .oc-item { grid-template-columns: 36px minmax(0,1fr); } .oc-item .acts { grid-column: 1 / -1; justify-content: flex-start; } }
+</style>
+
+<div class="sx-page" id="offline-center">
+  <section class="oc-hero">
+    <div style="position:relative;z-index:1">
+      <h2>Modo Offline</h2>
+      <p>Preencha APR, PT, RAC e inspeções sem internet. O que você salvar fica guardado neste aparelho e é enviado sozinho quando a conexão voltar.</p>
+      <div class="oc-chips">
+        <span class="oc-chip"><i id="oc-net-dot"></i><span id="oc-net">Verificando conexão…</span></span>
+        <span class="oc-chip"><i id="oc-prep-dot"></i><span id="oc-prep">Preparação: não realizada</span></span>
+        <span class="oc-chip" id="oc-storage-chip" hidden><span id="oc-storage"></span></span>
+      </div>
+      <div class="oc-progress" id="oc-progress"><i></i></div>
+      <div class="oc-prep-msg" id="oc-prep-msg" role="status" aria-live="polite"></div>
+    </div>
+    <div class="oc-hero-actions">
+      <button type="button" class="sx-btn sx-btn-coral" id="oc-prepare"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Preparar este aparelho</button>
+      <button type="button" class="sx-btn sx-btn-ghost" id="oc-send"><svg viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M6.1 8A7 7 0 0 1 18 6l2 2"/><path d="M4 17v-5h5"/><path d="M17.9 16A7 7 0 0 1 6 18l-2-2"/></svg>Enviar agora</button>
+    </div>
+  </section>
+
+  <div class="sx-kpis">
+    <div class="sx-kpi sx-accent-yellow"><b id="oc-k-pend">0</b><span>Na fila do aparelho</span><small>aguardando internet</small></div>
+    <div class="sx-kpi sx-accent-red"><b id="oc-k-att">0</b><span>Para revisar</span><small>servidor apontou pendência</small></div>
+    <div class="sx-kpi sx-accent-green"><b id="oc-k-sent">0</b><span>Enviados</span><small>últimos sincronizados</small></div>
+    <div class="sx-kpi sx-accent-gray"><b id="oc-k-forms">0</b><span>Formulários offline</span><small id="oc-k-forms-sub">preparados neste aparelho</small></div>
+  </div>
+
+  <section class="sx-card">
+    <div class="sx-card-pad" style="padding-bottom:6px"><div class="sx-card-title"><h3>Fila de envio</h3><small>registros guardados sem internet</small></div></div>
+    <div id="oc-queue"></div>
+  </section>
+
+  <section>
+    <div class="sx-card-title"><h3 style="font-family:var(--fonte-display);font-size:1.05rem;margin:0">Formulários disponíveis sem internet</h3><small id="oc-forms-label"></small></div>
+    <div class="sx-toolbar" style="margin-bottom:12px">
+      <label class="sx-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="oc-search" type="search" placeholder="Buscar formulário: altura, LOTO, veículo…" autocomplete="off"></label>
+      <div class="sx-segment" id="oc-filter"></div>
+    </div>
+    <div class="oc-forms" id="oc-forms"></div>
+  </section>
+
+  <section class="sx-card" id="oc-recent-wrap" hidden>
+    <div class="sx-card-pad" style="padding-bottom:6px"><div class="sx-card-title"><h3>Rascunhos abertos recentemente</h3><small>abrem sem internet neste aparelho</small></div></div>
+    <div id="oc-recent"></div>
+  </section>
+
+  <section class="sx-card" id="oc-history-wrap" hidden>
+    <div class="sx-card-pad" style="padding-bottom:6px"><div class="sx-card-title"><h3>Enviados recentemente</h3><button type="button" class="sx-btn sx-btn-ghost sx-btn-sm" id="oc-clear-history">Limpar histórico</button></div></div>
+    <div id="oc-history"></div>
+  </section>
+
+  <section class="sx-card">
+    <div class="sx-card-pad">
+      <div class="sx-card-title"><h3>Arquivos deste aparelho</h3><small>remova o que está guardado para liberar espaço ou corrigir problemas</small></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button type="button" class="sx-btn sx-btn-ghost sx-btn-sm" id="oc-rm-forms">Remover formulários guardados</button>
+        <button type="button" class="sx-btn sx-btn-ghost sx-btn-sm" id="oc-rm-drafts">Apagar rascunhos do aparelho</button>
+        <button type="button" class="sx-btn sx-btn-dark sx-btn-sm" id="oc-repair">Reparar modo offline</button>
+      </div>
+      <div class="oc-muted" id="oc-clean-msg" role="status" aria-live="polite" style="margin-top:8px;min-height:1.2em"></div>
+      <p class="oc-muted" style="margin:6px 0 0">A fila de envio não é apagada por estes botões; para isso use “Descartar” em cada registro.</p>
+    </div>
+  </section>
+
+  <div class="oc-steps">
+    <div class="oc-step"><b>1</b><div><strong>Prepare com internet</strong><span>Faça login e toque em “Preparar este aparelho”. A preparação se atualiza sozinha a cada 12 horas quando houver sinal.</span></div></div>
+    <div class="oc-step"><b>2</b><div><strong>Preencha em campo</strong><span>Sem sinal, “Salvar” guarda no aparelho. APR e PT são enviadas como rascunho; RAC e inspeções seguem com a ação escolhida.</span></div></div>
+    <div class="oc-step"><b>3</b><div><strong>Envio automático</strong><span>Com internet, a fila é enviada sozinha. Assinaturas, início de PT e aprovação continuam exigindo conexão.</span></div></div>
+  </div>
+  <p class="oc-muted">Os dados ficam só neste navegador. Não use aba anônima nem limpe os dados do site enquanto houver itens na fila. Use aparelhos da empresa e não compartilhe a conta.</p>
+</div>

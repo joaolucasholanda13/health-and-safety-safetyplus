@@ -1,0 +1,76 @@
+<style>
+  .history { margin-top:26px; }
+  .history-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+  .history-head h3 { margin:0; font-size:1.05rem; }
+  .history-filters { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin:0 0 12px; padding:14px; background:#fff; border:1px solid #E3DFD9; border-radius:14px; }
+  .history-filters .group { display:flex; flex-direction:column; gap:4px; min-width:145px; }
+  .history-filters .group.search { flex:1 1 280px; }
+  .history-filters .group span { font-size:.69rem; color:var(--cor-texto-secundario); font-weight:700; }
+  .history-filters .campo { min-height:42px; border:1px solid #D8D3CC; border-radius:11px; padding:9px 11px; background:#fff; color:var(--cor-texto); font-family:var(--fonte-base); }
+  .history-filters select.campo { padding-right:34px; }
+  .history-filters .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .history-filters details { width:100%; }
+  .history-filters details > summary { cursor:pointer; list-style:none; color:var(--cor-primaria); font-size:.78rem; font-weight:700; padding:2px 0; }
+  .history-filters details > summary::-webkit-details-marker { display:none; }
+  .history-filters .advanced { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-top:10px; padding-top:12px; border-top:1px solid #EEEAE5; }
+  .history-result { color:var(--cor-texto-secundario); font-size:.76rem; margin:0 0 8px; }
+  .table-wrap { overflow:auto; background:#fff; border:1px solid #E3DFD9; border-radius:14px; }
+  table { width:100%; border-collapse:collapse; min-width:780px; }
+  th,td { padding:11px 12px; border-bottom:1px solid #EEEAE5; text-align:left; font-size:.82rem; vertical-align:middle; }
+  th { color:var(--cor-texto-secundario); font-size:.74rem; text-transform:uppercase; letter-spacing:.03em; background:#FBFAF8; }
+  tr:last-child td { border-bottom:0; }
+  .status { display:inline-flex; padding:4px 8px; border-radius:999px; font-size:.72rem; font-weight:700; }
+  .status-final { background:#E7F6EF; color:#17634E; }
+  .status-inapto { background:#FDE4E3; color:#9B1C1A; }
+  .status-draft { background:#FFF1D6; color:#755900; }
+  .empty { padding:20px; text-align:center; color:var(--cor-texto-secundario); }
+  .history-filters .btn{min-height:42px}
+  .history-row{animation:permIn .35s ease both}
+  .history-row:hover td{background:#FFF8F7}
+  @media(max-width:600px){.history-head{align-items:flex-start;flex-direction:column}.history-filters .group{width:100%;min-width:0}.history-filters .actions{width:100%}.history-filters .actions .btn{flex:1}}
+</style>
+{% set h=history %}
+<div class="history">
+  <div class="history-head"><h3>{{ history_title }}</h3><span style="color:var(--cor-texto-secundario);font-size:.78rem;">Rascunhos e documentos finalizados</span></div>
+  <form class="history-filters" method="get" action="{{ h.action }}">
+    <div class="group search"><span>Busca</span><input class="campo" type="text" name="q" placeholder="Código, tipo, atividade, cluster ou site" value="{{ h.q }}"></div>
+    <div class="group"><span>{{ history_col }}</span><select class="campo" name="kind"><option value="">Todos</option>{% for k,l in h.kinds %}<option value="{{ k }}" {% if h.kind == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Status</span><select class="campo" name="status"><option value="">Todos os status</option>{% for s in h.statuses %}<option value="{{ s }}" {% if h.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Período</span><select class="campo" name="period"><option value="">Qualquer período</option><option value="today" {% if h.period=='today' %}selected{% endif %}>Hoje</option><option value="7days" {% if h.period=='7days' %}selected{% endif %}>Últimos 7 dias</option><option value="month" {% if h.period=='month' %}selected{% endif %}>Este mês</option></select></div>
+    <div class="group"><span>Cluster</span><select class="campo" name="cluster"><option value="">Todos os Clusters</option>{% for c in h.clusters %}<option value="{{ c }}" {% if h.cluster == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+    <div class="group"><span>Ordenar</span><select class="campo" name="sort"><option value="recent" {% if h.sort=='recent' %}selected{% endif %}>Mais recentes</option><option value="oldest" {% if h.sort=='oldest' %}selected{% endif %}>Mais antigos</option></select></div>
+    <div class="actions"><button class="btn btn-primario" type="submit">Filtrar</button><a class="btn btn-secundario" href="{{ h.action }}">Limpar filtros</a></div>
+    <details {% if h.date_from or h.date_to or h.creator %}open{% endif %}>
+      <summary>Mais filtros</summary>
+      <div class="advanced">
+        <div class="group"><span>De</span><input class="campo" type="date" name="date_from" value="{{ h.date_from }}"></div>
+        <div class="group"><span>Até</span><input class="campo" type="date" name="date_to" value="{{ h.date_to }}"></div>
+        <div class="group"><span>Criador</span><select class="campo" name="creator"><option value="">Todos os criadores</option>{% for item in h.creators %}<option value="{{ item.id }}" {% if h.creator == (item.id|string) %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
+      </div>
+    </details>
+  </form>
+  <div class="history-result">{{ h.docs|length }} documento(s) encontrado(s)</div>
+  <div class="table-wrap">
+    {% if h.docs %}
+    <table>
+      <thead><tr><th>Código</th><th>{{ history_col }}</th><th>Cluster / Site</th><th>Atividade</th><th>Status</th><th>Resultado</th><th>Atualizado</th><th>Ação</th></tr></thead>
+      <tbody>
+      {% for d in h.docs %}
+      <tr class="history-row">
+        <td><a href="{{ document_open_url(d,user) }}" style="font-weight:700;color:var(--cor-primaria);text-decoration:none;">{{ doc_reference_code(d) }}</a></td>
+        <td>{{ h.labels.get(d.kind, d.title) }}</td>
+        <td>{{ d.cluster }}{% if d.site %} / {{ d.site }}{% endif %}</td>
+        <td>{{ d.activity or '—' }}</td>
+        <td><span class="status {{ 'status-final' if d.status == 'Finalizada' else 'status-draft' }}">{{ d.status }}</span></td>
+        <td>{% set res = inspection_result(d) %}{% if res == 'APTO' %}<span class="status status-final">APTO</span>{% elif res == 'INAPTO' %}<span class="status status-inapto">INAPTO</span>{% else %}—{% endif %}</td>
+        <td>{{ d.updated_at.strftime('%d/%m/%Y %H:%M') if d.updated_at else '—' }}</td>
+        <td>{% if d.status in ['Em andamento','Pendente de encerramento'] and d.kind not in ['apr','vehicle'] %}<a class="btn btn-primario" style="padding:5px 12px;font-size:.78rem;text-decoration:none;white-space:nowrap;" href="/permit/{{ d.kind }}/{{ d.id }}/edit#encerramento">Finalizar</a>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">{{ history_empty }}</div>
+    {% endif %}
+  </div>
+</div>

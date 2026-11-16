@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+{% block page_title %}{{ data.code }}{% if doc %} · {{ doc.title }}{% endif %}{% endblock %}
+{% block content %}
+<style>
+  .secao { margin-bottom: var(--espaco-5); }
+  .secao > h2 { font-size: 1rem; margin-bottom: var(--espaco-3); }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--espaco-3); }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--espaco-3); }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--espaco-3); }
+  .campo-grupo { margin: 0; }
+  .campo-grupo label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  .campo-somente-leitura { background: var(--serena-areia); border: 1px solid #E3DFD9; border-radius: var(--raio-input); padding: 10px 14px; font-size: 0.9rem; color: var(--cor-texto-secundario); }
+  textarea.campo { min-height: 80px; resize: vertical; font-family: var(--fonte-base); }
+
+  .banner { border-radius: var(--raio-input); padding: 14px 18px; margin-bottom: var(--espaco-4); font-size: 0.9rem; background: var(--serena-areia); color: var(--cor-texto-secundario); }
+
+  .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .checkbox-item { display: flex; align-items: center; gap: 8px; border: 1px solid #E3DFD9; border-radius: 10px; padding: 10px 12px; font-size: 0.88rem; cursor: pointer; }
+  .checkbox-item input { width: 16px; height: 16px; accent-color: var(--cor-primaria); }
+
+  .simnao { display: inline-flex; border-radius: 999px; background: var(--serena-areia); padding: 3px; gap: 2px; }
+  .simnao button { border: none; background: transparent; padding: 8px 18px; border-radius: 999px; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--cor-texto-secundario); }
+  .simnao button.ativo.v-sim { background: var(--serena-verde); color: white; }
+  .simnao button.ativo.v-nao { background: var(--serena-coral-escuro); color: white; }
+  .simnao button.ativo.v-na { background: var(--serena-grafite-claro); color: white; }
+
+  .checklist-item { display: flex; justify-content: space-between; align-items: center; gap: var(--espaco-3); padding: 12px 0; border-bottom: 1px dashed #EFEBE5; }
+  .checklist-item .txt { flex: 1; display: flex; gap: 10px; }
+  .checklist-item .num { color: var(--cor-texto-secundario); font-weight: 700; font-family: var(--fonte-display); flex-shrink: 0; }
+  .checklist-item.pendente { background: color-mix(in srgb, var(--cor-perigo) 6%, white); border-radius: 10px; padding-left: 8px; }
+
+  .sig-pad-wrap { margin-top: var(--espaco-2); }
+  .sig-pad-wrap label { display: block; font-size: 0.8125rem; font-weight: 600; margin-bottom: 6px; }
+  .sig-pad { border: 1px dashed #D8D3CC; border-radius: var(--raio-input); background: var(--serena-areia); touch-action: none; width: 100%; height: 120px; display: block; }
+  .sig-actions { display: flex; gap: var(--espaco-2); margin-top: 6px; align-items: center; }
+  .sig-status { font-size: 0.8rem; color: var(--cor-texto-secundario); }
+  .sig-status.assinado { color: #1C7A5E; font-weight: 600; }
+
+  .air-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .air-table th, .air-table td { border: 1px solid #E3DFD9; padding: 8px; text-align: left; }
+  .air-table th { background: var(--serena-areia); font-weight: 600; }
+  .air-table input { width: 100%; border: 1px solid #D8D3CC; border-radius: 8px; padding: 6px 8px; font-family: var(--fonte-base); }
+
+  .linha-dinamica { border: 1px solid #E3DFD9; border-radius: 14px; padding: 16px; margin-bottom: 10px; }
+  .linha-cabecalho { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .linha-numero { font-family: var(--fonte-display); font-weight: 700; color: var(--cor-texto-secundario); font-size: 0.9rem; }
+  .btn-remover { background: none; border: none; color: var(--cor-perigo); font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 4px 8px; }
+  .permit-worker-search { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; margin-bottom:10px; }
+  .permit-worker-status { font-size:.82rem; margin:4px 0 8px; color:var(--cor-texto-secundario); }
+  .permit-worker-status.ok { color:#087A5A; font-weight:700; }
+  .permit-worker-status.erro { color:var(--cor-perigo); }
+  .permit-worker-suggestions { display:none; margin:6px 0 10px; padding:8px; border:1px solid #E3DFD9; border-radius:10px; background:#fff; }
+  .permit-worker-suggestions.show { display:grid; gap:6px; }
+  .permit-worker-suggestion { width:100%; text-align:left; border:1px solid #E3DFD9; background:var(--serena-areia); border-radius:8px; padding:8px 10px; cursor:pointer; font:inherit; }
+  @media(max-width:700px){ .permit-worker-search{grid-template-columns:1fr;} }
+
+  .form-footer { display: flex; justify-content: flex-end; gap: var(--espaco-2); margin-top: var(--espaco-4); }
+  .execution-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+  .execution-fieldset:disabled { opacity: .82; }
+  .execution-fieldset:disabled .sig-pad { pointer-events: none; background: #F3F0EC; }
+  .status-pt { border-left: 4px solid var(--cor-primaria); }
+  .status-pt.andamento { background:#EEF5FF; border-left-color:#3B82F6; color:#1E4F8F; }
+  .status-pt.pendente { background:#FFF4DA; border-left-color:var(--cor-atencao); color:#7A5200; }
+  .status-pt strong { color:inherit; }
+  .auto-time-box { background:var(--serena-areia); border:1px solid #E3DFD9; border-radius:var(--raio-input); padding:11px 14px; min-height:42px; font-size:.9rem; }
+  .closure-card { border:2px solid color-mix(in srgb, var(--cor-atencao) 45%, #E3DFD9); }
+</style>
+
+{% if data.get('linked_apr_id') %}
+<div class="banner">Esta PT está vinculada à APR <strong>{{ data.get('linked_apr_code') or data.get('linked_apr_id') }}</strong>. <a href="/apr/{{ data.get('linked_apr_id') }}/pts" style="font-weight:700;">Ver PTs da APR →</a></div>
+{% endif %}
+
+{% if data.status == 'Em andamento' %}
+<div class="banner status-pt andamento"><strong>PT em andamento.</strong> <span>Aberta em</span> {{ data.open_date }} <span>às</span> {{ data.open_time }} <span>e válida somente até 23:59 desse mesmo dia.</span> <span>Os dados da execução estão bloqueados; ao concluir o trabalho, faça o encerramento abaixo.</span></div>
+{% elif data.status == 'Pendente de encerramento' %}
+<div class="banner status-pt pendente"><strong>Pendente de encerramento.</strong> <span>A validade desta PT terminou em</span> {{ data.open_date }} <span>às</span> 23:59. <span>Ela não pode ser usada para continuar o trabalho no novo dia. Registre o encerramento abaixo.</span></div>
+{% endif %}
+
+<form method="post" action="{{ '/permit/' + kind + '/' + doc.id|string + '/save' if doc else '/permit/' + kind + '/save' }}" id="permit-form">
+<script type="application/json" id="validation-fields">{{ (data.get('_validation_fields', []) or []) | tojson }}</script>
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="action" id="form-action" value="draft">
+<input type="hidden" name="worker_count" id="worker-count" value="{{ data.worker_count }}">
+
+<fieldset class="execution-fieldset" {% if data.execution_locked %}disabled{% endif %}>
+<div class="card secao">
+  <h2>Dados gerais</h2>
+  <div class="grid-4" style="margin-bottom:12px;">
+    <div class="campo-grupo">
+      <label for="cluster">Cluster</label>
+      <select class="campo" id="cluster" name="cluster" onchange="atualizarSites()">
+        <option value="">Selecione</option>
+        {% for c in clusters %}
+        <option value="{{ c }}" {% if data.cluster == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="campo-grupo">
+      <label for="site">Site</label>
+      <select class="campo" id="site" name="site"><option value="">Selecione</option></select>
+    </div>
+    <div class="campo-grupo">
+      <label for="base">Base</label>
+      <input class="campo" type="text" id="base" name="base" value="{{ data.base }}">
+    </div>
+    <div class="campo-grupo">
+      <label for="contractor">Contratada</label>
+      <input class="campo" type="text" id="contractor" name="contractor" value="{{ data.contractor }}">
+    </div>
+  </div>
+  <div class="campo-grupo" style="margin-bottom:12px;">
+    <label for="activity">Descrição da atividade</label>
+    <input class="campo" type="text" id="activity" name="activity" value="{{ data.activity }}" required>
+  </div>
+  <div class="grid-4">
+    <div class="campo-grupo">
+      <label>Data de abertura</label>
+      <div class="auto-time-box">{{ data.open_date if data.open_date else 'Automática ao iniciar' }}</div>
+    </div>
+    <div class="campo-grupo">
+      <label>Hora de abertura</label>
+      <div class="auto-time-box">{{ data.open_time if data.open_time else 'Automática ao iniciar' }}</div>
+    </div>
+    <div class="campo-grupo">
+      <label>Validade da PT</label>
+      <div class="auto-time-box">{% if data.open_date %}<span>Até 23:59 de</span> {{ data.open_date }}{% else %}Somente o dia da abertura{% endif %}</div>
+    </div>
+    <div class="campo-grupo">
+      <label>Fechamento</label>
+      <div class="auto-time-box">{{ (data.close_date ~ ' · ' ~ data.close_time) if data.close_date else 'Registrado ao encerrar' }}</div>
+    </div>
+  </div>
+</div>
+
+{% if kind == 'pt_height' %}
+<div class="card secao">
+  <h2>Tipo de trabalho em altura</h2>
+  <div class="checkbox-grid">
+    {% for t in work_types %}
+    <label class="checkbox-item"><input type="checkbox" name="work_types" value="{{ t }}" {% if t in data.get('work_types', []) %}checked{% endif %}> {{ t }}</label>
+    {% endfor %}
+  </div>
+</div>
+{% elif kind == 'confined' %}
+<div class="card secao">
+  <h2>Classificação do espaço confinado</h2>
+  <div class="checkbox-grid">
+    {% for t in entry_types %}
+    <label class="checkbox-item"><input type="checkbox" name="entry_types" value="{{ t }}" {% if t in data.get('entry_types', []) %}checked{% endif %}> {{ t }}</label>
+    {% endfor %}
+  </div>
+</div>
+<div class="card secao">
+  <h2>Monitoramento atmosférico</h2>
+  <div style="overflow-x:auto;">
+    <table class="air-table">
+      <thead><tr><th>Parâmetro</th><th>Referência</th><th>1ª leitura</th><th>2ª leitura</th><th>3ª leitura</th><th>4ª leitura</th></tr></thead>
+      <tbody>
+        {% for label, ref, key in air_rows %}
+        <tr>
+          <td>{{ label }}</td><td>{{ ref }}</td>
+          {% for j in range(4) %}
+          <td><input type="text" name="air_{{ key }}_{{ j }}" value="{{ ((data.get('air_readings', {}).get(key, []) or []))[j] if data.get('air_readings', {}).get(key) and j < (data.get('air_readings', {}).get(key)|length) else '' }}"></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+  {% if cfg.equipment_mode == 'multi' %}
+  <div class="card secao">
+    <h2>Equipamento utilizado</h2>
+    <div class="checkbox-grid">
+      {% for t in cfg.equipment_options %}
+      <label class="checkbox-item"><input type="checkbox" name="equipment_types" value="{{ t }}" {% if t in data.get('equipment_types', []) %}checked{% endif %}> {{ t }}</label>
+      {% endfor %}
+    </div>
+  </div>
+  {% elif cfg.equipment_mode == 'text' %}
+  <div class="card secao">
+    <h2>Equipamento utilizado</h2>
+    <input class="campo" type="text" name="equipment_type" value="{{ data.get('equipment_type', '') }}">
+  </div>
+  {% endif %}
+{% endif %}
+
+<div class="card secao">
+  <h2>Checklist</h2>
+  <div class="banner banner-info checklist-answer-guide" style="margin-bottom:12px;">
+    <strong>Como responder:</strong> <b>Sim</b> = requisito atendido / condição segura; <b>Não</b> = requisito não atendido / condição impeditiva; <b>N/A</b> = requisito que realmente não se aplica à atividade.
+  </div>
+  {% for question in cfg.checklist %}
+  {% set resposta = data.checklist[loop.index0] %}
+  <div class="checklist-item {{ 'pendente' if not resposta }}">
+    <span class="txt"><span class="num">{{ '%02d'|format(loop.index) }}</span>{{ question }}</span>
+    <input type="hidden" name="check_{{ loop.index0 }}" id="check-{{ loop.index0 }}" value="{{ resposta }}">
+    <div class="simnao">
+      <button type="button" class="{{ 'ativo v-sim' if resposta == 'SIM' }}" onclick="setChecklist({{ loop.index0 }},'SIM')">Sim</button>
+      <button type="button" class="{{ 'ativo v-nao' if resposta == 'NÃO' }}" onclick="setChecklist({{ loop.index0 }},'NÃO')">Não</button>
+      <button type="button" class="{{ 'ativo v-na' if resposta == 'N/A' }}" onclick="setChecklist({{ loop.index0 }},'N/A')">N/A</button>
+    </div>
+  </div>
+  {% endfor %}
+  <div id="checklist-no-box" class="field {{ 'invalid' if 'checklist_no_justification' in (data.get('_validation_fields') or []) }}" style="margin-top:14px;{{ '' if 'NÃO' in data.checklist else 'display:none;' }}">
+    <div class="banner banner-info" style="margin-bottom:8px;background:#FFF4E5;border-color:#F0B35A;color:#7A4A00;"><strong>Atenção:</strong> há resposta <b>NÃO</b> no checklist. Isso indica condição impeditiva ou requisito não atendido. Só prossiga se o risco estiver controlado e justifique abaixo.</div>
+    <label for="checklist_no_justification">Justificativa do NÃO e medidas adotadas <span style="color:#B42318">*</span></label>
+    <textarea class="campo" id="checklist_no_justification" name="checklist_no_justification" rows="4" maxlength="1500" style="width:100%;font-family:var(--fonte-base);" placeholder="Ex.: por que o item está como NÃO e o que será feito (isolamento da área, EPI adicional, acompanhamento do líder…)">{{ data.get('checklist_no_justification','') }}</textarea>
+  </div>
+</div>
+
+{% if data.get('pre_signature_flow') == '1' %}
+<div class="banner banner-info" style="margin-bottom:var(--espaco-4);">
+  <strong>Fluxo APR + PTs.</strong> Preencha esta permissão normalmente. Não há assinatura nesta etapa. Depois da última PT, o Safety Plus abre automaticamente a coleta única de assinaturas; cada rubrica valerá para a APR e para todas as PTs selecionadas.
+</div>
+{% else %}
+<div class="card secao">
+  <h2>Responsáveis pela abertura</h2>
+  {% if kind == 'confined' %}
+    <div class="grid-2">
+      <div>
+        <div class="campo-grupo" style="margin-bottom:10px;"><label>Supervisor</label><input class="campo" type="text" name="open_supervisor_name" value="{{ data.get('open_supervisor_name', '') or (user.full_name or user.username) }}"></div>
+        <div class="sig-pad-wrap"><label>Rubrica do supervisor</label><canvas class="sig-pad" id="pad-open_supervisor"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('open_supervisor')">Limpar</button><span class="sig-status" id="sig-status-open_supervisor">{{ 'Assinado.' if data.get('open_supervisor_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_open_supervisor" id="sig-input-open_supervisor"></div>
+      </div>
+      <div>
+        <div class="campo-grupo" style="margin-bottom:10px;"><label>Vigia</label><input class="campo" type="text" name="open_vigia_name" value="{{ data.get('open_vigia_name', '') }}"></div>
+        <div class="sig-pad-wrap"><label>Rubrica do vigia</label><canvas class="sig-pad" id="pad-open_vigia"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('open_vigia')">Limpar</button><span class="sig-status" id="sig-status-open_vigia">{{ 'Assinado.' if data.get('open_vigia_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_open_vigia" id="sig-input-open_vigia"></div>
+      </div>
+    </div>
+  {% elif kind == 'pt_height' %}
+    <div class="campo-grupo" style="margin-bottom:10px;"><label>Responsável pela abertura</label><input class="campo" type="text" name="open_name" value="{{ data.get('open_name', '') or (user.full_name or user.username) }}"></div>
+    <div class="sig-pad-wrap"><label>Rubrica de abertura</label><canvas class="sig-pad" id="pad-open"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('open')">Limpar</button><span class="sig-status" id="sig-status-open">{{ 'Assinado.' if data.get('open_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_open" id="sig-input-open"></div>
+  {% else %}
+    <div class="campo-grupo" style="margin-bottom:10px;"><label>Responsável pela abertura</label><input class="campo" type="text" name="open_responsible_name" value="{{ data.get('open_responsible_name', '') or (user.full_name or user.username) }}"></div>
+    <div class="sig-pad-wrap"><label>Rubrica de abertura</label><canvas class="sig-pad" id="pad-open"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('open')">Limpar</button><span class="sig-status" id="sig-status-open">{{ 'Assinado.' if data.get('open_responsible_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_open" id="sig-input-open"></div>
+  {% endif %}
+</div>
+
+{% endif %}
+<div class="card secao">
+  <h2>Equipe</h2>
+  <div id="equipe-lista">
+    {% for worker in data.workers %}
+    <div class="linha-dinamica" data-worker-row>
+      <div class="linha-cabecalho">
+        <span class="linha-numero">Integrante {{ '%02d'|format(loop.index) }}</span>
+        {% if loop.index0 > 0 %}<button type="button" class="btn-remover" onclick="removerLinha(this)">Remover</button>{% endif %}
+      </div>
+      <input type="hidden" class="pw-participant-id" name="worker_participant_id_{{ loop.index0 }}" value="{{ worker.participant_id or '' }}">
+      <input type="hidden" class="pw-user-id" name="worker_user_id_{{ loop.index0 }}" value="{{ worker.participant_user_id or '' }}">
+      <input type="hidden" class="pw-cpf" name="worker_cpf_{{ loop.index0 }}" value="{{ worker.cpf or '' }}">
+      <div class="permit-worker-search">
+        <div class="campo-grupo"><label>Pesquisar integrante</label><input class="campo pw-query" type="search" value="{{ worker.cpf or worker.name }}" placeholder="Digite CPF ou nome" autocomplete="off"></div>
+        <button type="button" class="btn btn-secundario" onclick="buscarPermitWorker(this)">Pesquisar</button>
+      </div>
+      <div class="permit-worker-status {{ 'ok' if worker.participant_id else '' }}">{% if worker.participant_id %}✓ Participante selecionado: {{ worker.name }}{% endif %}</div>
+      <div class="permit-worker-suggestions"></div>
+      <div class="grid-3" style="margin-bottom:10px;">
+        <div class="campo-grupo"><label>Nome</label><input class="campo pw-name" type="text" name="worker_name_{{ loop.index0 }}" value="{{ worker.name }}"></div>
+        <div class="campo-grupo"><label>Empresa</label><input class="campo pw-company" type="text" name="worker_company_{{ loop.index0 }}" value="{{ worker.company }}"></div>
+        <div class="campo-grupo"><label>Função</label><input class="campo pw-role" type="text" name="worker_role_{{ loop.index0 }}" value="{{ worker.role or '' }}"></div>
+      </div>
+      {% if data.get('pre_signature_flow') == '1' %}
+      <div class="auto-time-box">Rubrica será coletada uma única vez na APR e aplicada automaticamente nesta PT.</div>
+      {% else %}
+      <div class="sig-pad-wrap">
+        <label>Rubrica</label>
+        <canvas class="sig-pad worker-pad" id="pad-worker_{{ loop.index0 }}"></canvas>
+        <div class="sig-actions">
+          <button type="button" class="btn btn-fantasma" onclick="limparAssinatura('worker_{{ loop.index0 }}')">Limpar</button>
+          <span class="sig-status" id="sig-status-worker_{{ loop.index0 }}">{{ 'Assinado.' if worker.signature_image else 'Ainda não assinado nesta sessão.' }}</span>
+        </div>
+        <input type="hidden" name="sig_worker_{{ loop.index0 }}" id="sig-input-worker_{{ loop.index0 }}">
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" class="btn btn-fantasma" onclick="adicionarIntegrante()">+ Adicionar integrante</button>
+</div>
+
+<div class="card secao">
+  <h2>Comentários</h2>
+  <textarea class="campo" name="comments">{{ data.comments }}</textarea>
+</div>
+</fieldset>
+
+{% if data.execution_locked %}
+<div class="card secao closure-card" id="encerramento">
+  <h2>Encerramento da PT</h2>
+  <div class="grid-3" style="margin-bottom:14px;">
+    <div class="campo-grupo"><label>Data do encerramento</label><div class="auto-time-box">Automática ao confirmar</div></div>
+    <div class="campo-grupo"><label>Hora do encerramento</label><div class="auto-time-box">Automática ao confirmar</div></div>
+    <div class="campo-grupo"><label>Status</label><div class="auto-time-box">{{ data.status }}</div></div>
+  </div>
+  <div class="campo-grupo" style="margin-bottom:14px;">
+    <label for="closing_note">Observação de encerramento {% if data.pending_closure %}(obrigatória){% else %}(opcional){% endif %}</label>
+    <textarea class="campo" id="closing_note" name="closing_note" placeholder="{% if data.pending_closure %}Informe por que o encerramento está sendo registrado após o dia de validade da PT.{% else %}Registre alguma observação do encerramento, se necessário.{% endif %}">{{ data.get('closing_note','') }}</textarea>
+  </div>
+  {% if kind == 'confined' %}
+    <div class="grid-2">
+      <div>
+        <div class="campo-grupo" style="margin-bottom:10px;"><label>Supervisor do encerramento</label><input class="campo" type="text" name="close_supervisor_name" value="{{ data.get('close_supervisor_name', '') or (user.full_name or user.username) }}"></div>
+        <div class="sig-pad-wrap"><label>Rubrica do supervisor</label><canvas class="sig-pad" id="pad-close_supervisor"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('close_supervisor')">Limpar</button><span class="sig-status" id="sig-status-close_supervisor">{{ 'Assinado.' if data.get('close_supervisor_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_close_supervisor" id="sig-input-close_supervisor"></div>
+      </div>
+      <div>
+        <div class="campo-grupo" style="margin-bottom:10px;"><label>Vigia do encerramento</label><input class="campo" type="text" name="close_vigia_name" value="{{ data.get('close_vigia_name', '') }}"></div>
+        <div class="sig-pad-wrap"><label>Rubrica do vigia</label><canvas class="sig-pad" id="pad-close_vigia"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('close_vigia')">Limpar</button><span class="sig-status" id="sig-status-close_vigia">{{ 'Assinado.' if data.get('close_vigia_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_close_vigia" id="sig-input-close_vigia"></div>
+      </div>
+    </div>
+  {% elif kind == 'pt_height' %}
+    <div class="campo-grupo" style="margin-bottom:10px;"><label>Responsável pelo encerramento</label><input class="campo" type="text" name="close_name" value="{{ data.get('close_name', '') or (user.full_name or user.username) }}"></div>
+    <div class="sig-pad-wrap"><label>Rubrica de encerramento</label><canvas class="sig-pad" id="pad-close"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('close')">Limpar</button><span class="sig-status" id="sig-status-close">{{ 'Assinado.' if data.get('close_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_close" id="sig-input-close"></div>
+  {% else %}
+    <div class="campo-grupo" style="margin-bottom:10px;"><label>Responsável pelo encerramento</label><input class="campo" type="text" name="close_responsible_name" value="{{ data.get('close_responsible_name', '') or (user.full_name or user.username) }}"></div>
+    <div class="sig-pad-wrap"><label>Rubrica de encerramento</label><canvas class="sig-pad" id="pad-close"></canvas><div class="sig-actions"><button type="button" class="btn btn-fantasma" onclick="limparAssinatura('close')">Limpar</button><span class="sig-status" id="sig-status-close">{{ 'Assinado.' if data.get('close_responsible_signature_image', '') else 'Ainda não assinado nesta sessão.' }}</span></div><input type="hidden" name="sig_close" id="sig-input-close"></div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="form-footer">
+  {% if data.execution_locked %}
+    <button type="submit" class="btn btn-primario" onclick="document.getElementById('form-action').value='close'">Encerrar PT</button>
+  {% else %}
+    <button type="submit" class="btn btn-secundario" onclick="document.getElementById('form-action').value='draft'">Salvar rascunho</button>
+    {% if data.get('pre_signature_flow') == '1' %}
+    <button type="submit" class="btn btn-primario" onclick="document.getElementById('form-action').value='start'">Concluir PT e ir para a próxima etapa</button>
+    {% else %}
+    <button type="submit" class="btn btn-primario" onclick="document.getElementById('form-action').value='start'">Iniciar PT</button>
+    {% endif %}
+  {% endif %}
+</div>
+</form>
+
+<script>
+  const clusterSites = {{ cluster_sites | tojson }};
+  const currentSite = {{ data.site | tojson }};
+  function atualizarSites() {
+    const cluster = document.getElementById('cluster').value;
+    const siteSelect = document.getElementById('site');
+    const sites = clusterSites[cluster] || [];
+    siteSelect.innerHTML = '<option value="">Selecione</option>' + sites.map(s => `<option value="${s}">${s}</option>`).join('');
+    if (sites.includes(currentSite)) siteSelect.value = currentSite;
+    siteSelect.dispatchEvent(new Event('change'));
+  }
+  atualizarSites();
+
+  function setChecklist(i, v) {
+    document.getElementById('check-' + i).value = v;
+    const item = document.getElementById('check-' + i).closest('.checklist-item');
+    item.classList.remove('pendente');
+    const btns = item.querySelectorAll('.simnao button');
+    btns.forEach(b => b.classList.remove('ativo','v-sim','v-nao','v-na'));
+    if (v === 'SIM') btns[0].classList.add('ativo','v-sim');
+    else if (v === 'NÃO') btns[1].classList.add('ativo','v-nao');
+    else btns[2].classList.add('ativo','v-na');
+    atualizarCaixaNao();
+  }
+  function atualizarCaixaNao() {
+    const box = document.getElementById('checklist-no-box');
+    if (!box) return;
+    const algumNao = Array.from(document.querySelectorAll('input[id^="check-"]')).some(el => el.value === 'NÃO');
+    box.style.display = algumNao ? '' : 'none';
+  }
+
+  // ---- Assinaturas (canvas por chave) ----
+  const pads = {};
+  function iniciarPad(canvas) {
+    const key = canvas.id.replace('pad-', '');
+    const ctx = canvas.getContext('2d');
+    function resize() {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = canvas.clientWidth * ratio; canvas.height = canvas.clientHeight * ratio;
+      ctx.scale(ratio, ratio); ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.strokeStyle = '#181818';
+    }
+    resize();
+    let drawing = false, has = false;
+    function pos(e) { const r = canvas.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x: p.clientX - r.left, y: p.clientY - r.top }; }
+    function start(e) { drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+    function move(e) { if (!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); has = true; e.preventDefault(); }
+    function end() {
+      if (!drawing) return; drawing = false;
+      if (has) {
+        document.getElementById('sig-input-' + key).value = canvas.toDataURL('image/png');
+        const st = document.getElementById('sig-status-' + key);
+        st.textContent = 'Assinado.'; st.classList.add('assinado');
+      }
+    }
+    canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+    canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', move); canvas.addEventListener('touchend', end);
+    pads[key] = { canvas, ctx, reset:()=>{drawing=false;has=false;} };
+  }
+  document.querySelectorAll('.sig-pad').forEach(iniciarPad);
+  function limparAssinatura(key) {
+    const p = pads[key]; if (!p) return;
+    p.reset();
+    p.ctx.clearRect(0, 0, p.canvas.width, p.canvas.height);
+    document.getElementById('sig-input-' + key).value = '';
+    const st = document.getElementById('sig-status-' + key);
+    st.textContent = 'Ainda não assinado nesta sessão.'; st.classList.remove('assinado');
+  }
+
+  function aplicarPermitParticipante(row, data) {
+    row.querySelector('.pw-participant-id').value=data.participant_id||'';
+    row.querySelector('.pw-user-id').value=data.user_id||'';
+    row.querySelector('.pw-cpf').value=data.cpf||'';
+    row.querySelector('.pw-name').value=data.full_name||'';
+    row.querySelector('.pw-company').value=data.company||'';
+    row.querySelector('.pw-role').value=data.job_title||'';
+    row.querySelector('.pw-query').value=data.cpf||data.full_name||'';
+    const status=row.querySelector('.permit-worker-status'); status.textContent='✓ Participante selecionado: '+(data.full_name||''); status.className='permit-worker-status ok';
+    const box=row.querySelector('.permit-worker-suggestions'); box.innerHTML=''; box.classList.remove('show');
+  }
+  function mostrarPermitSugestoes(row, matches) {
+    const box=row.querySelector('.permit-worker-suggestions'); box.innerHTML='';
+    (matches||[]).forEach(data=>{const b=document.createElement('button');b.type='button';b.className='permit-worker-suggestion';const det=[data.company,data.job_title].filter(Boolean).join(' · ');b.textContent=data.full_name+(det?' — '+det:'');b.onclick=()=>aplicarPermitParticipante(row,data);box.appendChild(b);});
+    box.classList.toggle('show',box.children.length>0);
+  }
+  async function pesquisarPermitWorker(row,q,{silencioso=false}={}) {
+    const status=row.querySelector('.permit-worker-status'), box=row.querySelector('.permit-worker-suggestions');
+    if(!q){box.innerHTML='';box.classList.remove('show');return;}
+    if(!silencioso){status.textContent='Buscando...';status.className='permit-worker-status';}
+    const fd=new FormData();fd.append('csrf_token', {{ csrf_token|tojson }});const digits=q.replace(/\D/g,''),hasLetters=/[A-Za-zÀ-ÿ]/.test(q);if(!hasLetters&&digits.length>=11)fd.append('cpf',q);else fd.append('name',q);
+    try{const r=await fetch('/api/participants/lookup',{method:'POST',body:fd});const d=await r.json();if(d.found)aplicarPermitParticipante(row,d);else if(d.multiple&&Array.isArray(d.matches)){if(!silencioso)status.textContent=d.message||'Selecione o participante correto.';mostrarPermitSugestoes(row,d.matches);}else{box.innerHTML='';box.classList.remove('show');if(!silencioso){status.textContent=d.message||'Participante não encontrado.';status.className='permit-worker-status erro';}}}catch(e){if(!silencioso){status.textContent='Não foi possível pesquisar agora.';status.className='permit-worker-status erro';}}
+  }
+  async function buscarPermitWorker(btn){const row=btn.closest('[data-worker-row]'),q=(row.querySelector('.pw-query').value||'').trim();if(!q){alert('Digite o CPF ou o nome do integrante.');return;}await pesquisarPermitWorker(row,q);}
+  function ativarBuscaPermitWorker(root=document){
+    root.querySelectorAll('.pw-query').forEach(input=>{if(input.dataset.liveSearch==='1')return;input.dataset.liveSearch='1';let timer=null;input.addEventListener('input',()=>{const row=input.closest('[data-worker-row]'),q=(input.value||'').trim();clearTimeout(timer);if(!row)return;row.querySelector('.pw-participant-id').value='';row.querySelector('.pw-user-id').value='';const digits=q.replace(/\D/g,''),hasLetters=/[A-Za-zÀ-ÿ]/.test(q);if((!hasLetters&&digits.length<11)||(hasLetters&&q.length<3)){const box=row.querySelector('.permit-worker-suggestions');box.innerHTML='';box.classList.remove('show');return;}timer=setTimeout(()=>pesquisarPermitWorker(row,q,{silencioso:true}),280);});input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const b=input.closest('[data-worker-row]')?.querySelector('.btn-secundario');if(b)buscarPermitWorker(b);}if(e.key==='Escape'){const box=input.closest('[data-worker-row]')?.querySelector('.permit-worker-suggestions');if(box){box.innerHTML='';box.classList.remove('show');}}});});
+  }
+  ativarBuscaPermitWorker();
+
+  function reindexarEquipe() {
+    const linhas = document.querySelectorAll('#equipe-lista [data-worker-row]');
+    linhas.forEach((linha, i) => {
+      linha.querySelectorAll('[name]').forEach(el => { el.name = el.name.replace(/_(\d+)$/, '_' + i); });
+      linha.querySelectorAll('[id]').forEach(el => { el.id = el.id.replace(/_\d+$/, '_' + i).replace(/worker_\d+/, 'worker_' + i); });
+      const numEl = linha.querySelector('.linha-numero');
+      if (numEl) numEl.textContent = 'Integrante ' + String(i + 1).padStart(2, '0');
+    });
+    document.getElementById('worker-count').value = linhas.length;
+  }
+
+  function adicionarIntegrante() {
+    const lista = document.getElementById('equipe-lista');
+    const linhas = lista.querySelectorAll('[data-worker-row]');
+    const max = {{ data.worker_max }};
+    if (linhas.length >= max) { alert('Limite de ' + max + ' integrantes para esta PT.'); return; }
+    const nova = linhas[0].cloneNode(true);
+    nova.querySelectorAll('input[type=text], input[type=search]').forEach(el => el.value = '');
+    nova.querySelectorAll('input[type=hidden]').forEach(el => el.value = '');
+    nova.querySelectorAll('.permit-worker-status').forEach(el=>{el.textContent='';el.className='permit-worker-status';});
+    nova.querySelectorAll('.permit-worker-suggestions').forEach(el=>{el.innerHTML='';el.classList.remove('show');});
+    nova.querySelectorAll('.sig-status').forEach(el => { el.textContent = 'Ainda não assinado nesta sessão.'; el.className = 'sig-status'; });
+    if (!nova.querySelector('.btn-remover')) {
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'btn-remover'; btn.textContent = 'Remover';
+      btn.onclick = function () { removerLinha(this); };
+      nova.querySelector('.linha-cabecalho').appendChild(btn);
+    }
+    lista.appendChild(nova);
+    reindexarEquipe();
+    const novoCanvas = nova.querySelector('.sig-pad');
+    novoCanvas.getContext('2d').clearRect(0,0,novoCanvas.width,novoCanvas.height);
+    iniciarPad(novoCanvas);
+    ativarBuscaPermitWorker(nova);
+    const q=nova.querySelector('.pw-query'); if(q) q.focus();
+  }
+
+  function removerLinha(btn) {
+    btn.closest('[data-worker-row]').remove();
+    reindexarEquipe();
+  }
+</script>
+{% endblock %}

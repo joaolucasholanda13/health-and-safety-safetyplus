@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block page_title %}Ferramentas SST{% endblock %}
+{% block content %}
+<style>
+  .ferramentas-hero { background:var(--serena-grafite); color:#fff; border-radius:var(--raio-card); padding:var(--espaco-5); margin-bottom:var(--espaco-4); }
+  .ferramentas-hero h2 { font-family:var(--fonte-display); font-size:1.55rem; margin:0 0 8px; }
+  .ferramentas-hero p { margin:0; color:#E7E4E0; max-width:680px; }
+  .ferramentas-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--espaco-3); }
+  .ferramenta-card { display:flex; flex-direction:column; gap:12px; min-height:190px; text-decoration:none; color:inherit; position:relative; border:1px solid #ECE8E3; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+  .ferramenta-card:hover { transform:translateY(-2px); border-color:#DDD6CF; box-shadow:0 12px 28px rgba(24,24,24,.10); }
+  .ferramenta-icon { width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:var(--serena-areia); color:var(--serena-coral); }
+  .ferramenta-icon svg { width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .ferramenta-card strong { font-size:1rem; }
+  .ferramenta-card p { margin:0; color:var(--cor-texto-secundario); font-size:.84rem; line-height:1.45; flex:1; }
+  .ferramenta-abrir { color:var(--serena-coral); font-size:.82rem; font-weight:700; }
+  @media (max-width:800px) { .ferramentas-grid { grid-template-columns:1fr; } .ferramenta-card { min-height:150px; } }
+</style>
+
+<div class="ferramentas-hero">
+  <h2>Ferramentas SST</h2>
+  <p>Acesso rápido às plataformas utilizadas nas rotinas de Saúde e Segurança do Trabalho.</p>
+</div>
+
+<div class="ferramentas-grid">
+  <a class="card ferramenta-card" href="https://erpdistrinox.com.br/Default.aspx" target="_blank" rel="noopener noreferrer">
+    <div class="ferramenta-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16M8 13h3M8 16h6"/></svg></div>
+    <strong>ERP Distrinox</strong>
+    <p>Acessar o sistema ERP Distrinox.</p>
+    <span class="ferramenta-abrir">Abrir ferramenta ↗</span>
+  </a>
+
+  <a class="card ferramenta-card" href="https://omegaenergia.siclope.com.br/" target="_blank" rel="noopener noreferrer">
+    <div class="ferramenta-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg></div>
+    <strong>Siclope</strong>
+    <p>Acessar a plataforma Siclope.</p>
+    <span class="ferramenta-abrir">Abrir ferramenta ↗</span>
+  </a>
+
+  <a class="card ferramenta-card" href="https://dutoribio.github.io/register-oas/" target="_blank" rel="noopener noreferrer">
+    <div class="ferramenta-icon"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5z"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="m14 17 2 2 4-4"/></svg></div>
+    <strong>O.A.C</strong>
+    <p>Acessar o registro O.A.C.</p>
+    <span class="ferramenta-abrir">Abrir ferramenta ↗</span>
+  </a>
+
+  <a class="card ferramenta-card" href="https://serena-onboard-hub.lovable.app/" target="_blank" rel="noopener noreferrer">
+    <div class="ferramenta-icon"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/><path d="M15 16.5c.8-1 1.8-1.5 3-1.5s2.2.5 3 1.5"/><circle cx="18" cy="12" r="1.5"/></svg></div>
+    <strong>Integração de Segurança</strong>
+    <p>Registrar a integração de colaboradores, coletar assinaturas digitais e gerar a ata em PDF.</p>
+    <span class="ferramenta-abrir">Abrir ferramenta ↗</span>
+  </a>
+
+  <a class="card ferramenta-card" href="/momento-seguranca">
+    <div class="ferramenta-icon"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 8.2 8 9 4.8-.8 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <strong>Momento de Segurança</strong>
+    <p>Registrar o tema conduzido, os pontos abordados e a lista de presença com rubricas, e gerar o PDF.</p>
+    <span class="ferramenta-abrir">Abrir ferramenta</span>
+  </a>
+
+  {% for c in custom_cards or [] %}
+  <a class="card ferramenta-card" href="{{ c.url }}">
+    <div class="ferramenta-icon"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5z"/><path d="M8 7h8M8 11h8M8 15h5"/><path d="m14 17 2 2 4-4"/></svg></div>
+    <strong>{{ c.title }}</strong>
+    <p>Checklist com {{ c.items }} item(ns).</p>
+    <span class="ferramenta-abrir">Abrir documento</span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

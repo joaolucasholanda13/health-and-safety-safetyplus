@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup verificado do Safety Plus
+After=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/safetyplus-maintenance.conf
+ExecStart=/usr/bin/python3 /opt/safety-plus/tools/maintenance.py backup
+TimeoutStartSec=75min
+UMask=0077

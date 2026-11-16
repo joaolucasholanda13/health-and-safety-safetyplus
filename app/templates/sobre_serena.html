@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block page_title %}Política SST{% endblock %}
+{% block content %}
+<style>
+  .hero-sobre { background: var(--serena-coral); color: white; border-radius: var(--raio-card); padding: var(--espaco-5); margin-bottom: var(--espaco-4); }
+  .hero-sobre h2 { font-family: var(--fonte-display); font-size: 1.6rem; margin: 0 0 8px; }
+  .hero-sobre p { margin: 0; opacity: 0.92; max-width: 560px; }
+  .docs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--espaco-3); }
+  .doc-card { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
+  .doc-card .icone-doc { width: 44px; height: 44px; border-radius: 12px; background: var(--serena-areia); display: flex; align-items: center; justify-content: center; color: var(--cor-primaria); flex-shrink: 0; }
+  .doc-card strong { display: block; }
+  .doc-card span { color: var(--cor-texto-secundario); font-size: 0.82rem; }
+</style>
+
+<div class="hero-sobre">
+  <h2>Segurança em primeiro lugar, em cada atividade.</h2>
+  <p>O Safety Plus existe para tornar simples registrar, acompanhar e revisar tudo o que garante um trabalho seguro na Serena — da análise de risco à assinatura de cada integrante em campo.</p>
+</div>
+
+<div class="card" style="margin-bottom: var(--espaco-4);">
+  <h2 style="font-size:1rem; margin-bottom:10px;">Política SST e procedimentos</h2>
+  <div class="docs-grid">
+    <a class="doc-card" href="/sobre-serena/politica-sst" target="_blank">
+      <div class="icone-doc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l7 4v6c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>
+      </div>
+      <div><strong>Política de Saúde e Segurança do Trabalho</strong><span>Abrir PDF</span></div>
+    </a>
+    <a class="doc-card" href="/sobre-serena/regras-pela-vida" target="_blank">
+      <div class="icone-doc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/></svg>
+      </div>
+      <div><strong>Regras pela Vida</strong><span>Abrir PDF</span></div>
+    </a>
+    <a class="doc-card" href="https://omegaenergiarenovavel.sharepoint.com/sites/Wiki/SitePages/Procedimentos-de-Seguran%C3%A7a.aspx" target="_blank" rel="noopener noreferrer">
+      <div class="icone-doc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h6"/></svg>
+      </div>
+      <div><strong>Procedimentos de Segurança</strong><span>Abrir no SharePoint</span></div>
+    </a>
+    {% for c in custom_cards or [] %}
+    <a class="doc-card" href="{{ c.url }}">
+      <div class="icone-doc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3h14v18H5z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>
+      </div>
+      <div><strong>{{ c.title }}</strong><span>Abrir documento</span></div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

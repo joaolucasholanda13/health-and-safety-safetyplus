@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block page_title %}Histórico · {{ code }}{% endblock %}
+{% block content %}
+<style>
+  .hist-wrap{max-width:820px;margin:0 auto}
+  .hist-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .hist-line{position:relative;margin:0;padding:0 0 0 22px;list-style:none;border-left:2px solid #ECE8E3}
+  .hist-line li{position:relative;padding:0 0 16px 14px}
+  .hist-line li::before{content:'';position:absolute;left:-29px;top:4px;width:10px;height:10px;border-radius:50%;background:#FF5246;border:2px solid #fff;box-shadow:0 0 0 1px #FF5246}
+  .hist-line strong{font-size:.92rem}.hist-line small{display:block;color:var(--cor-texto-secundario);font-size:.78rem;margin-top:2px}
+  .hist-snaps{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+  .hist-snaps li{display:flex;justify-content:space-between;gap:10px;background:#F7F5F2;border-radius:10px;padding:9px 12px;font-size:.84rem}
+</style>
+<div class="hist-wrap">
+  <div class="hist-head">
+    <div><h2 style="margin:0">Histórico de alterações</h2><span style="color:var(--cor-texto-secundario);font-size:.85rem">{{ code }} · {{ doc.status }}</span></div>
+    <a class="btn btn-secundario" href="/">Voltar</a>
+  </div>
+  <div class="card" style="padding:20px;margin-bottom:16px">
+    <h3 style="margin-top:0">Linha do tempo</h3>
+    {% if events %}
+    <ul class="hist-line">
+      {% for e in events %}
+      <li><strong>{{ e.action }}</strong><small>{{ e.at.strftime('%d/%m/%Y %H:%M') if e.at else '' }} · {{ e.who }}</small>{% if e.detail %}<small>{{ e.detail }}</small>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p style="color:var(--cor-texto-secundario)">Nenhum registro de alteração para este documento.</p>{% endif %}
+  </div>
+  {% if snaps %}
+  <div class="card" style="padding:20px">
+    <h3 style="margin-top:0">Versões anteriores salvas ({{ snaps|length }})</h3>
+    <ul class="hist-snaps">
+      {% for v in snaps %}<li><span>{{ v.at.strftime('%d/%m/%Y %H:%M') if v.at else '' }}</span><span>{{ v.status or '—' }}</span></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

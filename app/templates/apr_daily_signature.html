@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block page_title %}Assinaturas diárias · {{ doc_reference_code(doc) }}{% endblock %}
+{% block content %}
+<style>
+  .daily-head{display:grid;grid-template-columns:170px 1fr;gap:18px;align-items:center;margin-bottom:var(--espaco-4)}
+  .daily-head img{width:160px;max-width:100%;background:white;padding:6px;border:1px solid #E3DFD9;border-radius:12px}
+  .daily-grid{overflow-x:auto;margin-bottom:var(--espaco-4)}
+  .daily-grid table{width:100%;min-width:850px;border-collapse:collapse;font-size:.82rem}
+  .daily-grid th,.daily-grid td{border:1px solid #E3DFD9;padding:8px;text-align:center;vertical-align:middle}
+  .daily-grid th:first-child,.daily-grid td:first-child{text-align:left;min-width:200px}
+  .day-today{background:#FFF6E9!important;box-shadow:inset 0 0 0 2px var(--serena-coral)}
+  .day-ok{color:#17634E;font-weight:700}.day-pending{color:#8A6810;font-weight:700}.day-future{color:#98918A}
+  .sign-choices{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:var(--espaco-4)}
+  .sign-choice{padding:18px;border:1px solid #e3dfd9;border-radius:16px;background:#fff}
+  .qr-inline{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.qr-inline img{width:180px;max-width:100%;border:1px solid #e3dfd9;border-radius:12px;padding:8px;background:white}.manual-open{display:inline-flex;margin:10px 0;padding:12px 20px;border-radius:999px;background:#171717;color:white!important;font-weight:700;text-decoration:none}.sign-choice h2{margin:0 0 8px;font-size:1.1rem}
+  .sign-choice p{margin:0 0 12px;color:var(--cor-texto-secundario)}
+  .sign-choice-single{width:100%;box-sizing:border-box;min-width:0}
+  .qr-instructions{flex:1;min-width:210px}
+  .manual-open{max-width:100%;box-sizing:border-box;text-align:center;justify-content:center}
+  .participant-search{width:100%;padding:13px 15px;border:1px solid #cfc8c0;border-radius:12px;background:#fff;font:inherit;box-sizing:border-box;margin:10px 0}
+  .participant-list{display:grid;gap:8px;max-height:280px;overflow:auto;margin-top:10px}
+  .participant-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid #e3dfd9;border-radius:12px;background:#fff;flex-wrap:wrap}
+  .participant-item.is-mine{border-color:#e77751;background:#fff8f4}
+  .participant-item small{display:block;color:#746e68;margin-top:3px}
+  .participant-item .btn{white-space:nowrap}
+  .participant-notice{font-size:.88rem;color:#625d58;margin-top:8px}
+  @media(max-width:650px){.sign-choices{grid-template-columns:1fr}.qr-inline{flex-direction:column;align-items:flex-start}.qr-instructions{min-width:0;width:100%}.manual-open{width:100%}}
+  .sig-pad{border:1px dashed #BFB8AF;border-radius:var(--raio-input);background:white;touch-action:none;width:100%;height:180px;display:block;margin:10px 0}
+  @media(max-width:620px){.daily-head{grid-template-columns:1fr;text-align:center}.daily-head>div:last-child{text-align:left}}
+</style>
+
+<div class="sign-choices">
+  <section class="sign-choice sign-choice-single">
+    <h2>▦ Assinar APR</h2>
+    <p>Escaneie o QR Code com o celular ou abra a assinatura manual diretamente neste dispositivo.</p>
+    <div class="qr-inline">
+      <img src="{{ qr_url }}" alt="QR Code geral da APR">
+      <div class="qr-instructions">
+        <strong>Assinar pelo QR Code</strong>
+        <p>Escaneie com a câmera do celular para visualizar a APR, identificar-se e registrar a rubrica.</p>
+        <a class="manual-open" href="{{ public_signature_url }}#identificacao-participante">✍ Abrir assinatura manual</a>
+      </div>
+    </div>
+  </section>
+</div>
+
+{% for period in period_tables %}
+<div class="card daily-grid">
+  <h3>{{ period.title }}</h3>
+  <h2 style="margin-top:0;">Controle diário da equipe</h2>
+  
+  <table>
+    <thead><tr><th>Participante</th>{% if period.rows %}{% for d in period.rows[0].days %}<th class="{{ 'day-today' if d.is_today else '' }}">{{ d.weekday }}<br>{{ d.label }}</th>{% endfor %}{% endif %}</tr></thead>
+    <tbody>
+      {% for row in period.rows %}
+      <tr><td><strong>{{ row.worker }}</strong><br><span style="color:var(--cor-texto-secundario);">{{ row.company }} · {{ row.role }}</span></td>
+      {% for d in row.days %}<td class="{{ 'day-today' if d.is_today else '' }}">
+        {% if d.signed %}<span class="day-ok">✓ Assinado</span>{% if d.signed_at %}<br><small>{{ d.signed_by_name or row.worker }}</small><br><small>{{ d.signed_at }}</small>{% endif %}
+        {% elif d.is_future %}<span class="day-future">Futuro</span>
+        {% elif d.is_past %}<span class="day-pending" title="Dia encerrado sem rubrica registrada">Não assinado</span>
+        {% else %}<span class="day-pending">Pendente</span>
+          {% if d.is_today and participant_idx is not none and row.index == participant_idx %}
+            <br><a class="btn btn-primario" style="font-size:.75rem;padding:5px 9px;margin-top:6px;" href="#minha-assinatura" onclick="abrirAssinaturaDia(event, this)">✍ Assinar {{ d.label }}</a>
+          {% endif %}
+        {% endif %}
+      </td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endfor %}
+{% if not today_in_range %}<p class="banner banner-atencao">O período atual não inclui hoje. Para novas assinaturas, crie uma nova APR; os períodos anteriores ficam no histórico.</p>{% endif %}
+
+{% if participant_idx is not none %}
+<div class="card" id="minha-assinatura" style="margin-bottom:var(--espaco-4);{{ 'display:none;' if can_sign_today else '' }}">
+  <h2 style="margin-top:0;">Rubrica do dia {{ today_label }}</h2>
+  {% if already_today %}
+    <div class="banner banner-info">✓ Sua assinatura de hoje já foi registrada.</div>
+  {% elif not today_in_range %}
+    <div class="banner banner-atencao">Hoje está fora do período de validade desta APR.</div>
+  {% elif can_sign_today %}
+    <p style="color:var(--cor-texto-secundario);">Faça sua rubrica abaixo. Não é permitido assinar dias futuros ou retroativos.</p>
+    <form method="post" action="/apr/{{ doc.id }}/assinatura-diaria" id="daily-sign-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="sig_daily" id="sig-daily">
+      <canvas class="sig-pad" id="daily-pad" aria-label="Área para rubrica diária"></canvas>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-fantasma" id="clear-daily">Limpar</button><button type="submit" class="btn btn-primario" id="submit-daily">Confirmar assinatura de {{ today_label }}</button></div>
+    </form>
+  {% else %}
+    <div class="banner banner-atencao">A assinatura diária ainda não está disponível para esta APR.</div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;"><a class="btn btn-secundario" href="/">Voltar ao painel</a>{% if collector_mode and doc.status == 'Finalizada' %}<a class="btn btn-fantasma" href="/document/{{ doc.id }}/pdf">Abrir PDF atualizado</a>{% endif %}</div>
+
+
+{% if can_sign_today %}
+<script>
+(function(){
+  window.abrirAssinaturaDia=function(event, link){
+    event.preventDefault();
+    const area=document.getElementById('minha-assinatura');
+    if(!area)return;
+    area.style.display='block';
+    initializePad();
+    area.scrollIntoView({behavior:'smooth',block:'start'});
+  };
+  const canvas=document.getElementById('daily-pad'), input=document.getElementById('sig-daily'); if(!canvas||!input)return;
+  const ctx=canvas.getContext('2d'), ratio=window.devicePixelRatio||1;
+  let initialized=false;
+  function initializePad(){
+    if(initialized||!canvas.clientWidth||!canvas.clientHeight)return;
+    canvas.width=Math.floor(canvas.clientWidth*ratio); canvas.height=Math.floor(canvas.clientHeight*ratio);
+    ctx.setTransform(ratio,0,0,ratio,0,0); ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.strokeStyle='#181818';
+    initialized=true;
+  }
+  initializePad();
+  let drawing=false,has=false;
+  function pt(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+  function startDraw(e){initializePad();if(!initialized)return;drawing=true;try{canvas.setPointerCapture(e.pointerId)}catch(_e){}const p=pt(e);ctx.beginPath();ctx.moveTo(p.x,p.y);e.preventDefault()}
+  function moveDraw(e){if(!drawing)return;const p=pt(e);ctx.lineTo(p.x,p.y);ctx.stroke();has=true;e.preventDefault()}
+  function endDraw(e){if(!drawing)return;drawing=false;if(has)input.value=canvas.toDataURL('image/png');if(e)e.preventDefault()}
+  canvas.addEventListener('pointerdown',startDraw,{passive:false});canvas.addEventListener('pointermove',moveDraw,{passive:false});canvas.addEventListener('pointerup',endDraw,{passive:false});canvas.addEventListener('pointercancel',endDraw,{passive:false});window.addEventListener('pointerup',endDraw,{passive:false});
+  document.getElementById('clear-daily').addEventListener('click',()=>{ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);has=false;input.value=''});
+  document.getElementById('daily-sign-form').addEventListener('submit',(e)=>{if(!input.value){e.preventDefault();alert('Faça sua rubrica antes de confirmar.');}});
+})();
+</script>
+{% endif %}
+{% endblock %}

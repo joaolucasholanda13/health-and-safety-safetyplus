@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block page_title %}Modelos de APR{% endblock %}
+{% block content %}
+<style>
+  .models-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:20px}.models-head h2{margin:0 0 5px}.models-head p{margin:0;color:var(--cor-texto-secundario)}.models-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.model-card{padding:18px;display:flex;flex-direction:column;gap:9px}.model-card h3{margin:0}.model-meta{font-size:.84rem;color:var(--cor-texto-secundario)}.model-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:10px}.model-actions form{margin:0}.model-actions .btn{text-decoration:none}.empty{padding:34px;text-align:center;color:var(--cor-texto-secundario)}@media(max-width:760px){.models-grid{grid-template-columns:1fr}.models-head{flex-direction:column}.model-actions form,.model-actions .btn{flex:1 1 auto}.model-actions button{width:100%}}
+</style>
+<div class="models-head"><div><h2>Modelos de APR</h2><p>Modelos pré-preenchidos para atividades repetitivas. Toda nova APR deve ser revisada antes das assinaturas.</p></div><a class="btn btn-secundario" href="/apr/new">Voltar</a></div>
+{% if models %}
+<div class="models-grid">
+{% for item in models %}
+  <div class="card model-card">
+    <h3>{{ item.data.get('template_name') or item.doc.activity or 'Modelo de APR' }}</h3>
+    <div>{{ item.data.get('activity') or 'Atividade não informada' }}</div>
+    <div class="model-meta">{{ item.data.get('cluster') or 'Sem cluster/site' }} · {{ item.data.get('steps',[])|length }} etapa(s)</div>
+    <div class="model-meta">Criado por {{ item.creator or 'Usuário' }} · {{ item.doc.updated_at.strftime('%d/%m/%Y %H:%M') if item.doc.updated_at else '' }}</div>
+    <div class="model-actions">
+      <form method="post" action="/apr/modelos/{{ item.doc.id }}/usar" onsubmit="var b=this.querySelector('button'); if(b){b.disabled=true;b.textContent='Criando APR...';}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primario" type="submit">Usar modelo</button></form>
+      {% if user.role in ['Super Administrador','DEV'] or item.doc.created_by == user.id %}
+      <form method="post" action="/apr/modelos/{{ item.doc.id }}/excluir" onsubmit="return confirm('Excluir este modelo de APR?');"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-secundario" type="submit">Excluir</button></form>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% else %}
+<div class="card empty">Ainda não existem modelos. No histórico, abra uma APR finalizada e use <strong>Salvar como modelo</strong>.</div>
+{% endif %}
+{% endblock %}

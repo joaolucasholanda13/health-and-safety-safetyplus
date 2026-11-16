@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block page_title %}Assinar APR · {{ doc_reference_code(doc) }}{% endblock %}
+{% block content %}
+<style>
+.pub-wrap{max-width:980px;margin:0 auto}.pub-hero{border-top:4px solid var(--serena-laranja,#ff5a3c)}.pub-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.pub-field{background:var(--serena-areia);padding:12px 14px;border-radius:11px;min-height:60px}.pub-field small{display:block;color:var(--cor-texto-secundario);margin-bottom:4px}.pub-table{width:100%;border-collapse:collapse;font-size:.84rem}.pub-table th,.pub-table td{border:1px solid #e3dfd9;padding:9px;text-align:left;vertical-align:top}.pub-table th{background:var(--serena-areia)}.sigbox{width:100%;height:210px;border:2px dashed #aaa;border-radius:14px;background:#fff;touch-action:none}.msg{padding:12px 14px;border-radius:10px;margin-bottom:14px}.err{background:#fff0ef;color:#8c201b}.ok{background:#edf8f2;color:#17633d}.read-confirm{display:flex;gap:10px;align-items:flex-start;padding:14px;background:#fff6dd;border-radius:12px;margin:16px 0}.read-confirm input{width:22px;height:22px;flex:0 0 auto}.cpf-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.cpf-input{width:100%;min-height:52px;border:1.5px solid #bdb7b0;border-radius:12px;padding:0 15px;font-size:1.12rem;letter-spacing:.02em;background:#fff}.identity{display:none;margin-top:12px;padding:13px 15px;border-radius:12px;background:#f4f2ef}.identity.okid{display:block;border-left:4px solid #2b8a57}.identity.badid{display:block;border-left:4px solid #b63a31;background:#fff0ef}.section-note{color:var(--cor-texto-secundario);font-size:.9rem}.check-answer{font-weight:700}.permit-item{padding:10px 0;border-bottom:1px solid #eee}.sign-card{border-top:4px solid var(--serena-laranja,#ff5a3c)}
+@media(max-width:650px){.pub-grid,.cpf-row{grid-template-columns:1fr}.pub-table{font-size:.76rem}.card{padding:16px}.btn{min-height:48px}.sigbox{height:190px}.cpf-input{font-size:1.15rem}}
+</style>
+<div class="pub-wrap">
+<div class="card pub-hero">
+<h1 style="margin-top:0;font-size:1.45rem">Leitura completa da APR</h1>
+<p class="section-note">Confira os dados, seleções, riscos, controles e permissões antes de registrar sua participação.</p>
+<div class="pub-grid">
+<div class="pub-field"><small>APR</small><strong>{{ doc_reference_code(doc) }}</strong></div>
+<div class="pub-field"><small>Atividade</small><strong>{{ data.activity or '—' }}</strong></div>
+<div class="pub-field"><small>Cluster / Site</small>{{ data.cluster or '—' }}{% if data.site %} · {{ data.site }}{% endif %}</div>
+<div class="pub-field"><small>Severidade geral</small><strong>{{ data.severity or '—' }}</strong></div>
+<div class="pub-field"><small>Data / hora</small>{{ data.apr_date or '—' }}{% if data.apr_time %} · {{ data.apr_time }}{% endif %}</div>
+<div class="pub-field"><small>Validade</small>{{ data.apr_date or '—' }}{% if data.apr_valid_until %} a {{ data.apr_valid_until }}{% endif %}</div>
+<div class="pub-field"><small>Canal de rádio</small>{{ data.radio_channel or '—' }}</div>
+<div class="pub-field"><small>Telefones</small>Líder: {{ data.leader_phone or '—' }} · SST: {{ data.sst_phone or '—' }}</div>
+</div></div>
+{% if error %}<div class="msg err"><strong>{{ error }}</strong></div>{% endif %}
+{% if success %}<div class="msg ok"><strong>✓ {{ success }}</strong><br>Você já pode fechar esta página.</div>{% endif %}
+<div class="card"><h2 style="margin-top:0">Etapas, perigos, riscos e controles</h2><div style="overflow:auto"><table class="pub-table"><thead><tr><th>#</th><th>Etapa</th><th>Perigos selecionados</th><th>Riscos selecionados</th><th>Severidade</th><th>Controles</th></tr></thead><tbody>{% for step in data.steps %}<tr><td>{{ loop.index }}</td><td>{{ step.stage or '—' }}</td><td style="white-space:pre-line">{{ step.hazard or '—' }}</td><td style="white-space:pre-line">{{ step.risk or '—' }}</td><td>{{ step.severity or '—' }}</td><td style="white-space:pre-line">{{ step.control or '—' }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2 style="margin-top:0">Checklist da APR</h2><div style="overflow:auto"><table class="pub-table"><thead><tr><th>#</th><th>Item verificado</th><th>Seleção</th></tr></thead><tbody>{% for question in checklist_items %}<tr><td>{{ loop.index }}</td><td>{{ question }}</td><td class="check-answer">{{ data.checklist[loop.index0] or '—' }}</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2 style="margin-top:0">Atividade crítica e permissões</h2><p><strong>Atividade contempla permissão crítica:</strong> {{ data.critical_activity }}</p>{% if data.critical_activity == 'SIM' and data.critical_permits %}{% for name in data.critical_permits %}{% set st=linked_permit_states[name] %}<div class="permit-item"><strong>{{ name }}</strong>{% if st.code %} · {{ st.code }}{% endif %} · {{ st.status or 'Selecionada' }}</div>{% endfor %}{% else %}<p class="section-note">Nenhuma permissão crítica selecionada.</p>{% endif %}</div>
+<div class="card"><h2 style="margin-top:0">Responsável pela aprovação</h2><p><strong>{{ data.approver_name or 'Aprovador selecionado na APR' }}</strong>{% if data.approver_extra_names %}<br>{{ data.approver_extra_names|join(' · ') }}{% endif %}</p></div>
+{% if closed %}<div class="card"><strong>A coleta de rubricas desta APR não está aberta.</strong></div>{% elif not success %}
+<form class="card sign-card" method="post" id="public-sign-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="sig_rubric" id="rubric-value"><input type="hidden" name="accepted" id="accepted-value" value="0">
+<h2 style="margin-top:0" id="identificacao-participante">Identificação do participante</h2>
+<p class="section-note">Pesquise seu nome entre os integrantes desta APR. Depois confirme sua identidade pelo CPF antes de assinar.</p>
+<label for="roster-search"><strong>Pesquisar nome</strong></label>
+<input type="search" id="roster-search" class="cpf-input" placeholder="Digite seu nome" autocomplete="off" style="letter-spacing:normal;margin:8px 0 10px">
+<div id="roster-list" style="display:grid;gap:7px;max-height:230px;overflow:auto;margin-bottom:12px">
+{% for person_name in roster_names|default([]) %}<button type="button" class="roster-name" data-name="{{ person_name|lower|e }}" style="text-align:left;padding:12px 14px;border:1px solid #e3dfd9;border-radius:10px;background:white;cursor:pointer">{{ person_name }}</button>{% endfor %}
+</div><p class="section-note" id="roster-empty" hidden>Nenhum nome encontrado nesta APR.</p>
+<p class="section-note" id="roster-selected">Selecione seu nome para continuar.</p>
+<div class="cpf-row"><div><label for="cpf-public"><strong>CPF</strong></label><input id="cpf-public" class="cpf-input" name="cpf" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00" required></div><button type="button" class="btn btn-fantasma" id="identify-btn">Identificar participante</button></div>
+<div id="identity-result" class="identity" aria-live="polite"></div>
+<label class="read-confirm"><input type="checkbox" id="accepted"><span><strong>Li a APR e estou de acordo.</strong><br><small>Confirmo que tive acesso aos dados completos, seleções, etapas, perigos, riscos, controles, checklist e permissões vinculadas antes de rubricar.</small></span></label>
+<div><label><strong>Rubrica</strong></label><canvas class="sigbox" id="rubric-pad"></canvas><button type="button" class="btn btn-fantasma" id="clear-rubric" style="margin-top:8px">Limpar rubrica</button></div>
+<button class="btn btn-primario" type="submit" style="width:100%;margin-top:18px;font-size:1rem">Confirmar participação</button></form>
+<script>
+(function(){
+const rosterSearch=document.getElementById('roster-search'), rosterItems=[...document.querySelectorAll('.roster-name')], rosterEmpty=document.getElementById('roster-empty'), rosterSelected=document.getElementById('roster-selected');
+let selectedName='';
+function filterRoster(){const q=(rosterSearch.value||'').toLocaleLowerCase('pt-BR').trim();let shown=0;rosterItems.forEach(el=>{const match=el.dataset.name.includes(q);el.hidden=!match;if(match)shown++});rosterEmpty.hidden=shown>0}
+rosterSearch.addEventListener('input',filterRoster);
+rosterItems.forEach(el=>el.addEventListener('click',()=>{selectedName=el.textContent.trim();rosterSearch.value=selectedName;rosterSelected.textContent='Selecionado: '+selectedName+'. Confirme seu CPF abaixo.';filterRoster();document.getElementById('cpf-public').focus()}));
+const cpf=document.getElementById('cpf-public'), result=document.getElementById('identity-result'), identify=document.getElementById('identify-btn'); let identified='';
+function digits(v){return (v||'').replace(/\D/g,'').slice(0,11)}
+function mask(v){let d=digits(v);return d.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2')}
+cpf.addEventListener('input',()=>{cpf.value=mask(cpf.value);identified='';result.className='identity';result.textContent=''});
+async function lookup(){const d=digits(cpf.value);if(d.length!==11){result.className='identity badid';result.textContent='Digite os 11 números do CPF.';return false}identify.disabled=true;result.className='identity';result.textContent='Buscando participante…';try{const r=await fetch(location.pathname+'/participante?cpf='+encodeURIComponent(d),{headers:{'Accept':'application/json'}});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.detail||j.message||'CPF não encontrado.');if(selectedName && j.name.trim().toLocaleLowerCase('pt-BR')!==selectedName.toLocaleLowerCase('pt-BR'))throw new Error('O CPF informado não corresponde ao nome selecionado.');identified=d;result.className='identity okid';result.innerHTML='<strong>'+esc(j.name)+'</strong><br>'+esc(j.company||'')+(j.role?' · '+esc(j.role):'');return true}catch(e){identified='';result.className='identity badid';result.textContent=e.message;return false}finally{identify.disabled=false}}
+function esc(s){const d=document.createElement('div');d.textContent=s||'';return d.innerHTML} identify.onclick=lookup;
+const c=document.getElementById('rubric-pad'),ctx=c.getContext('2d'),out=document.getElementById('rubric-value');let draw=false,has=false;function size(){const r=devicePixelRatio||1;c.width=Math.floor(c.clientWidth*r);c.height=Math.floor(c.clientHeight*r);ctx.setTransform(r,0,0,r,0,0);ctx.lineWidth=2.5;ctx.lineCap='round';ctx.strokeStyle='#111'}size();function pt(e){const b=c.getBoundingClientRect();return{x:e.clientX-b.left,y:e.clientY-b.top}}c.addEventListener('pointerdown',e=>{draw=true;const p=pt(e);ctx.beginPath();ctx.moveTo(p.x,p.y);c.setPointerCapture(e.pointerId);e.preventDefault()});c.addEventListener('pointermove',e=>{if(!draw)return;const p=pt(e);ctx.lineTo(p.x,p.y);ctx.stroke();has=true;e.preventDefault()});c.addEventListener('pointerup',e=>{draw=false;if(has)out.value=c.toDataURL('image/png');e.preventDefault()});document.getElementById('clear-rubric').onclick=()=>{ctx.clearRect(0,0,c.clientWidth,c.clientHeight);has=false;out.value=''};
+const acc=document.getElementById('accepted');acc.onchange=()=>document.getElementById('accepted-value').value=acc.checked?'1':'0';document.getElementById('public-sign-form').addEventListener('submit',async e=>{e.preventDefault();const d=digits(cpf.value);if(identified!==d){if(!(await lookup()))return}if(!acc.checked||!has){alert('Confirme a leitura da APR e faça sua rubrica.');return}e.target.submit()})
+})();
+</script>{% endif %}
+</div>
+{% endblock %}

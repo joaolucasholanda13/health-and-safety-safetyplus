@@ -1,0 +1,28 @@
+fastapi==0.128.2
+uvicorn[standard]==0.48.0
+jinja2==3.1.6
+sqlalchemy==2.0.50
+python-multipart==0.0.29
+PyMuPDF==1.26.7
+psycopg[binary]>=3.2,<4
+itsdangerous==2.2.0
+
+tzdata>=2025.1
+
+cryptography>=43,<47
+
+reportlab>=4.0,<5
+
+# Notificações push para navegador/PWA (Android, desktop e iOS PWA compatível)
+pywebpush>=2.0,<3
+
+
+# Importação/exportação de participantes em Excel
+openpyxl>=3.1,<4
+
+# QR Code geral para assinaturas da APR (SVG, sem depender de Pillow)
+qrcode>=8,<9
+
+# Login único (SSO) com Microsoft Entra ID (OpenID Connect)
+authlib>=1.3,<2
+httpx>=0.27,<1

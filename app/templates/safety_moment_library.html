@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block page_title %}Biblioteca de Momentos de Segurança{% endblock %}
+{% block content %}
+<style>
+  .lib-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .lib-head h2{margin:0 0 4px;font-size:1.3rem}.lib-head p{margin:0;color:var(--cor-texto-secundario)}
+  .lib-tools{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .lib-tools input,.lib-tools select{min-height:42px;border:1px solid #D8D3CC;border-radius:11px;padding:9px 12px;font:inherit;background:#fff}
+  .lib-tools input{flex:1 1 260px}
+  .lib-empty{padding:30px;text-align:center;color:var(--cor-texto-secundario);background:#fff;border:1px solid #E3DFD9;border-radius:14px}
+  @media(max-width:900px){.lib-grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.lib-grid{grid-template-columns:1fr}}
+  .lib-admin{background:#fff;border:1px dashed var(--cor-primaria);border-radius:14px;padding:14px;margin-bottom:14px}
+  .lib-admin summary{cursor:pointer;font-weight:800;color:var(--cor-primaria);list-style:none}.lib-admin summary::-webkit-details-marker{display:none}
+  .lib-admin form{display:grid;grid-template-columns:90px 1fr 110px 140px;gap:10px;margin-top:12px;align-items:end}
+  .lib-admin label{font-size:.78rem;font-weight:700;display:grid;gap:4px}
+  .lib-admin input,.lib-admin select{min-height:40px;border:1px solid #D8D3CC;border-radius:10px;padding:8px 10px;font:inherit;background:#fff}
+  .lib-admin .full{grid-column:1/-1}
+  .lib-msg{padding:10px 14px;border-radius:10px;margin-bottom:12px;font-weight:600}.lib-msg.ok{background:#E8F5EC;color:#1F6B3A}.lib-msg.err{background:#FDECEA;color:#B3261E}
+  @media(max-width:700px){.lib-admin form{grid-template-columns:1fr}}
+  .lib-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .lib-wrap{display:flex;flex-direction:column;background:#fff;border:1px solid #E3DFD9;border-radius:16px;overflow:hidden;position:relative;animation:permIn .4s ease both;transition:transform .25s cubic-bezier(.34,1.56,.64,1),border-color .2s,box-shadow .25s}
+  .lib-thumb{display:block;position:relative;aspect-ratio:16/10;background:linear-gradient(135deg,#F4F1EC,#EAE5DD);overflow:hidden;border-bottom:1px solid #F0ECE6}
+  .lib-thumb img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;transition:transform .5s ease}
+  .lib-wrap:hover .lib-thumb img{transform:scale(1.05)}
+  .lib-thumb .lib-num{position:absolute;left:10px;top:10px;background:var(--cor-primaria);color:#fff;box-shadow:0 4px 10px rgba(0,0,0,.2)}
+  .lib-thumb .lib-tag{position:absolute;right:10px;top:10px;background:rgba(255,255,255,.95)}
+  .lib-thumb .lib-tag.en{background:#E7EEFB}
+  .lib-wrap:hover{transform:translateY(-3px);border-color:var(--cor-primaria);box-shadow:0 12px 26px rgba(255,82,70,.14)}
+  .lib-card{display:flex;flex-direction:column;gap:10px;flex:1;padding:0 0 14px;color:inherit;text-decoration:none}.lib-body{display:flex;flex-direction:column;gap:10px;flex:1;padding:0 16px;color:inherit;text-decoration:none}
+  .lib-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .lib-num{font-weight:800;font-size:.78rem;letter-spacing:.04em;color:var(--cor-primaria);background:#FFEDEB;border-radius:8px;padding:4px 9px}
+  .lib-card strong{display:block;font-size:.95rem;line-height:1.35;overflow-wrap:anywhere}
+  .lib-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:10px;border-top:1px solid #F0ECE6;font-size:.76rem;color:var(--cor-texto-secundario)}
+  .lib-open{font-weight:800;color:var(--cor-primaria);transition:transform .2s}.lib-wrap:hover .lib-open{transform:translateX(3px)}
+  .lib-tag{background:#F4F1EC;border-radius:999px;padding:2px 9px;font-weight:700;font-size:.72rem}
+  .lib-tag.en{background:#E7EEFB;color:#27508F}
+  .lib-adm{border-top:1px solid #F0ECE6;padding:6px 12px;background:#FAF8F5;text-align:right}
+  .lib-adm form{margin:0}.lib-del{border:0;background:none;color:#B3261E;font-weight:700;font-size:.74rem;cursor:pointer;padding:2px 4px}.lib-del:hover{text-decoration:underline}
+  @media (prefers-reduced-motion:reduce){.lib-wrap{animation:none!important}.lib-wrap:hover{transform:none}}
+  .qr-dlg{border:0;border-radius:18px;padding:0;max-width:min(92vw,460px);width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35)}
+  .qr-dlg::backdrop{background:rgba(25,25,25,.6)}
+  .qr-dlg img{display:block;width:100%;height:auto}
+  .qr-dlg .qr-bar{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;background:#fff;flex-wrap:wrap}
+</style>
+<div class="lib-head">
+  <div><h2>Biblioteca de Momentos de Segurança</h2><p><span id="lib-count">{{ sm_items|length }}</span> material(is) para conduzir o DSS. Toque para abrir o PDF.</p></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-primario" id="qr-open">Lista de Presença</button><a class="btn btn-secundario" href="/ferramentas-sst">Voltar</a></div>
+</div>
+{% if sm_msg %}<div class="lib-msg ok">{{ sm_msg }}</div>{% endif %}{% if sm_err %}<div class="lib-msg err">{{ sm_err }}</div>{% endif %}
+{% if sm_can_manage %}
+<details class="lib-admin"{% if sm_open %} open{% endif %}><summary>+ Adicionar novo momento</summary>
+  <form method="post" action="/momento-seguranca/biblioteca/upload" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Nº (opcional)<input type="number" name="num" min="1"></label>
+    <label>Tema<input type="text" name="title" maxlength="140" required></label>
+    <label>Idioma<select name="lang"><option value="PT">Português</option><option value="EN">English</option></select></label>
+    <label>Período<input type="text" name="period" maxlength="30" placeholder="Ex.: Maio/2026"></label>
+    <label class="full">Arquivo PDF (até 25 MB)<input type="file" name="file" accept="application/pdf,.pdf" required></label>
+    <div class="full"><button class="btn btn-primario" type="submit">Adicionar à biblioteca</button></div>
+  </form>
+</details>
+{% endif %}
+<div class="lib-tools">
+  <input type="search" id="lib-q" placeholder="Buscar por número ou tema (ex.: 74, altura, cinto)" autocomplete="off">
+  <select id="lib-lang"><option value="">Todos os idiomas</option><option value="PT">Português</option><option value="EN">English</option></select>
+</div>
+<div class="lib-grid" id="lib-grid">
+  {% for i in sm_items %}
+  <div class="lib-wrap" data-s="{{ (i.num|string ~ ' ' ~ i.title ~ ' ' ~ i.period)|lower }}" data-l="{{ i.lang }}" style="animation-delay:{{ (loop.index0 % 12) * 0.03 }}s">
+    <a class="lib-card" href="/momento-seguranca/biblioteca/{{ i.id }}">
+      <span class="lib-thumb"><img src="/momento-seguranca/biblioteca/{{ i.id }}/thumb" alt="" loading="lazy" onerror="this.remove()"><span class="lib-num">DSS #{{ i.num }}</span><span class="lib-tag {{ 'en' if i.lang == 'EN' }}">{{ i.lang }}</span></span>
+      <span class="lib-body"><strong style="margin-top:12px">{{ i.title }}</strong>
+      <span class="lib-foot"><span>{% if i.period %}{{ i.period }}{% if i.pages %} · {% endif %}{% endif %}{% if i.pages %}{{ i.pages }} pág.{% endif %}</span><span class="lib-open">Abrir PDF →</span></span></span>
+    </a>
+    {% if sm_can_manage %}<div class="lib-adm"><form method="post" action="/momento-seguranca/biblioteca/{{ i.id }}/delete" onsubmit="return confirm('Remover este Momento da biblioteca?')"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="lib-del" type="submit">Remover</button></form></div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+<div class="lib-empty" id="lib-empty" hidden>Nenhum material encontrado.</div>
+<dialog class="qr-dlg" id="qr-dlg">
+  <img src="/momento-seguranca/lista-presenca.png" alt="Lista de Presença - Momento de Segurança">
+  <div class="qr-bar"><a class="btn btn-primario" href="https://forms.office.com/r/3u9c2V4BCZ" target="_blank" rel="noopener noreferrer">Abrir link da lista</a><a class="btn btn-secundario" href="/momento-seguranca/lista-presenca.png" download="lista-presenca-momento-seguranca.png">Baixar imagem</a><button type="button" class="btn btn-primario" id="qr-close">Fechar</button></div>
+</dialog>
+<script>
+(function(){
+  const dg=document.getElementById('qr-dlg');
+  document.getElementById('qr-open').addEventListener('click',()=>dg.showModal());
+  document.getElementById('qr-close').addEventListener('click',()=>dg.close());
+  dg.addEventListener('click',e=>{if(e.target===dg)dg.close()});
+})();
+(function(){
+  const q=document.getElementById('lib-q'),lg=document.getElementById('lib-lang'),cards=[...document.querySelectorAll('.lib-wrap')];
+  const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  function f(){const t=norm(q.value.trim().replace(/^#/,''));let n=0;cards.forEach(c=>{const ok=(!t||norm(c.dataset.s).includes(t))&&(!lg.value||c.dataset.l===lg.value);c.hidden=!ok;if(ok)n++});document.getElementById('lib-count').textContent=n;document.getElementById('lib-empty').hidden=n>0}
+  q.addEventListener('input',f);lg.addEventListener('change',f);
+})();
+</script>
+{% endblock %}
