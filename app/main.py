@@ -29,7 +29,6 @@ from .module_configs import (
     SEPARATE_CLUSTERS, SEPARATE_CLUSTER_SITES,
 )
 from .pdfgen import generate_document, generate_day_checklist, safe_filename
-from . import sso
 from .help_articles import ARTICLES as HELP_ARTICLES, CATEGORIES as HELP_CATEGORIES, SYNONYMS as HELP_SYNONYMS
 from .releases import RELEASES, get_releases, get_version, publish_release, edit_release, delete_release
 from .push import vapid_public_key, push_backend_available, send_web_push
@@ -74,7 +73,7 @@ async def maintenance_mode(request: Request, call_next):
     """Com o modo manutenção ligado, só o DEV usa o sistema."""
     state=ti_tools.maintenance_state(STORAGE_DIR)
     path=request.url.path
-    if not state['on'] or path.startswith(('/login','/logout','/sso','/static','/api/session/status','/api/app-version')) or path in {'/sw.js','/manifest.webmanifest','/favicon.ico','/health'}:
+    if not state['on'] or path.startswith(('/login','/logout','/static','/api/session/status','/api/app-version')) or path in {'/sw.js','/manifest.webmanifest','/favicon.ico','/health'}:
         return await call_next(request)
     uid=request.session.get('user_id')
     if uid:
@@ -1639,7 +1638,7 @@ def _apr_participant_worker_index(data: dict, user_id: int) -> int|None:
 def login_page(request: Request):
     next_path=_safe_next_path(request.query_params.get('next'))
     if current_user(request): return RedirectResponse(next_path,303)
-    return templates.TemplateResponse(request,'login.html',context(request,next_path=next_path,sso_enabled=sso.enabled()))
+    return templates.TemplateResponse(request,'login.html',context(request,next_path=next_path))
 
 # Limite por origem e login; expiração automática e memória limitada.
 # Para múltiplas réplicas, usar Redis compartilhado em uma versão futura.
@@ -1694,49 +1693,6 @@ async def login(request: Request):
     request.session['user_id']=uid
     request.session['t']=time.time()
     audit(uid,'login',f'{username} | ip={ip}'); return RedirectResponse(next_path,303)
-
-@app.get('/sso/login')
-async def sso_login(request: Request):
-    if not sso.enabled(): raise HTTPException(404)
-    if current_user(request): return RedirectResponse(_safe_next_path(request.query_params.get('next')),303)
-    next_path=_safe_next_path(request.query_params.get('next'))
-    uri=sso.redirect_uri()
-    if not uri:
-        flash(request,'SSO sem endereço de retorno configurado.','error'); return RedirectResponse('/login',303)
-    request.session['sso_next']=next_path
-    try:
-        return await sso.client().authorize_redirect(request,uri)
-    except Exception as exc:
-        audit(None,'login_sso_falha',f'provedor indisponível ou mal configurado: {type(exc).__name__}')
-        flash(request,'SSO indisponível no momento. Use usuário e senha.','error'); return RedirectResponse('/login',303)
-
-@app.get('/sso/callback')
-async def sso_callback(request: Request):
-    if not sso.enabled(): raise HTTPException(404)
-    ip=request.client.host if request.client else 'unknown'
-    next_path=_safe_next_path(request.session.get('sso_next'))
-    def fail(msg: str, detail: str, uid=None):
-        audit(uid,'login_sso_falha',f'{detail} | ip={ip}')
-        flash(request,msg,'error'); return RedirectResponse('/login',303)
-    if request.query_params.get('error'):
-        return fail('Entrada pelo SSO não concluída.',f"provedor: {clean(request.query_params.get('error'))[:80]}")
-    try:
-        token=await sso.client().authorize_access_token(request)
-    except Exception as exc:
-        return fail('Não foi possível validar o login pelo SSO. Tente novamente.',f'token inválido: {type(exc).__name__}')
-    claims=dict(token.get('userinfo') or {})
-    email,err=sso.validate_claims(claims)
-    if err: return fail('Esta conta não pode entrar pelo SSO.',f'{err} | {email or "sem email"}')
-    with SessionLocal() as db:
-        user=db.query(User).filter(func.lower(User.username)==email,User.active==True).first()
-        uid=user.id if user else None
-    if not uid:
-        return fail('Seu e-mail não tem acesso cadastrado no Safety Plus. Fale com o administrador.',f'usuário não encontrado ou inativo | {email}')
-    request.session.clear()
-    request.session['user_id']=uid
-    request.session['t']=time.time()
-    audit(uid,'login_sso',f'{email} | ip={ip}')
-    return RedirectResponse(next_path,303)
 
 @app.get('/api/session/status')
 def session_status(request: Request):
@@ -2294,18 +2250,6 @@ def _dev_ctx(request: Request, section: str, **kw):
 
 def _dev_redirect(path: str, request: Request, message: str, level: str='success'):
     flash(request,message,level); return RedirectResponse(path,303)
-
-@app.get('/dev/sso',response_class=HTMLResponse)
-def dev_sso(request: Request):
-    require_dev(request)
-    info={'enabled':sso.enabled(),'flag':os.getenv('SSO_ENABLED','').strip().lower() in {'1','true','yes','sim'},
-          'tenant':sso.tenant_id(),'client':sso.client_id(),'secret':bool(sso.client_secret()),
-          'redirect':sso.redirect_uri(),'domains':', '.join(sorted(sso.allowed_domains()))}
-    with SessionLocal() as db:
-        logs=db.query(AuditLog).filter(AuditLog.action.in_(('login_sso','login_sso_falha'))).order_by(desc(AuditLog.id)).limit(50).all()
-        no_email=[u.username for u in db.query(User).filter(User.active==True,User.role!=ROLE_DEV).all() if '@' not in (u.username or '')]
-        for l in logs: db.expunge(l)
-    return templates.TemplateResponse(request,'dev_sso.html',_dev_ctx(request,'sso',sso=info,logs=logs,no_email=sorted(no_email)))
 
 @app.get('/dev/recursos-emergencia',response_class=HTMLResponse)
 def ti_emergency_page(request: Request, unidade: str=''):
